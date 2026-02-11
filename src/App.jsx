@@ -431,4 +431,4 @@ function Line({ label, value, strong }) {
     </div>
   );
 }
-const totalsBox = { border: "1px solid #eee", borderRadius: 12, padding: 12, minWidth: 260 };
+const totalsBox = { border: "1px solid #eee", borderRadius: 12, padding: 12, minWidth: 260 }; 
