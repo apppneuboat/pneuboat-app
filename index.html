@@ -3,10 +3,75 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pneuboat Facturation</title>
+    <title>Pneuboat App</title>
+
+    <style>
+      /* Fallback visible si JS ne démarre pas */
+      #boot-fallback {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        padding: 24px;
+        text-align: center;
+      }
+      .box {
+        max-width: 520px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow: 0 1px 2px rgba(15,23,42,.06);
+      }
+      .title { font-weight: 900; font-size: 18px; margin-bottom: 8px; }
+      .muted { color: #64748b; font-size: 14px; line-height: 1.4; }
+      .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background:#f1f5f9; padding:10px; border-radius: 12px; margin-top: 10px; word-break: break-all; }
+      .btn { display:inline-block; margin-top: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid #e2e8f0; background:#fff; font-weight: 800; }
+    </style>
   </head>
+
   <body>
+    <!-- Visible si React ne démarre pas -->
+    <div id="boot-fallback">
+      <div class="box">
+        <div class="title">Chargement de Pneuboat…</div>
+        <div class="muted">
+          Si cet écran reste bloqué, cela veut dire que Safari n’a pas chargé le JavaScript (cache/DNS).
+        </div>
+        <div class="code" id="boot-info"></div>
+        <a class="btn" href="/?force_reload=1">Recharger</a>
+      </div>
+    </div>
+
     <div id="root"></div>
+
+    <script>
+      // Affiche des infos utiles (sans console)
+      document.getElementById("boot-info").textContent =
+        "URL: " + location.href + "\n" +
+        "User-Agent: " + navigator.userAgent;
+
+      // Si l'app démarre, React remplira #root. On cache le fallback.
+      const hideFallbackIfReady = () => {
+        const root = document.getElementById("root");
+        if (root && root.childNodes && root.childNodes.length > 0) {
+          const fb = document.getElementById("boot-fallback");
+          if (fb) fb.style.display = "none";
+        }
+      };
+      setInterval(hideFallbackIfReady, 300);
+
+      // Si erreur JS globale, on l'affiche ici
+      window.addEventListener("error", (e) => {
+        const el = document.getElementById("boot-info");
+        if (el) el.textContent += "\n\nJS Error: " + (e?.message || "unknown");
+      });
+    </script>
+
+    <!-- Ton app -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
