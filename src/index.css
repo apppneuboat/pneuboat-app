@@ -8,51 +8,59 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* --- RÈGLES D'IMPRESSION STRICTES --- */
+/* --- RÈGLES D'IMPRESSION (Strictes) --- */
 @media print {
+  /* 1. Tout cacher par défaut */
   body * {
     visibility: hidden;
   }
 
+  /* 2. Afficher uniquement la zone d'impression */
   #printable-area, #printable-area * {
     visibility: visible;
   }
 
+  /* 3. Positionnement absolu pour prendre toute la feuille */
   #printable-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    margin: 0;
-    padding: 0;
   }
 
-  /* FORCE LE SAUT DE PAGE APRÈS CHAQUE DOCUMENT */
+  /* 4. LE SECRET : Forcer le saut de page */
   .page-break {
-    break-after: page;
-    page-break-after: always;
-    display: block;
-    height: 100vh; /* Force la hauteur complète */
+    page-break-after: always !important;
+    break-after: page !important;
+    display: block !important;
     position: relative;
+    /* On s'assure que chaque bloc prend au moins une page A4 */
+    min-height: 295mm; 
+    overflow: hidden;
   }
 
-  .no-print, nav, button, input, textarea, select {
+  /* Cacher les interfaces inutiles */
+  .no-print, nav, button, input, textarea, select, .shadow-2xl, .border {
     display: none !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 
+  /* Forcer l'impression des couleurs de fond */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 }
 
+/* Scrollbar jolie pour la zone de saisie */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #e2e8f0;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #94a3b8;
-  border-radius: 3px;
+  border-radius: 4px;
 }
