@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus, Trash2, Printer, Save, FileText, FolderOpen, ClipboardList,
   Database, History, Search, X, Upload, Settings, LayoutDashboard, Anchor,
-  PackageCheck, ShieldCheck, LogOut, User, CheckCircle
+  PackageCheck, ShieldCheck, LogOut, User
 } from "lucide-react";
 import { supabase } from "./supabase";
 
-/* ------------------ UTILITAIRES (Inchangés) ------------------ */
+/* ------------------ UTILITAIRES ------------------ */
 const NumberToLetter = (nombre) => {
   const unites = ["", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"];
   const dizaines = ["", "dix", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante-dix", "quatre-vingt", "quatre-vingt-dix"];
@@ -45,17 +45,18 @@ const NumberToLetter = (nombre) => {
 const calculateSubtotal = (items) => (items || []).reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.price || 0)), 0);
 const calculateTotal = (items, tvaRate) => calculateSubtotal(items) * (1 + Number(tvaRate || 0) / 100);
 const formatCurrency = (amount) => Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
+
+// CORRECTION DES NOMS ICI
 const labelDoc = (t) => {
   if (t === "facture") return "FACTURE";
   if (t === "proforma") return "FACTURE PROFORMA";
   if (t === "livraison") return "BON DE LIVRAISON";
   if (t === "attestation") return "ATTESTATION DE CONSTRUCTION";
-  if (t === "dossier") return "DOSSIER";
+  if (t === "dossier") return "DOSSIER COMPLET";
   return String(t || "").toUpperCase();
 };
 
-/* ------------------ UI COMPONENTS (Colorés) ------------------ */
-
+/* ------------------ UI COMPONENTS ------------------ */
 const Button = ({ children, onClick, variant = "primary", className = "", disabled }) => {
   const base = "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all duration-200 text-sm shadow-sm active:scale-95";
   const styles = {
@@ -73,17 +74,17 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
 
 const InputGroup = ({ label, children }) => (
   <div className="mb-4">
-    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-1.5 ml-1">{label}</label>
+    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 ml-1">{label}</label>
     {children}
   </div>
 );
 
 const Input = (props) => (
-  <input {...props} className="w-full px-3 py-2 bg-white border-2 border-blue-100 rounded-lg text-sm text-slate-900 placeholder-blue-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium" />
+  <input {...props} className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium" />
 );
 
 const Select = (props) => (
-  <select {...props} className="w-full px-3 py-2 bg-white border-2 border-blue-100 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium cursor-pointer">
+  <select {...props} className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium cursor-pointer">
     {props.children}
   </select>
 );
@@ -435,7 +436,7 @@ export default function MainApp() {
                   { title: "Facture", icon: <FileText size={24}/>, action: () => startNew("facture") },
                   { title: "Proforma", icon: <ClipboardList size={24}/>, action: () => startNew("proforma") },
                   { title: "Bon de Livraison", icon: <PackageCheck size={24}/>, action: () => startNew("livraison") },
-                  { title: "Attestation", icon: <Anchor size={24}/>, action: () => startNew("attestation") },
+                  { title: "Attestation de Construction", icon: <Anchor size={24}/>, action: () => startNew("attestation") },
                ].map((card, i) => (
                   <div key={i} onClick={card.action} className={`group cursor-pointer rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex flex-col items-center justify-center gap-4 text-center h-48 bg-white ${card.primary ? "border-blue-300 shadow-md ring-4 ring-blue-50" : "border-slate-200 shadow-sm hover:border-blue-300"}`}>
                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors shadow-sm ${card.primary ? "bg-blue-600 text-white group-hover:bg-blue-700" : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"}`}>
@@ -451,22 +452,23 @@ export default function MainApp() {
         {/* VUE: ÉDITION */}
         {view === "edit" && currentInvoice && (
           <div className="flex flex-col xl:flex-row gap-6 items-start h-full">
-             {/* Colonne Gauche: Formulaire */}
-             <div className="w-full xl:w-[400px] bg-white rounded-2xl shadow-lg border border-slate-100 p-6 no-print flex flex-col h-[calc(100vh-4rem)] sticky top-4">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+             
+             {/* --- COLONNE GAUCHE: FORMULAIRE (Fond coloré modifié) --- */}
+             <div className="w-full xl:w-[400px] bg-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 no-print flex flex-col h-[calc(100vh-4rem)] sticky top-4">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
                    <h3 className="font-black text-lg text-slate-800 flex items-center gap-2"><div className="w-2 h-6 bg-blue-600 rounded-full"/> Édition</h3>
-                   <button onClick={() => setView("history")} className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"><X size={18}/></button>
+                   <button onClick={() => setView("history")} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={18}/></button>
                 </div>
                 
                 <div className="overflow-y-auto custom-scrollbar flex-1 pr-2 space-y-6">
-                   <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                   <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
                       <InputGroup label="Client"><Input value={currentInvoice.clientName} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientName: e.target.value })} placeholder="Nom du client" /></InputGroup>
-                      <InputGroup label="Adresse"><textarea className="w-full px-3 py-2 bg-white border-2 border-blue-100 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium resize-none" rows={2} value={currentInvoice.clientAddress} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientAddress: e.target.value })} placeholder="Adresse..." /></InputGroup>
+                      <InputGroup label="Adresse"><textarea className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium resize-none" rows={2} value={currentInvoice.clientAddress} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientAddress: e.target.value })} placeholder="Adresse..." /></InputGroup>
                       <InputGroup label="ID / Passeport"><Input value={currentInvoice.clientIdNumber} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientIdNumber: e.target.value })} /></InputGroup>
                    </div>
 
-                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                      <div className="font-bold text-slate-800 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider"><Anchor size={14} className="text-blue-600"/> Navire</div>
+                   <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 shadow-sm">
+                      <div className="font-bold text-blue-900 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider"><Anchor size={14} className="text-blue-600"/> Navire</div>
                       <InputGroup label="Modèle">
                          <Select value={companyConfig.boatModels.find((m) => m.name === currentInvoice.boatDetails.model)?.id || ""} onChange={(e) => selectModel(e.target.value)}>
                             <option value="">— Choisir Modèle —</option>{companyConfig.boatModels.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
@@ -479,14 +481,14 @@ export default function MainApp() {
                       <InputGroup label="TVA (%)"><Input type="number" value={currentInvoice.tvaRate} onChange={(e) => setCurrentInvoice({ ...currentInvoice, tvaRate: Number(e.target.value || 0) })} /></InputGroup>
                    </div>
 
-                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                   <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
                       <div className="flex justify-between items-center mb-3"><span className="font-bold text-slate-800 text-sm uppercase tracking-wider">Paiement</span><label className="flex items-center gap-2 text-xs font-bold text-blue-600 cursor-pointer"><input type="checkbox" checked={!!currentInvoice.showPayment} onChange={(e) => setCurrentInvoice({ ...currentInvoice, showPayment: e.target.checked })} className="rounded text-blue-600 focus:ring-blue-500" /> Afficher</label></div>
                       <InputGroup label="Méthode"><Select value={currentInvoice.paymentMethod} onChange={(e) => setCurrentInvoice({ ...currentInvoice, paymentMethod: e.target.value, clientChequeNumber: e.target.value === "cheque" ? currentInvoice.clientChequeNumber : "" })}><option value="virement">Virement Bancaire</option><option value="espece">Espèces</option><option value="cheque">Chèque</option></Select></InputGroup>
                       {currentInvoice.paymentMethod === "cheque" && (<InputGroup label="N° Chèque"><Input value={currentInvoice.clientChequeNumber} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientChequeNumber: e.target.value })} placeholder="000000" /></InputGroup>)}
                    </div>
                 </div>
 
-                <div className="pt-4 mt-auto border-t border-slate-100 grid grid-cols-2 gap-3">
+                <div className="pt-4 mt-auto border-t border-slate-200 grid grid-cols-2 gap-3">
                     <Button onClick={saveInvoice} disabled={busy} className="justify-center py-3 shadow-lg shadow-blue-200"><Save size={18}/> {busy ? "..." : "Enregistrer"}</Button>
                     <Button onClick={handlePrint} variant="secondary" className="justify-center py-3"><Printer size={18}/> Imprimer</Button>
                 </div>
@@ -495,9 +497,16 @@ export default function MainApp() {
              {/* Colonne Droite: Prévisualisation */}
              <div className="flex-1 w-full bg-slate-200 rounded-2xl p-8 border border-slate-300 shadow-inner overflow-auto flex justify-center custom-scrollbar h-[calc(100vh-4rem)]">
                 <div id="printable-area" className="scale-90 origin-top">
+                   {/* MODIFICATION ICI: Wrapper page-break pour séparer les feuilles */}
                    {currentInvoice.type === "dossier" ? (
-                      <div><RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} /><RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} /><RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} /></div>
-                   ) : ( <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} /> )}
+                      <div>
+                         <div className="page-break"><RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} /></div>
+                         <div className="page-break"><RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} /></div>
+                         <div className="page-break"><RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} /></div>
+                      </div>
+                   ) : ( 
+                      <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} /> 
+                   )}
                 </div>
              </div>
           </div>
@@ -560,7 +569,7 @@ export default function MainApp() {
                  <h2 className="text-2xl font-black text-slate-900">Dossier Technique</h2>
                  <div className="flex gap-2"><Button variant="secondary" onClick={() => setView("database")}>Retour</Button><Button onClick={handlePrint}>Imprimer</Button></div>
               </div>
-              <div className="space-y-12 print-area">{["fiche", "jauge", "plan", "approbation"].map((doc) => modelDocs[printModelId]?.[doc] && (<div key={doc} className="page-break-after-always flex flex-col items-center justify-center min-h-[90vh]"><img src={modelDocs[printModelId][doc]} alt={doc} className="max-w-full max-h-[250mm] object-contain" /></div>))}</div>
+              <div className="space-y-12 print-area">{["fiche", "jauge", "plan", "approbation"].map((doc) => modelDocs[printModelId]?.[doc] && (<div key={doc} className="page-break flex flex-col items-center justify-center min-h-[90vh]"><img src={modelDocs[printModelId][doc]} alt={doc} className="max-w-full max-h-[250mm] object-contain" /></div>))}</div>
            </div>
         )}
 
