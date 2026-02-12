@@ -1,77 +1,88 @@
-<!doctype html>
-<html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pneuboat App</title>
+/* ====== Base (léger, ne casse pas ton design) ====== */
+*{ box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin:0; }
 
-    <style>
-      /* Fallback visible si JS ne démarre pas */
-      #boot-fallback {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f8fafc;
-        color: #0f172a;
-        font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
-        padding: 24px;
-        text-align: center;
-      }
-      .box {
-        max-width: 520px;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 18px;
-        padding: 20px;
-        box-shadow: 0 1px 2px rgba(15,23,42,.06);
-      }
-      .title { font-weight: 900; font-size: 18px; margin-bottom: 8px; }
-      .muted { color: #64748b; font-size: 14px; line-height: 1.4; }
-      .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background:#f1f5f9; padding:10px; border-radius: 12px; margin-top: 10px; word-break: break-all; }
-      .btn { display:inline-block; margin-top: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid #e2e8f0; background:#fff; font-weight: 800; }
-    </style>
-  </head>
+/* Helpers */
+.print-hidden{ display:block; }
 
-  <body>
-    <!-- Visible si React ne démarre pas -->
-    <div id="boot-fallback">
-      <div class="box">
-        <div class="title">Chargement de Pneuboat…</div>
-        <div class="muted">
-          Si cet écran reste bloqué, cela veut dire que Safari n’a pas chargé le JavaScript (cache/DNS).
-        </div>
-        <div class="code" id="boot-info"></div>
-        <a class="btn" href="/?force_reload=1">Recharger</a>
-      </div>
-    </div>
+/* Clamp */
+.pb-clamp-1{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1; overflow:hidden; }
+.pb-clamp-2{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.pb-clamp-3{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }
 
-    <div id="root"></div>
+/* ====== FIX A4 (NE CHANGE PAS TA UI) ====== */
+/* Important: le doc ne doit JAMAIS grandir -> hauteur A4 fixe */
+.pb-doc-fixed{
+  width: 210mm;
+  height: 297mm;       /* FIXE A4 */
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;     /* empêche de dépasser */
+  position: relative;
+}
 
-    <script>
-      // Affiche des infos utiles (sans console)
-      document.getElementById("boot-info").textContent =
-        "URL: " + location.href + "\n" +
-        "User-Agent: " + navigator.userAgent;
+/* Corps flexible mais bloqué */
+.pb-doc-body{
+  flex: 1 1 auto;
+  min-height: 0;        /* CRITIQUE pour flex */
+  overflow: hidden;     /* empêche la page de s’allonger */
+}
 
-      // Si l'app démarre, React remplira #root. On cache le fallback.
-      const hideFallbackIfReady = () => {
-        const root = document.getElementById("root");
-        if (root && root.childNodes && root.childNodes.length > 0) {
-          const fb = document.getElementById("boot-fallback");
-          if (fb) fb.style.display = "none";
-        }
-      };
-      setInterval(hideFallbackIfReady, 300);
+/* Footer toujours en bas */
+.pb-doc-footer{
+  margin-top: auto;
+}
 
-      // Si erreur JS globale, on l'affiche ici
-      window.addEventListener("error", (e) => {
-        const el = document.getElementById("boot-info");
-        if (el) el.textContent += "\n\nJS Error: " + (e?.message || "unknown");
-      });
-    </script>
+/* Chaque document = 1 page imprimée */
+.pb-print-page{
+  break-after: page;
+  page-break-after: always;
+}
+.pb-print-page:last-child{
+  break-after: auto;
+  page-break-after: auto;
+}
 
-    <!-- Ton app -->
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+/* ====== PRINT (le vrai fix) ====== */
+@page{
+  size: A4;
+  margin: 0;          /* évite le “coupé à droite” */
+}
+
+@media print{
+  html, body{
+    width: 210mm;
+    height: 297mm;
+    background: #fff !important;
+    overflow: hidden !important;
+  }
+
+  /* cacher l’UI */
+  .print-hidden{ display:none !important; }
+
+  /* IMPORTANT: enlever les transforms/scale qui créent pages blanches */
+  *{
+    transform: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Zone imprimée sans marge */
+  #printable-area{
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* A4 strict */
+  .pb-doc-fixed{
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
+  }
+}
