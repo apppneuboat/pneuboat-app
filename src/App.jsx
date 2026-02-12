@@ -264,7 +264,7 @@ export default function App() {
     setView("edit");
   };
 
-  // IMPORTANT: description = juste le nom du modèle (pas "construction bateau ...")
+  // Désignation = juste le nom du modèle
   const selectModel = (id) => {
     const m = companyConfig.boatModels.find((x) => x.id === parseInt(id));
     if (!m || !currentInvoice) return;
@@ -272,7 +272,7 @@ export default function App() {
     setCurrentInvoice((prev) => ({
       ...prev,
       boatDetails: { ...prev.boatDetails, model: m.name, length: m.length, approvalNumber: m.approvalNumber },
-      items: [{ ...prev.items[0], description: `${m.name}` }], // <= juste le modèle
+      items: [{ ...prev.items[0], description: `${m.name}` }],
     }));
   };
 
@@ -307,19 +307,11 @@ export default function App() {
 
     if (!invoiceId) {
       const { data, error } = await supabase.from("invoices").insert(payload).select("id").single();
-      if (error) {
-        setBusy(false);
-        alert(error.message);
-        return;
-      }
+      if (error) { setBusy(false); alert(error.message); return; }
       invoiceId = data.id;
     } else {
       const { error } = await supabase.from("invoices").update(payload).eq("id", invoiceId);
-      if (error) {
-        setBusy(false);
-        alert(error.message);
-        return;
-      }
+      if (error) { setBusy(false); alert(error.message); return; }
       await supabase.from("invoice_items").delete().eq("invoice_id", invoiceId);
     }
 
@@ -332,11 +324,7 @@ export default function App() {
     }));
     if (itemsPayload.length) {
       const { error: itemsErr } = await supabase.from("invoice_items").insert(itemsPayload);
-      if (itemsErr) {
-        setBusy(false);
-        alert(itemsErr.message);
-        return;
-      }
+      if (itemsErr) { setBusy(false); alert(itemsErr.message); return; }
     }
 
     if (!currentInvoice.db_id) {
@@ -368,9 +356,7 @@ export default function App() {
     await loadHistory();
   };
 
-  // FIX PRINT: on imprime le document, pas l’écran blanc
   const handlePrint = () => {
-    // petite pause pour laisser React rendre l’aperçu correctement
     requestAnimationFrame(() => window.print());
   };
 
@@ -386,201 +372,238 @@ export default function App() {
     const isBL = subType === "livraison";
     const isFactOrPro = subType === "facture" || subType === "proforma";
 
-    // pour éviter de dépasser A4 : on limite certains champs trop longs
-    const safe = (s, max = 160) => (String(s || "").length > max ? String(s).slice(0, max) + "…" : String(s || ""));
+    const safe = (s, max = 160) =>
+      String(s || "").length > max ? String(s || "").slice(0, max) + "…" : String(s || "");
 
     return (
       <div
         className="
+          pb-doc
           bg-white mx-auto
           w-[21cm] min-h-[29.7cm]
-          border border-slate-200 rounded-2xl overflow-hidden
-          print:border-none print:rounded-none
+          border border-slate-200 overflow-hidden
+          flex flex-col relative
         "
       >
-        {/* Header (Bleu + petit accent rouge) */}
-        <div className="px-8 py-6 border-b border-slate-200">
-          <div className="flex justify-between items-start gap-6">
-            <div className="w-1/2">
-              {companyConfig.logo ? (
-                <img src={companyConfig.logo} className="h-12 object-contain mb-3" />
-              ) : (
-                <div className="mb-2">
-                  <h1 className="text-xl font-extrabold text-slate-900 leading-none">
-                    PNEUBOAT <span className="text-red-600">AT</span>
-                  </h1>
-                  <p className="text-[11px] font-semibold text-slate-500 mt-1">{companyConfig.footerText}</p>
+        {/* Bande verticale Pneuboat */}
+        <div className="pb-ribbon" />
+
+        {/* Contenu décalé pour ne pas passer sous la bande */}
+        <div className="pl-[16mm] flex flex-col min-h-[29.7cm] relative">
+          {/* Déco haut (premium) */}
+          <div className="relative">
+            <div className="h-2 bg-gradient-to-r from-indigo-600 via-blue-700 to-red-600" />
+            <div className="absolute -top-10 -left-10 h-28 w-28 rounded-[36px] bg-indigo-50 border border-indigo-100 rotate-12" />
+            <div className="absolute -top-12 -right-12 h-32 w-32 rounded-[44px] bg-red-50 border border-red-100 -rotate-12" />
+          </div>
+
+          {/* Filigrane léger */}
+          <div className="pointer-events-none absolute inset-0 opacity-[0.04] flex items-center justify-center">
+            <div className="text-[110px] font-black tracking-tight text-slate-900 rotate-[-18deg]">
+              PNEUBOAT
+            </div>
+          </div>
+
+          {/* Header */}
+          <div className="relative px-8 py-6 border-b border-slate-200">
+            <div className="flex justify-between items-start gap-6">
+              <div className="w-1/2">
+                {companyConfig.logo ? (
+                  <img src={companyConfig.logo} className="h-12 object-contain mb-3" />
+                ) : (
+                  <div className="mb-2">
+                    <h1 className="text-xl font-extrabold text-slate-900 leading-none">
+                      PNEUBOAT <span className="text-red-600">AT</span>
+                    </h1>
+                    <p className="text-[11px] font-semibold text-slate-500 mt-1">{companyConfig.footerText}</p>
+                  </div>
+                )}
+                <div className="text-[11px] text-slate-500 leading-snug">
+                  <div className="font-semibold text-slate-800">{companyConfig.address}</div>
+                  <div>Tél: {companyConfig.phone} • Email: {companyConfig.email}</div>
                 </div>
-              )}
-              <div className="text-[11px] text-slate-500 leading-snug">
-                <div className="font-semibold text-slate-800">{companyConfig.address}</div>
-                <div>Tél: {companyConfig.phone} • Email: {companyConfig.email}</div>
+              </div>
+
+              <div className="text-right flex flex-col items-end">
+                <div className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-600" />
+                  <span className="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold uppercase shadow-sm">
+                    {subType}
+                  </span>
+                </div>
+
+                <div className="mt-3">
+                  <p className="font-mono text-base font-black text-slate-900">REF: {docNumber}</p>
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}
+                  </p>
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="text-right flex flex-col items-end">
-              <div className="inline-flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-600"></span>
-                <span className="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold uppercase">
-                  {subType}
-                </span>
+          {/* Client */}
+          <div className="relative px-8 pt-6">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 relative overflow-hidden">
+              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-indigo-600 to-red-600" />
+              <div className="pl-3">
+                <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Client</p>
+                <div className="mt-1 text-lg font-extrabold text-slate-900 break-words">
+                  {safe(currentInvoice.clientName, 80) || "---"}
+                </div>
+                <div className="text-sm text-slate-600 mt-1 break-words">
+                  {safe(currentInvoice.clientAddress, 180) || "---"}
+                </div>
+
+                {currentInvoice.clientIdNumber && (
+                  <div className="mt-3 inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+                    <ShieldCheck size={14} className="text-indigo-600" />
+                    <span className="text-[11px] font-bold text-slate-700">
+                      ID: <span className="font-mono">{safe(currentInvoice.clientIdNumber, 32)}</span>
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="mt-3">
-                <p className="font-mono text-base font-black text-slate-900">REF: {docNumber}</p>
-                <p className="text-[11px] font-semibold text-slate-500">
-                  Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}
+            </div>
+          </div>
+
+          {/* BODY */}
+          <div className="relative flex-1 px-8 py-6">
+            {isAtt ? (
+              <>
+                <p className="text-sm text-slate-700 leading-relaxed text-justify">
+                  Je soussigné, <strong>{companyConfig.managerName}</strong>, gérant de la société{" "}
+                  <strong>{companyConfig.name}</strong>, certifie par la présente que le navire désigné
+                  ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de{" "}
+                  <strong>{currentInvoice.clientName || ".........."}</strong>.
                 </p>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Client */}
-        <div className="px-8 pt-6">
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
-            <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Client</p>
-            <div className="mt-1 text-lg font-extrabold text-slate-900 break-words">
-              {safe(currentInvoice.clientName, 80) || "---"}
-            </div>
-            <div className="text-sm text-slate-600 mt-1 break-words">
-              {safe(currentInvoice.clientAddress, 160) || "---"}
-            </div>
-
-            {currentInvoice.clientIdNumber && (
-              <div className="mt-3 inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200">
-                <ShieldCheck size={14} className="text-indigo-600" />
-                <span className="text-[11px] font-bold text-slate-700">
-                  ID: <span className="font-mono">{safe(currentInvoice.clientIdNumber, 32)}</span>
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 px-8 py-6">
-          {isAtt ? (
-            <>
-              <p className="text-sm text-slate-700 leading-relaxed text-justify">
-                Je soussigné, <strong>{companyConfig.managerName}</strong>, gérant de la société{" "}
-                <strong>{companyConfig.name}</strong>, certifie par la présente que le navire désigné
-                ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de{" "}
-                <strong>{currentInvoice.clientName || ".........."}</strong>.
-              </p>
-
-              <div className="mt-6 border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="bg-slate-900 text-white px-6 py-3 text-[11px] font-extrabold uppercase tracking-wider text-center">
-                  Fiche Technique
+                <div className="mt-6 border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="bg-slate-900 text-white px-6 py-3 text-[11px] font-extrabold uppercase tracking-wider text-center">
+                    Fiche Technique
+                  </div>
+                  <div className="p-6 grid grid-cols-2 gap-5 text-sm">
+                    <Info label="Modèle" value={currentInvoice.boatDetails.model} />
+                    <Info label="Numéro de série" value={currentInvoice.boatDetails.serialNumber} mono accent />
+                    <Info label="Millésime" value={currentInvoice.boatDetails.year} />
+                    <Info label="Homologation" value={currentInvoice.boatDetails.approvalNumber} />
+                  </div>
                 </div>
-                <div className="p-6 grid grid-cols-2 gap-5 text-sm">
-                  <Info label="Modèle" value={currentInvoice.boatDetails.model} />
-                  <Info label="Numéro de série" value={currentInvoice.boatDetails.serialNumber} mono accent />
-                  <Info label="Millésime" value={currentInvoice.boatDetails.year} />
-                  <Info label="Homologation" value={currentInvoice.boatDetails.approvalNumber} />
+
+                <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-600 italic">
+                  Notes : {safe(currentInvoice.boatDetails.notes, 260)}
                 </div>
-              </div>
-
-              <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-600 italic">
-                Notes : {safe(currentInvoice.boatDetails.notes, 220)}
-              </div>
-            </>
-          ) : (
-            <>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 text-[12px] font-extrabold">
-                    <th className="py-3 text-left">Désignation</th>
-                    <th className="py-3 text-center w-24">Qté</th>
-                    {!isBL && (
-                      <>
-                        <th className="py-3 text-right w-32">P.U</th>
-                        <th className="py-3 text-right w-40">Total</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100">
-                  {currentInvoice.items.map((it, i) => (
-                    <tr key={it.id || i} className="align-top">
-                      <td className="py-4 pr-4">
-                        <div className="font-bold text-slate-900 break-words">
-                          {safe(it.description, 60)}
-                        </div>
-
-                        {/* Numéro de série visible sous la désignation */}
-                        {i === 0 && currentInvoice.boatDetails?.serialNumber && (
-                          <div className="text-[12px] text-slate-500 mt-1">
-                            Numéro de série:{" "}
-                            <span className="font-mono text-red-600 font-bold">
-                              {safe(currentInvoice.boatDetails.serialNumber, 32)}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="py-4 text-center font-bold">{Number(it.quantity || 0)}</td>
-
+              </>
+            ) : (
+              <>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 text-[12px] font-extrabold">
+                      <th className="py-3 text-left">Désignation</th>
+                      <th className="py-3 text-center w-24">Qté</th>
                       {!isBL && (
                         <>
-                          <td className="py-4 text-right text-slate-600">
-                            {Number(it.price || 0).toLocaleString("fr-FR")}
-                          </td>
-                          <td className="py-4 text-right font-extrabold text-slate-900">
-                            {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
-                          </td>
+                          <th className="py-3 text-right w-32">P.U</th>
+                          <th className="py-3 text-right w-40">Total</th>
                         </>
                       )}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </div>
+                  </thead>
 
-        {/* Totals / footer */}
-        <div className="border-t border-slate-200 px-8 py-6">
-          {!isAtt && !isBL && (
-            <div className="flex justify-end">
-              <div className="w-[320px] bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <KRow label="Sous-total (HT)" value={formatCurrency(subtotal)} />
-                <KRow label={`TVA (${currentInvoice.tvaRate}%)`} value={formatCurrency(tvaAmt)} />
-                <div className="h-px bg-slate-200 my-2" />
-                <KRow label="TOTAL TTC" value={formatCurrency(total)} strong />
+                  <tbody className="divide-y divide-slate-100">
+                    {currentInvoice.items.map((it, i) => (
+                      <tr key={it.id || i} className="align-top">
+                        <td className="py-4 pr-4">
+                          <div className="font-bold text-slate-900 break-words">
+                            {safe(it.description, 60)}
+                          </div>
+
+                          {i === 0 && currentInvoice.boatDetails?.serialNumber && (
+                            <div className="text-[12px] text-slate-500 mt-1">
+                              Numéro de série:{" "}
+                              <span className="font-mono text-red-600 font-bold">
+                                {safe(currentInvoice.boatDetails.serialNumber, 32)}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="py-4 text-center font-bold">{Number(it.quantity || 0)}</td>
+
+                        {!isBL && (
+                          <>
+                            <td className="py-4 text-right text-slate-600">
+                              {Number(it.price || 0).toLocaleString("fr-FR")}
+                            </td>
+                            <td className="py-4 text-right font-extrabold text-slate-900">
+                              {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {!isAtt && !isBL && (
+                  <div className="mt-5 flex justify-end">
+                    <div className="w-[340px] bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
+                      <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-600 to-red-600" />
+                      <div className="pl-3">
+                        <KRow label="Sous-total (HT)" value={formatCurrency(subtotal)} />
+                        <KRow label={`TVA (${currentInvoice.tvaRate}%)`} value={formatCurrency(tvaAmt)} />
+                        <div className="h-px bg-slate-200 my-2" />
+                        <KRow label="TOTAL TTC" value={formatCurrency(total)} strong />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isFactOrPro && (
+                  <div className="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 h-20 w-20 bg-indigo-100 rounded-bl-[32px]" />
+                    <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                      Arrêté la présente facture à la somme de :
+                    </div>
+                    <div className="mt-1 text-sm font-bold text-slate-800 break-words">
+                      {NumberToLetter(total)}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* FOOTER collé en bas */}
+          <div className="relative mt-auto border-t border-slate-200 px-8 py-5">
+            <div className="grid grid-cols-3 gap-4 text-[11px] text-slate-500">
+              <div className="border border-slate-200 rounded-2xl p-3">
+                <div className="font-extrabold text-slate-700 mb-1">Banque</div>
+                <div>BANQUE: <span className="font-semibold text-slate-800">{companyConfig.bankName}</span></div>
+                <div>RIB: <span className="font-mono text-slate-800">{companyConfig.bankRib}</span></div>
+              </div>
+
+              <div className="border border-slate-200 rounded-2xl p-3">
+                <div className="font-extrabold text-slate-700 mb-1">Fiscal</div>
+                <div>RC: <span className="font-semibold text-slate-800">{companyConfig.rc}</span></div>
+                <div>NIF: <span className="font-semibold text-slate-800">{companyConfig.nif}</span></div>
+                <div>NIS: <span className="font-semibold text-slate-800">{companyConfig.nis}</span></div>
+              </div>
+
+              <div className="border border-slate-200 rounded-2xl p-3">
+                <div className="font-extrabold text-slate-700 mb-1">Société</div>
+                <div className="font-semibold text-slate-800">{companyConfig.footerText}</div>
+                <div className="text-slate-400">Pneuboat • Oran</div>
               </div>
             </div>
-          )}
 
-          {isFactOrPro && (
-            <div className="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-4">
-              <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-                Arrêté la présente facture à la somme de :
+            <div className="mt-4 flex justify-between gap-4 text-[10px] text-slate-400">
+              <div className="flex-1 border border-dashed border-slate-200 rounded-2xl p-3 text-center">
+                Cachet & Signature gérant
               </div>
-              <div className="mt-1 text-sm font-bold text-slate-800 break-words">
-                {NumberToLetter(total)}
+              <div className="flex-1 border border-dashed border-slate-200 rounded-2xl p-3 text-center">
+                Signature client
               </div>
-            </div>
-          )}
-
-          <div className="mt-6 grid grid-cols-3 gap-4 text-[11px] text-slate-500">
-            <div className="border border-slate-200 rounded-2xl p-3">
-              <div className="font-extrabold text-slate-700 mb-1">Banque</div>
-              <div>BANQUE: <span className="font-semibold text-slate-800">{companyConfig.bankName}</span></div>
-              <div>RIB: <span className="font-mono text-slate-800">{companyConfig.bankRib}</span></div>
-            </div>
-
-            <div className="border border-slate-200 rounded-2xl p-3">
-              <div className="font-extrabold text-slate-700 mb-1">Fiscal</div>
-              <div>RC: <span className="font-semibold text-slate-800">{companyConfig.rc}</span></div>
-              <div>NIF: <span className="font-semibold text-slate-800">{companyConfig.nif}</span></div>
-              <div>NIS: <span className="font-semibold text-slate-800">{companyConfig.nis}</span></div>
-            </div>
-
-            <div className="border border-slate-200 rounded-2xl p-3">
-              <div className="font-extrabold text-slate-700 mb-1">Société</div>
-              <div className="font-semibold text-slate-800">{companyConfig.footerText}</div>
-              <div className="text-slate-400">Pneuboat • Oran</div>
             </div>
           </div>
         </div>
@@ -608,8 +631,6 @@ export default function App() {
     </div>
   );
 
-  // FIX: à l’écran la facture est centrée + scale (donc elle ne sort plus à droite)
-  // FIX: au print on cache juste la colonne saisie, pas l’aperçu.
   const renderEdit = () => {
     if (!currentInvoice) return null;
 
@@ -661,7 +682,6 @@ export default function App() {
                     </select>
                   </Field>
 
-                  {/* CHANGÉ: Numéro de série */}
                   <Field label="Numéro de série">
                     <input
                       className="pb-input font-mono"
@@ -704,17 +724,12 @@ export default function App() {
                 <Printer size={16} /> Imprimer
               </button>
             </div>
-
-            <div className="mt-3 text-xs pb-muted">
-              Astuce: pour que ça rentre A4, évite les textes trop longs (adresse, notes).
-            </div>
           </div>
 
           {/* Preview = imprimable */}
           <div className="pb-card p-4 bg-white min-w-0">
             <div className="flex justify-center">
               <div className="w-full overflow-auto">
-                {/* On scale l’aperçu pour éviter qu’il dépasse l’écran */}
                 <div className="flex justify-center origin-top scale-[0.86] xl:scale-100">
                   <div id="printable-area">
                     {currentInvoice.type === "dossier" ? (
@@ -731,7 +746,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Print: pas de scale */}
             <style>{`
               @media print {
                 .scale-\\[0\\.86\\] { transform: none !important; }
@@ -964,7 +978,7 @@ export default function App() {
         </div>
 
         <div className="mt-6 pb-card-soft p-5">
-          <div className="text-sm font-extrabold text-slate-800 mb-3">Modèles (édition simple)</div>
+          <div className="text-sm font-extrabold text-slate-800 mb-3">Modèles</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {companyConfig.boatModels.map((m, idx) => (
               <div key={m.id} className="pb-card p-4">
@@ -1088,7 +1102,6 @@ export default function App() {
   /* ------------------ MAIN ------------------ */
   return (
     <div className="pb-page font-sans antialiased">
-      {/* NAV */}
       <nav className="pb-nav print-hidden">
         <div className="pb-container flex items-center justify-between">
           <button onClick={() => setView("list")} className="flex items-center gap-3">
@@ -1126,7 +1139,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* CONTENT */}
       {view === "list" && renderHome()}
       {view === "edit" && renderEdit()}
       {view === "history" && renderHistory()}
