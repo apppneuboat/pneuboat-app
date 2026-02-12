@@ -80,7 +80,7 @@ export default function App() {
   const [printModelId, setPrintModelId] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  // CONFIG (tu gardes la main dessus)
+  // CONFIG
   const [companyConfig, setCompanyConfig] = useState({
     name: "PNEUBOAT SARL",
     managerName: "Sekkal Gherbi Youcef",
@@ -156,15 +156,12 @@ export default function App() {
     setBusy(true);
     const { data, error } = await supabase
       .from("invoices")
-      .select("id, number, date, client_name, client_address, client_id_number, tva_rate, subtotal, total, doc_type, data, created_at")
+      .select("id, number, date, client_name, client_address, client_id_number, tva_rate, total, doc_type, data, created_at")
       .order("created_at", { ascending: false })
       .limit(200);
 
     setBusy(false);
-    if (error) {
-      console.error(error);
-      return;
-    }
+    if (error) return console.error(error);
 
     const mapped = (data || []).map((row) => {
       const d = row.data || {};
@@ -267,13 +264,15 @@ export default function App() {
     setView("edit");
   };
 
+  // IMPORTANT: description = juste le nom du modèle (pas "construction bateau ...")
   const selectModel = (id) => {
     const m = companyConfig.boatModels.find((x) => x.id === parseInt(id));
     if (!m || !currentInvoice) return;
+
     setCurrentInvoice((prev) => ({
       ...prev,
       boatDetails: { ...prev.boatDetails, model: m.name, length: m.length, approvalNumber: m.approvalNumber },
-      items: [{ ...prev.items[0], description: `BATEAU CONSTRUCTION NAVALE ${m.type.toUpperCase()} - MODÈLE ${m.name.toUpperCase()}` }],
+      items: [{ ...prev.items[0], description: `${m.name}` }], // <= juste le modèle
     }));
   };
 
@@ -369,61 +368,89 @@ export default function App() {
     await loadHistory();
   };
 
-  const handlePrint = () => window.print();
+  // FIX PRINT: on imprime le document, pas l’écran blanc
+  const handlePrint = () => {
+    // petite pause pour laisser React rendre l’aperçu correctement
+    requestAnimationFrame(() => window.print());
+  };
 
   /* ------------------ RENDER DOC A4 ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
 
     const total = calculateTotal(currentInvoice.items, currentInvoice.tvaRate);
+    const subtotal = calculateSubtotal(currentInvoice.items);
+    const tvaAmt = subtotal * (Number(currentInvoice.tvaRate || 0) / 100);
+
     const isAtt = subType === "attestation";
     const isBL = subType === "livraison";
     const isFactOrPro = subType === "facture" || subType === "proforma";
 
-    return (
-      <div className="bg-white mx-auto mb-10 print:m-0 print:p-8 w-[21cm] min-h-[29.7cm] flex flex-col font-sans text-slate-800 border border-slate-200 rounded-xl overflow-hidden print:border-none antialiased">
-        {/* Header */}
-        <div className="flex justify-between border-b border-slate-200 px-8 py-6 items-start">
-          <div className="w-1/2">
-            {companyConfig.logo ? (
-              <img src={companyConfig.logo} className="h-12 object-contain mb-3" />
-            ) : (
-              <div className="mb-3">
-                <h1 className="text-xl font-extrabold text-slate-900 leading-none">Pneuboat</h1>
-                <p className="text-[11px] font-semibold text-slate-500 mt-1">Facturation & Documents</p>
-              </div>
-            )}
-            <div className="text-[11px] text-slate-500 space-y-0.5">
-              <p>{companyConfig.address}</p>
-              <p>Tél: {companyConfig.phone} • Email: {companyConfig.email}</p>
-            </div>
-          </div>
+    // pour éviter de dépasser A4 : on limite certains champs trop longs
+    const safe = (s, max = 160) => (String(s || "").length > max ? String(s).slice(0, max) + "…" : String(s || ""));
 
-          <div className="text-right flex flex-col items-end">
-            <div className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-extrabold uppercase">
-              {subType}
+    return (
+      <div
+        className="
+          bg-white mx-auto
+          w-[21cm] min-h-[29.7cm]
+          border border-slate-200 rounded-2xl overflow-hidden
+          print:border-none print:rounded-none
+        "
+      >
+        {/* Header (Bleu + petit accent rouge) */}
+        <div className="px-8 py-6 border-b border-slate-200">
+          <div className="flex justify-between items-start gap-6">
+            <div className="w-1/2">
+              {companyConfig.logo ? (
+                <img src={companyConfig.logo} className="h-12 object-contain mb-3" />
+              ) : (
+                <div className="mb-2">
+                  <h1 className="text-xl font-extrabold text-slate-900 leading-none">
+                    PNEUBOAT <span className="text-red-600">AT</span>
+                  </h1>
+                  <p className="text-[11px] font-semibold text-slate-500 mt-1">{companyConfig.footerText}</p>
+                </div>
+              )}
+              <div className="text-[11px] text-slate-500 leading-snug">
+                <div className="font-semibold text-slate-800">{companyConfig.address}</div>
+                <div>Tél: {companyConfig.phone} • Email: {companyConfig.email}</div>
+              </div>
             </div>
-            <div className="mt-3 space-y-1">
-              <p className="font-mono text-base font-black text-slate-900">REF: {docNumber}</p>
-              <p className="text-[11px] font-semibold text-slate-500">
-                Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}
-              </p>
+
+            <div className="text-right flex flex-col items-end">
+              <div className="inline-flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-600"></span>
+                <span className="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold uppercase">
+                  {subType}
+                </span>
+              </div>
+              <div className="mt-3">
+                <p className="font-mono text-base font-black text-slate-900">REF: {docNumber}</p>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Client */}
         <div className="px-8 pt-6">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 relative">
-            <p className="text-[10px] font-extrabold text-slate-500 uppercase mb-2 tracking-wider">Client</p>
-            <h2 className="text-lg font-extrabold text-slate-900">{currentInvoice.clientName || "---"}</h2>
-            <p className="text-slate-600 text-sm">{currentInvoice.clientAddress || "---"}</p>
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+            <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Client</p>
+            <div className="mt-1 text-lg font-extrabold text-slate-900 break-words">
+              {safe(currentInvoice.clientName, 80) || "---"}
+            </div>
+            <div className="text-sm text-slate-600 mt-1 break-words">
+              {safe(currentInvoice.clientAddress, 160) || "---"}
+            </div>
 
             {currentInvoice.clientIdNumber && (
               <div className="mt-3 inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200">
                 <ShieldCheck size={14} className="text-indigo-600" />
                 <span className="text-[11px] font-bold text-slate-700">
-                  ID: <span className="font-mono">{currentInvoice.clientIdNumber}</span>
+                  ID: <span className="font-mono">{safe(currentInvoice.clientIdNumber, 32)}</span>
                 </span>
               </div>
             )}
@@ -434,24 +461,27 @@ export default function App() {
         <div className="flex-1 px-8 py-6">
           {isAtt ? (
             <>
-              <p className="text-sm text-slate-700 leading-relaxed">
-                Je soussigné, <strong>{companyConfig.managerName}</strong>, gérant de la société <strong>{companyConfig.name}</strong>, certifie par la présente que le navire désigné ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de <strong>{currentInvoice.clientName || ".........."}</strong>.
+              <p className="text-sm text-slate-700 leading-relaxed text-justify">
+                Je soussigné, <strong>{companyConfig.managerName}</strong>, gérant de la société{" "}
+                <strong>{companyConfig.name}</strong>, certifie par la présente que le navire désigné
+                ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de{" "}
+                <strong>{currentInvoice.clientName || ".........."}</strong>.
               </p>
 
-              <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden">
+              <div className="mt-6 border border-slate-200 rounded-2xl overflow-hidden">
                 <div className="bg-slate-900 text-white px-6 py-3 text-[11px] font-extrabold uppercase tracking-wider text-center">
                   Fiche Technique
                 </div>
                 <div className="p-6 grid grid-cols-2 gap-5 text-sm">
                   <Info label="Modèle" value={currentInvoice.boatDetails.model} />
-                  <Info label="Coque (HIN)" value={currentInvoice.boatDetails.serialNumber} mono accent />
+                  <Info label="Numéro de série" value={currentInvoice.boatDetails.serialNumber} mono accent />
                   <Info label="Millésime" value={currentInvoice.boatDetails.year} />
                   <Info label="Homologation" value={currentInvoice.boatDetails.approvalNumber} />
                 </div>
               </div>
 
-              <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600 italic">
-                Notes : {currentInvoice.boatDetails.notes}
+              <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-600 italic">
+                Notes : {safe(currentInvoice.boatDetails.notes, 220)}
               </div>
             </>
           ) : (
@@ -469,22 +499,34 @@ export default function App() {
                     )}
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-slate-100">
                   {currentInvoice.items.map((it, i) => (
-                    <tr key={it.id || i}>
-                      <td className="py-5">
-                        <div className="font-bold text-slate-900">{it.description}</div>
+                    <tr key={it.id || i} className="align-top">
+                      <td className="py-4 pr-4">
+                        <div className="font-bold text-slate-900 break-words">
+                          {safe(it.description, 60)}
+                        </div>
+
+                        {/* Numéro de série visible sous la désignation */}
                         {i === 0 && currentInvoice.boatDetails?.serialNumber && (
                           <div className="text-[12px] text-slate-500 mt-1">
-                            Coque: <span className="font-mono">{currentInvoice.boatDetails.serialNumber}</span>
+                            Numéro de série:{" "}
+                            <span className="font-mono text-red-600 font-bold">
+                              {safe(currentInvoice.boatDetails.serialNumber, 32)}
+                            </span>
                           </div>
                         )}
                       </td>
-                      <td className="py-5 text-center font-bold">{it.quantity}</td>
+
+                      <td className="py-4 text-center font-bold">{Number(it.quantity || 0)}</td>
+
                       {!isBL && (
                         <>
-                          <td className="py-5 text-right text-slate-600">{Number(it.price || 0).toLocaleString("fr-FR")}</td>
-                          <td className="py-5 text-right font-extrabold text-slate-900">
+                          <td className="py-4 text-right text-slate-600">
+                            {Number(it.price || 0).toLocaleString("fr-FR")}
+                          </td>
+                          <td className="py-4 text-right font-extrabold text-slate-900">
                             {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
                           </td>
                         </>
@@ -497,13 +539,13 @@ export default function App() {
           )}
         </div>
 
-        {/* Footer / Totals */}
+        {/* Totals / footer */}
         <div className="border-t border-slate-200 px-8 py-6">
           {!isAtt && !isBL && (
             <div className="flex justify-end">
-              <div className="w-[320px] bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <KRow label="Sous-total (HT)" value={formatCurrency(calculateSubtotal(currentInvoice.items))} />
-                <KRow label={`TVA (${currentInvoice.tvaRate}%)`} value={formatCurrency(calculateSubtotal(currentInvoice.items) * (Number(currentInvoice.tvaRate || 0) / 100))} />
+              <div className="w-[320px] bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <KRow label="Sous-total (HT)" value={formatCurrency(subtotal)} />
+                <KRow label={`TVA (${currentInvoice.tvaRate}%)`} value={formatCurrency(tvaAmt)} />
                 <div className="h-px bg-slate-200 my-2" />
                 <KRow label="TOTAL TTC" value={formatCurrency(total)} strong />
               </div>
@@ -511,27 +553,31 @@ export default function App() {
           )}
 
           {isFactOrPro && (
-            <div className="mt-5 bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <div className="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-4">
               <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
                 Arrêté la présente facture à la somme de :
               </div>
-              <div className="mt-1 text-sm font-bold text-slate-800">{NumberToLetter(total)}</div>
+              <div className="mt-1 text-sm font-bold text-slate-800 break-words">
+                {NumberToLetter(total)}
+              </div>
             </div>
           )}
 
           <div className="mt-6 grid grid-cols-3 gap-4 text-[11px] text-slate-500">
-            <div className="border border-slate-200 rounded-xl p-3">
+            <div className="border border-slate-200 rounded-2xl p-3">
               <div className="font-extrabold text-slate-700 mb-1">Banque</div>
               <div>BANQUE: <span className="font-semibold text-slate-800">{companyConfig.bankName}</span></div>
               <div>RIB: <span className="font-mono text-slate-800">{companyConfig.bankRib}</span></div>
             </div>
-            <div className="border border-slate-200 rounded-xl p-3">
+
+            <div className="border border-slate-200 rounded-2xl p-3">
               <div className="font-extrabold text-slate-700 mb-1">Fiscal</div>
               <div>RC: <span className="font-semibold text-slate-800">{companyConfig.rc}</span></div>
               <div>NIF: <span className="font-semibold text-slate-800">{companyConfig.nif}</span></div>
               <div>NIS: <span className="font-semibold text-slate-800">{companyConfig.nis}</span></div>
             </div>
-            <div className="border border-slate-200 rounded-xl p-3">
+
+            <div className="border border-slate-200 rounded-2xl p-3">
               <div className="font-extrabold text-slate-700 mb-1">Société</div>
               <div className="font-semibold text-slate-800">{companyConfig.footerText}</div>
               <div className="text-slate-400">Pneuboat • Oran</div>
@@ -546,16 +592,13 @@ export default function App() {
   const renderHome = () => (
     <div className="pb-container">
       <div className="pb-card p-6">
-        <h2 className="text-2xl font-extrabold tracking-tight">Station</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight">
+          Station <span className="text-red-600">•</span> Documents
+        </h2>
         <p className="pb-muted mt-1">Créer rapidement un document.</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
-          <ActionCard
-            title="Dossier complet"
-            icon={<FolderOpen size={18} />}
-            primary
-            onClick={() => startNew("dossier")}
-          />
+          <ActionCard title="Dossier complet" icon={<FolderOpen size={18} />} primary onClick={() => startNew("dossier")} />
           <ActionCard title="Facture" icon={<FileText size={18} />} onClick={() => startNew("facture")} />
           <ActionCard title="Proforma" icon={<ClipboardList size={18} />} onClick={() => startNew("proforma")} />
           <ActionCard title="Livraison" icon={<PackageCheck size={18} />} onClick={() => startNew("livraison")} />
@@ -565,16 +608,20 @@ export default function App() {
     </div>
   );
 
+  // FIX: à l’écran la facture est centrée + scale (donc elle ne sort plus à droite)
+  // FIX: au print on cache juste la colonne saisie, pas l’aperçu.
   const renderEdit = () => {
     if (!currentInvoice) return null;
 
     return (
-      <div className="pb-container print:hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 items-start">
-          {/* Form */}
-          <div className="pb-card p-6">
+      <div className="pb-container">
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-start">
+          {/* Form = caché au print */}
+          <div className="pb-card p-6 print-hidden">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-extrabold tracking-tight">Saisie</h3>
+              <h3 className="text-xl font-extrabold tracking-tight">
+                Saisie <span className="text-indigo-600">•</span> {currentInvoice.type}
+              </h3>
               <button className="pb-btn pb-btn-ghost" onClick={() => setView("history")} title="Fermer">
                 <X size={16} />
               </button>
@@ -594,7 +641,9 @@ export default function App() {
               </Field>
 
               <div className="pb-card-soft p-4">
-                <div className="text-sm font-extrabold text-slate-800">Configuration technique</div>
+                <div className="text-sm font-extrabold text-slate-800">
+                  Configuration <span className="text-red-600">•</span> Unité
+                </div>
 
                 <div className="mt-3 space-y-3">
                   <Field label="Modèle naval">
@@ -612,11 +661,13 @@ export default function App() {
                     </select>
                   </Field>
 
-                  <Field label="Matricule HIN">
+                  {/* CHANGÉ: Numéro de série */}
+                  <Field label="Numéro de série">
                     <input
                       className="pb-input font-mono"
                       value={currentInvoice.boatDetails.serialNumber}
                       onChange={(e) => setCurrentInvoice({ ...currentInvoice, boatDetails: { ...currentInvoice.boatDetails, serialNumber: e.target.value.toUpperCase() } })}
+                      placeholder="DZ-PNB-0000"
                     />
                   </Field>
 
@@ -653,21 +704,40 @@ export default function App() {
                 <Printer size={16} /> Imprimer
               </button>
             </div>
+
+            <div className="mt-3 text-xs pb-muted">
+              Astuce: pour que ça rentre A4, évite les textes trop longs (adresse, notes).
+            </div>
           </div>
 
-          {/* Preview */}
-          <div className="pb-card p-4 bg-white overflow-x-auto">
-            <div id="printable-area">
-              {currentInvoice.type === "dossier" ? (
-                <div className="space-y-10">
-                  <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
-                  <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
-                  <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
+          {/* Preview = imprimable */}
+          <div className="pb-card p-4 bg-white min-w-0">
+            <div className="flex justify-center">
+              <div className="w-full overflow-auto">
+                {/* On scale l’aperçu pour éviter qu’il dépasse l’écran */}
+                <div className="flex justify-center origin-top scale-[0.86] xl:scale-100">
+                  <div id="printable-area">
+                    {currentInvoice.type === "dossier" ? (
+                      <div className="space-y-10">
+                        <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
+                        <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
+                        <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
+                      </div>
+                    ) : (
+                      <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
-              )}
+              </div>
             </div>
+
+            {/* Print: pas de scale */}
+            <style>{`
+              @media print {
+                .scale-\\[0\\.86\\] { transform: none !important; }
+                #printable-area { transform: none !important; }
+              }
+            `}</style>
           </div>
         </div>
       </div>
@@ -700,7 +770,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="mt-5 border border-slate-200 rounded-xl overflow-hidden">
+        <div className="mt-5 border border-slate-200 rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
@@ -750,28 +820,26 @@ export default function App() {
   const renderDatabase = () => (
     <div className="pb-container">
       <div className="pb-card p-6">
-        <div className="flex items-end justify-between gap-4 flex-wrap">
-          <div>
-            <h2 className="text-2xl font-extrabold tracking-tight">Plans</h2>
-            <p className="pb-muted mt-1">Uploader et imprimer les documents techniques par modèle.</p>
-          </div>
+        <div>
+          <h2 className="text-2xl font-extrabold tracking-tight">Plans</h2>
+          <p className="pb-muted mt-1">Uploader et imprimer les documents techniques par modèle.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           {companyConfig.boatModels.map((m) => (
             <div key={m.id} className="pb-card p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-lg font-extrabold">{m.name}</div>
-                  <div className="text-sm pb-muted">{m.type} • {m.length}</div>
+              <div>
+                <div className="text-lg font-extrabold text-slate-900">
+                  {m.name} <span className="text-red-600">•</span>
                 </div>
+                <div className="text-sm pb-muted">{m.type} • {m.length}</div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 mt-4">
                 {["fiche", "jauge", "plan", "approbation"].map((doc) => (
                   <label
                     key={doc}
-                    className={`cursor-pointer border rounded-xl p-3 text-center text-sm font-bold transition ${
+                    className={`cursor-pointer border rounded-2xl p-3 text-center text-sm font-bold transition ${
                       modelDocs[m.id]?.[doc]
                         ? "border-indigo-300 bg-indigo-50 text-indigo-700"
                         : "border-slate-200 bg-white hover:bg-slate-50"
@@ -977,11 +1045,13 @@ export default function App() {
         <div className="pb-container w-full flex justify-center">
           <div className="pb-card p-8 w-full max-w-lg">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+              <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
                 <LayoutDashboard size={18} />
               </div>
               <div>
-                <div className="text-xl font-extrabold tracking-tight">Pneuboat</div>
+                <div className="text-xl font-extrabold tracking-tight">
+                  Pneuboat <span className="text-red-600">•</span>
+                </div>
                 <div className="text-sm pb-muted">Connexion admin (Supabase)</div>
               </div>
             </div>
@@ -1006,7 +1076,7 @@ export default function App() {
               </div>
 
               <div className="text-xs pb-muted">
-                Astuce : si tu as “Email not confirmed”, active la confirmation email dans Supabase Auth (ou désactive-la).
+                Si tu as “Email not confirmed”, règle Auth dans Supabase (confirmation email).
               </div>
             </div>
           </div>
@@ -1022,11 +1092,13 @@ export default function App() {
       <nav className="pb-nav print-hidden">
         <div className="pb-container flex items-center justify-between">
           <button onClick={() => setView("list")} className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+            <div className="h-9 w-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
               <LayoutDashboard size={18} />
             </div>
             <div className="leading-tight text-left">
-              <div className="font-extrabold tracking-tight">Pneuboat</div>
+              <div className="font-extrabold tracking-tight">
+                Pneuboat <span className="text-red-600">•</span>
+              </div>
               <div className="text-xs pb-muted">Facturation & Documents</div>
             </div>
           </button>
@@ -1061,17 +1133,6 @@ export default function App() {
       {view === "database" && renderDatabase()}
       {view === "print_tech_view" && renderPrintTechView()}
       {view === "settings" && renderSettings()}
-
-      {/* PRINT FIX */}
-      <style>{`
-        @media print {
-          body { background: white !important; margin: 0 !important; padding: 0 !important; }
-          .print-hidden { display:none !important; }
-          #printable-area { margin: 0 !important; padding: 0 !important; }
-          @page { size: A4; margin: 0; }
-          * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -1090,10 +1151,14 @@ function ActionCard({ title, icon, onClick, primary }) {
   return (
     <button
       onClick={onClick}
-      className={`text-left pb-card p-4 hover:bg-slate-50 transition ${primary ? "border-indigo-200 bg-indigo-50 hover:bg-indigo-50" : ""}`}
+      className={`text-left pb-card p-4 hover:bg-slate-50 transition ${
+        primary ? "border-indigo-200 bg-indigo-50 hover:bg-indigo-50" : ""
+      }`}
     >
       <div className="flex items-center gap-2">
-        <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${primary ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"}`}>
+        <div className={`h-9 w-9 rounded-2xl flex items-center justify-center ${
+          primary ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"
+        }`}>
           {icon}
         </div>
         <div className="font-extrabold">{title}</div>
@@ -1107,7 +1172,7 @@ function Info({ label, value, mono, accent }) {
   return (
     <div>
       <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">{label}</div>
-      <div className={`${mono ? "font-mono" : "font-semibold"} ${accent ? "text-indigo-600 font-extrabold" : "text-slate-900"} mt-1`}>
+      <div className={`${mono ? "font-mono" : "font-semibold"} ${accent ? "text-indigo-600 font-extrabold" : "text-slate-900"} mt-1 break-words`}>
         {value || "—"}
       </div>
     </div>
