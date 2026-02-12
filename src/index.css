@@ -2,38 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Police plus sympa si disponible */
 body {
-  background-color: #f3f4f6; /* gris très clair */
-  color: #1f2937;
+  background-color: #f0f4f8; /* Fond légèrement bleuté */
+  color: #1e293b;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Styles pour l'impression (A4) */
+/* --- RÈGLES D'IMPRESSION STRICTES --- */
 @media print {
-  @page { margin: 0; size: auto; }
-  body { background: white; }
-  
-  /* Cacher l'interface utilisateur à l'impression */
-  .no-print, nav, button, input, textarea, select, .shadow-2xl {
-    display: none !important;
-  }
-  
-  /* S'assurer que le document prend toute la page */
-  .print-area {
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    position: absolute;
-    top: 0;
-    left: 0;
+  /* 1. On cache TOUT le site par défaut */
+  body * {
+    visibility: hidden;
   }
 
-  /* Forcer l'impression des fonds de couleur (important pour les bandeaux) */
+  /* 2. On rend visible uniquement la zone d'impression et son contenu */
+  #printable-area, #printable-area * {
+    visibility: visible;
+  }
+
+  /* 3. On positionne la feuille en haut à gauche absolue pour l'imprimante */
+  #printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    border: none;
+    box-shadow: none;
+  }
+
+  /* On cache spécifiquement les barres de défilement et les boutons au cas où */
+  .no-print, nav, button, input, textarea, select {
+    display: none !important;
+  }
+
+  /* Force l'impression des couleurs de fond (important pour les tableaux) */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+}
+
+/* Barre de défilement moderne pour la zone de saisie */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
