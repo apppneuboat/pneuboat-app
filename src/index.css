@@ -6,54 +6,67 @@ body {
   background-color: #f0f4f8;
   color: #1e293b;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-print-color-adjust: exact;
 }
 
-/* --- RÈGLES D'IMPRESSION (Strictes) --- */
+/* --- RÈGLES D'IMPRESSION (CORRIGÉES POUR PAGE BLANCHE) --- */
 @media print {
-  /* 1. Tout cacher par défaut */
-  body * {
+  
+  /* 1. On cache TOUT par défaut */
+  body {
     visibility: hidden;
+    height: auto;
+    background-color: white;
   }
 
-  /* 2. Afficher uniquement la zone d'impression */
-  #printable-area, #printable-area * {
-    visibility: visible;
+  /* 2. On cache spécifiquement les menus, boutons, barres latérales */
+  nav, aside, button, input, textarea, select, .no-print, .hidden-print {
+    display: none !important;
   }
 
-  /* 3. Positionnement absolu pour prendre toute la feuille */
+  /* 3. On cible LA ZONE D'IMPRESSION */
   #printable-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+    visibility: visible !important;
+    
+    /* Positionnement absolu pour prendre toute la feuille */
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    
+    /* Force la largeur complète */
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    
+    /* ANNULE LE ZOOM DE L'APERÇU (C'est ça qui causait la page blanche) */
+    transform: none !important; 
+    overflow: visible !important;
   }
 
-  /* 4. LE SECRET : Forcer le saut de page */
+  /* On s'assure que tout le contenu DANS la zone est visible */
+  #printable-area * {
+    visibility: visible !important;
+  }
+
+  /* 4. Gestion des sauts de page (Facture / Attestation / BL) */
   .page-break {
     page-break-after: always !important;
     break-after: page !important;
     display: block !important;
+    /* Force chaque bloc à prendre une page entière */
+    min-height: 95vh; 
     position: relative;
-    /* On s'assure que chaque bloc prend au moins une page A4 */
-    min-height: 295mm; 
-    overflow: hidden;
   }
 
-  /* Cacher les interfaces inutiles */
-  .no-print, nav, button, input, textarea, select, .shadow-2xl, .border {
-    display: none !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-
-  /* Forcer l'impression des couleurs de fond */
+  /* Force l'impression des fonds de couleur (important pour les tableaux gris/bleus) */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 }
 
-/* Scrollbar jolie pour la zone de saisie */
+/* Styles pour la barre de défilement à l'écran */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
