@@ -46,12 +46,12 @@ const calculateSubtotal = (items) => (items || []).reduce((acc, item) => acc + (
 const calculateTotal = (items, tvaRate) => calculateSubtotal(items) * (1 + Number(tvaRate || 0) / 100);
 const formatCurrency = (amount) => Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
 
-// CORRECTION DES NOMS ICI
+// --- MODIFICATION ICI : NOMS CORRIGÉS ---
 const labelDoc = (t) => {
   if (t === "facture") return "FACTURE";
   if (t === "proforma") return "FACTURE PROFORMA";
-  if (t === "livraison") return "BON DE LIVRAISON";
-  if (t === "attestation") return "ATTESTATION DE CONSTRUCTION";
+  if (t === "livraison") return "BON DE LIVRAISON"; // Changé
+  if (t === "attestation") return "ATTESTATION DE CONSTRUCTION"; // Changé
   if (t === "dossier") return "DOSSIER COMPLET";
   return String(t || "").toUpperCase();
 };
@@ -134,7 +134,7 @@ export default function MainApp() {
     ],
   });
 
-  /* ------------------ LOGIC (Inchangé) ------------------ */
+  /* ------------------ LOGIC ------------------ */
   useEffect(() => {
     const savedConfig = localStorage.getItem("pb_vfinal_config");
     if (savedConfig) setCompanyConfig((prev) => ({ ...prev, ...JSON.parse(savedConfig) }));
@@ -276,7 +276,7 @@ export default function MainApp() {
 
   const handlePrint = () => { setTimeout(() => window.print(), 50); };
 
-  /* ------------------ RENDU DOCUMENT A4 (DESIGN PAPIER) ------------------ */
+  /* ------------------ RENDU DOCUMENT A4 ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
     const total = calculateTotal(currentInvoice.items, currentInvoice.tvaRate);
@@ -287,7 +287,7 @@ export default function MainApp() {
     const paymentLabel = currentInvoice.paymentMethod === "virement" ? "Virement bancaire" : currentInvoice.paymentMethod === "espece" ? "Espèces" : "Chèque";
 
     return (
-      <div className="print-area bg-white w-[210mm] min-h-[297mm] p-[20mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-sm leading-normal font-sans">
+      <div className="print-area bg-white w-[210mm] p-[20mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-sm leading-normal font-sans">
         <div className="flex justify-between items-start border-b-2 border-slate-100 pb-6 mb-6">
           <div className="w-7/12">
             {companyConfig.logo ? ( <img src={companyConfig.logo} alt="logo" className="h-16 object-contain mb-3" /> ) : (
@@ -436,7 +436,7 @@ export default function MainApp() {
                   { title: "Facture", icon: <FileText size={24}/>, action: () => startNew("facture") },
                   { title: "Proforma", icon: <ClipboardList size={24}/>, action: () => startNew("proforma") },
                   { title: "Bon de Livraison", icon: <PackageCheck size={24}/>, action: () => startNew("livraison") },
-                  { title: "Attestation de Construction", icon: <Anchor size={24}/>, action: () => startNew("attestation") },
+                  { title: "Attestation", icon: <Anchor size={24}/>, action: () => startNew("attestation") },
                ].map((card, i) => (
                   <div key={i} onClick={card.action} className={`group cursor-pointer rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex flex-col items-center justify-center gap-4 text-center h-48 bg-white ${card.primary ? "border-blue-300 shadow-md ring-4 ring-blue-50" : "border-slate-200 shadow-sm hover:border-blue-300"}`}>
                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors shadow-sm ${card.primary ? "bg-blue-600 text-white group-hover:bg-blue-700" : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"}`}>
@@ -453,7 +453,7 @@ export default function MainApp() {
         {view === "edit" && currentInvoice && (
           <div className="flex flex-col xl:flex-row gap-6 items-start h-full">
              
-             {/* --- COLONNE GAUCHE: FORMULAIRE (Fond coloré modifié) --- */}
+             {/* --- COLONNE GAUCHE: FORMULAIRE --- */}
              <div className="w-full xl:w-[400px] bg-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 no-print flex flex-col h-[calc(100vh-4rem)] sticky top-4">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
                    <h3 className="font-black text-lg text-slate-800 flex items-center gap-2"><div className="w-2 h-6 bg-blue-600 rounded-full"/> Édition</h3>
@@ -497,7 +497,7 @@ export default function MainApp() {
              {/* Colonne Droite: Prévisualisation */}
              <div className="flex-1 w-full bg-slate-200 rounded-2xl p-8 border border-slate-300 shadow-inner overflow-auto flex justify-center custom-scrollbar h-[calc(100vh-4rem)]">
                 <div id="printable-area" className="scale-90 origin-top">
-                   {/* MODIFICATION ICI: Wrapper page-break pour séparer les feuilles */}
+                   {/* --- ZONE D'IMPRESSION AVEC SAUTS DE PAGE --- */}
                    {currentInvoice.type === "dossier" ? (
                       <div>
                          <div className="page-break"><RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} /></div>
