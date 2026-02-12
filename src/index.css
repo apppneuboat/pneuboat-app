@@ -3,24 +3,21 @@
 @tailwind utilities;
 
 body {
-  background-color: #f0f4f8; /* Fond légèrement bleuté */
+  background-color: #f0f4f8;
   color: #1e293b;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* --- RÈGLES D'IMPRESSION STRICTES --- */
 @media print {
-  /* 1. On cache TOUT le site par défaut */
   body * {
     visibility: hidden;
   }
 
-  /* 2. On rend visible uniquement la zone d'impression et son contenu */
   #printable-area, #printable-area * {
     visibility: visible;
   }
 
-  /* 3. On positionne la feuille en haut à gauche absolue pour l'imprimante */
   #printable-area {
     position: absolute;
     left: 0;
@@ -28,24 +25,27 @@ body {
     width: 100%;
     margin: 0;
     padding: 0;
-    background: white;
-    border: none;
-    box-shadow: none;
   }
 
-  /* On cache spécifiquement les barres de défilement et les boutons au cas où */
+  /* FORCE LE SAUT DE PAGE APRÈS CHAQUE DOCUMENT */
+  .page-break {
+    break-after: page;
+    page-break-after: always;
+    display: block;
+    height: 100vh; /* Force la hauteur complète */
+    position: relative;
+  }
+
   .no-print, nav, button, input, textarea, select {
     display: none !important;
   }
 
-  /* Force l'impression des couleurs de fond (important pour les tableaux) */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 }
 
-/* Barre de défilement moderne pour la zone de saisie */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -53,9 +53,6 @@ body {
   background: #f1f5f9;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+  border-radius: 3px;
 }
