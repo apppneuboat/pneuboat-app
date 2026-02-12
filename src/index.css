@@ -1,88 +1,39 @@
-/* ====== Base (léger, ne casse pas ton design) ====== */
-*{ box-sizing: border-box; }
-html, body { height: 100%; }
-body { margin:0; }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Helpers */
-.print-hidden{ display:block; }
-
-/* Clamp */
-.pb-clamp-1{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1; overflow:hidden; }
-.pb-clamp-2{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
-.pb-clamp-3{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }
-
-/* ====== FIX A4 (NE CHANGE PAS TA UI) ====== */
-/* Important: le doc ne doit JAMAIS grandir -> hauteur A4 fixe */
-.pb-doc-fixed{
-  width: 210mm;
-  height: 297mm;       /* FIXE A4 */
-  min-height: 297mm;
-  max-height: 297mm;
-  overflow: hidden;     /* empêche de dépasser */
-  position: relative;
+/* Police plus sympa si disponible */
+body {
+  background-color: #f3f4f6; /* gris très clair */
+  color: #1f2937;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Corps flexible mais bloqué */
-.pb-doc-body{
-  flex: 1 1 auto;
-  min-height: 0;        /* CRITIQUE pour flex */
-  overflow: hidden;     /* empêche la page de s’allonger */
-}
-
-/* Footer toujours en bas */
-.pb-doc-footer{
-  margin-top: auto;
-}
-
-/* Chaque document = 1 page imprimée */
-.pb-print-page{
-  break-after: page;
-  page-break-after: always;
-}
-.pb-print-page:last-child{
-  break-after: auto;
-  page-break-after: auto;
-}
-
-/* ====== PRINT (le vrai fix) ====== */
-@page{
-  size: A4;
-  margin: 0;          /* évite le “coupé à droite” */
-}
-
-@media print{
-  html, body{
-    width: 210mm;
-    height: 297mm;
-    background: #fff !important;
-    overflow: hidden !important;
+/* Styles pour l'impression (A4) */
+@media print {
+  @page { margin: 0; size: auto; }
+  body { background: white; }
+  
+  /* Cacher l'interface utilisateur à l'impression */
+  .no-print, nav, button, input, textarea, select, .shadow-2xl {
+    display: none !important;
   }
-
-  /* cacher l’UI */
-  .print-hidden{ display:none !important; }
-
-  /* IMPORTANT: enlever les transforms/scale qui créent pages blanches */
-  *{
-    transform: none !important;
-    filter: none !important;
-    box-shadow: none !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Zone imprimée sans marge */
-  #printable-area{
-    width: 210mm !important;
+  
+  /* S'assurer que le document prend toute la page */
+  .print-area {
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 
-  /* A4 strict */
-  .pb-doc-fixed{
-    width: 210mm !important;
-    height: 297mm !important;
-    min-height: 297mm !important;
-    max-height: 297mm !important;
-    overflow: hidden !important;
+  /* Forcer l'impression des fonds de couleur (important pour les bandeaux) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
