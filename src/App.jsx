@@ -59,9 +59,14 @@ const NumberToLetter = (nombre) => {
   return final.charAt(0).toUpperCase() + final.slice(1);
 };
 
-const calculateSubtotal = (items) => items.reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.price || 0)), 0);
-const calculateTotal = (items, tvaRate) => calculateSubtotal(items) * (1 + Number(tvaRate || 0) / 100);
-const formatCurrency = (amount) => (Number(amount || 0)).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
+const calculateSubtotal = (items) =>
+  items.reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.price || 0)), 0);
+
+const calculateTotal = (items, tvaRate) =>
+  calculateSubtotal(items) * (1 + Number(tvaRate || 0) / 100);
+
+const formatCurrency = (amount) =>
+  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
 
 /* ------------------ APP ------------------ */
 export default function App() {
@@ -154,6 +159,7 @@ export default function App() {
   const loadHistory = async () => {
     if (!session?.user) return;
     setBusy(true);
+
     const { data, error } = await supabase
       .from("invoices")
       .select("id, number, date, client_name, client_address, client_id_number, tva_rate, total, doc_type, data, created_at")
@@ -176,10 +182,20 @@ export default function App() {
         clientIdNumber: row.client_id_number,
         tvaRate: Number(row.tva_rate ?? d.tvaRate ?? 19),
         items: d.items || [{ id: Date.now(), description: "", quantity: 1, price: 0 }],
-        boatDetails: d.boatDetails || { model: "", serialNumber: "", length: "", approvalNumber: "", year: String(new Date().getFullYear()), notes: "" },
-        paymentMethod: d.paymentMethod || "virement",
+        boatDetails: d.boatDetails || {
+          model: "",
+          serialNumber: "",
+          length: "",
+          approvalNumber: "",
+          year: String(new Date().getFullYear()),
+          notes: "",
+        },
+
+        // paiement
         showPayment: d.showPayment ?? true,
+        paymentMethod: d.paymentMethod || "virement",
         clientChequeNumber: d.clientChequeNumber || "",
+
         invoiceNumber: d.invoiceNumber,
         attestationNumber: d.attestationNumber,
         deliveryNumber: d.deliveryNumber,
@@ -236,9 +252,12 @@ export default function App() {
       clientIdNumber: "",
       items: [{ id: Date.now(), description: "", quantity: 1, price: 0 }],
       tvaRate: 19,
-      paymentMethod: "virement",
+
+      // paiement (nouveau)
       showPayment: true,
+      paymentMethod: "virement", // virement | espece | cheque
       clientChequeNumber: "",
+
       boatDetails: {
         model: "",
         serialNumber: "",
@@ -372,13 +391,17 @@ export default function App() {
     const isBL = subType === "livraison";
     const isFactOrPro = subType === "facture" || subType === "proforma";
 
-    const safe = (s, max = 160) =>
-      String(s || "").length > max ? String(s || "").slice(0, max) + "…" : String(s || "");
+    const paymentLabel =
+      currentInvoice.paymentMethod === "virement"
+        ? "Virement bancaire"
+        : currentInvoice.paymentMethod === "espece"
+          ? "Espèces"
+          : "Chèque";
 
     return (
       <div
         className="
-          pb-doc
+          pb-doc pb-doc-fixed
           bg-white mx-auto
           w-[21cm] min-h-[29.7cm]
           border border-slate-200 overflow-hidden
@@ -388,16 +411,16 @@ export default function App() {
         {/* Bande verticale Pneuboat */}
         <div className="pb-ribbon" />
 
-        {/* Contenu décalé pour ne pas passer sous la bande */}
-        <div className="pl-[16mm] flex flex-col min-h-[29.7cm] relative">
-          {/* Déco haut (premium) */}
+        {/* Contenu décalé */}
+        <div className="pl-[16mm] flex flex-col h-full relative">
+          {/* Déco haut */}
           <div className="relative">
             <div className="h-2 bg-gradient-to-r from-indigo-600 via-blue-700 to-red-600" />
             <div className="absolute -top-10 -left-10 h-28 w-28 rounded-[36px] bg-indigo-50 border border-indigo-100 rotate-12" />
             <div className="absolute -top-12 -right-12 h-32 w-32 rounded-[44px] bg-red-50 border border-red-100 -rotate-12" />
           </div>
 
-          {/* Filigrane léger */}
+          {/* Filigrane */}
           <div className="pointer-events-none absolute inset-0 opacity-[0.04] flex items-center justify-center">
             <div className="text-[110px] font-black tracking-tight text-slate-900 rotate-[-18deg]">
               PNEUBOAT
@@ -415,12 +438,12 @@ export default function App() {
                     <h1 className="text-xl font-extrabold text-slate-900 leading-none">
                       PNEUBOAT <span className="text-red-600">AT</span>
                     </h1>
-                    <p className="text-[11px] font-semibold text-slate-500 mt-1">{companyConfig.footerText}</p>
+                    <p className="text-[11px] font-semibold text-slate-500 mt-1 pb-clamp-1">{companyConfig.footerText}</p>
                   </div>
                 )}
-                <div className="text-[11px] text-slate-500 leading-snug">
-                  <div className="font-semibold text-slate-800">{companyConfig.address}</div>
-                  <div>Tél: {companyConfig.phone} • Email: {companyConfig.email}</div>
+                <div className="text-[11px] text-slate-500 leading-snug pb-clamp-2">
+                  <div className="font-semibold text-slate-800 pb-clamp-1">{companyConfig.address}</div>
+                  <div className="pb-clamp-1">Tél: {companyConfig.phone} • Email: {companyConfig.email}</div>
                 </div>
               </div>
 
@@ -433,8 +456,8 @@ export default function App() {
                 </div>
 
                 <div className="mt-3">
-                  <p className="font-mono text-base font-black text-slate-900">REF: {docNumber}</p>
-                  <p className="text-[11px] font-semibold text-slate-500">
+                  <p className="font-mono text-base font-black text-slate-900 pb-clamp-1">REF: {docNumber}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 pb-clamp-1">
                     Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}
                   </p>
                 </div>
@@ -448,18 +471,18 @@ export default function App() {
               <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-indigo-600 to-red-600" />
               <div className="pl-3">
                 <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Client</p>
-                <div className="mt-1 text-lg font-extrabold text-slate-900 break-words">
-                  {safe(currentInvoice.clientName, 80) || "---"}
+                <div className="mt-1 text-lg font-extrabold text-slate-900 pb-clamp-1">
+                  {currentInvoice.clientName || "---"}
                 </div>
-                <div className="text-sm text-slate-600 mt-1 break-words">
-                  {safe(currentInvoice.clientAddress, 180) || "---"}
+                <div className="text-sm text-slate-600 mt-1 pb-clamp-2">
+                  {currentInvoice.clientAddress || "---"}
                 </div>
 
                 {currentInvoice.clientIdNumber && (
                   <div className="mt-3 inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
                     <ShieldCheck size={14} className="text-indigo-600" />
-                    <span className="text-[11px] font-bold text-slate-700">
-                      ID: <span className="font-mono">{safe(currentInvoice.clientIdNumber, 32)}</span>
+                    <span className="text-[11px] font-bold text-slate-700 pb-clamp-1">
+                      ID: <span className="font-mono">{currentInvoice.clientIdNumber}</span>
                     </span>
                   </div>
                 )}
@@ -467,18 +490,18 @@ export default function App() {
             </div>
           </div>
 
-          {/* BODY */}
-          <div className="relative flex-1 px-8 py-6">
+          {/* BODY (bloqué -> ne pousse plus l’A4) */}
+          <div className="relative flex-1 px-8 py-5 pb-doc-body">
             {isAtt ? (
               <>
-                <p className="text-sm text-slate-700 leading-relaxed text-justify">
+                <p className="text-sm text-slate-700 leading-relaxed text-justify pb-clamp-3">
                   Je soussigné, <strong>{companyConfig.managerName}</strong>, gérant de la société{" "}
                   <strong>{companyConfig.name}</strong>, certifie par la présente que le navire désigné
                   ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de{" "}
                   <strong>{currentInvoice.clientName || ".........."}</strong>.
                 </p>
 
-                <div className="mt-6 border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="mt-5 border border-slate-200 rounded-2xl overflow-hidden">
                   <div className="bg-slate-900 text-white px-6 py-3 text-[11px] font-extrabold uppercase tracking-wider text-center">
                     Fiche Technique
                   </div>
@@ -490,8 +513,8 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-600 italic">
-                  Notes : {safe(currentInvoice.boatDetails.notes, 260)}
+                <div className="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-600 italic pb-clamp-3">
+                  Notes : {currentInvoice.boatDetails.notes}
                 </div>
               </>
             ) : (
@@ -499,12 +522,12 @@ export default function App() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500 text-[12px] font-extrabold">
-                      <th className="py-3 text-left">Désignation</th>
-                      <th className="py-3 text-center w-24">Qté</th>
+                      <th className="py-2 text-left">Désignation</th>
+                      <th className="py-2 text-center w-20">Qté</th>
                       {!isBL && (
                         <>
-                          <th className="py-3 text-right w-32">P.U</th>
-                          <th className="py-3 text-right w-40">Total</th>
+                          <th className="py-2 text-right w-28">P.U</th>
+                          <th className="py-2 text-right w-32">Total</th>
                         </>
                       )}
                     </tr>
@@ -513,29 +536,29 @@ export default function App() {
                   <tbody className="divide-y divide-slate-100">
                     {currentInvoice.items.map((it, i) => (
                       <tr key={it.id || i} className="align-top">
-                        <td className="py-4 pr-4">
-                          <div className="font-bold text-slate-900 break-words">
-                            {safe(it.description, 60)}
+                        <td className="py-3 pr-3">
+                          <div className="font-bold text-slate-900 pb-clamp-1">
+                            {it.description || "—"}
                           </div>
 
                           {i === 0 && currentInvoice.boatDetails?.serialNumber && (
-                            <div className="text-[12px] text-slate-500 mt-1">
+                            <div className="text-[12px] text-slate-500 mt-1 pb-clamp-1">
                               Numéro de série:{" "}
                               <span className="font-mono text-red-600 font-bold">
-                                {safe(currentInvoice.boatDetails.serialNumber, 32)}
+                                {currentInvoice.boatDetails.serialNumber}
                               </span>
                             </div>
                           )}
                         </td>
 
-                        <td className="py-4 text-center font-bold">{Number(it.quantity || 0)}</td>
+                        <td className="py-3 text-center font-bold">{Number(it.quantity || 0)}</td>
 
                         {!isBL && (
                           <>
-                            <td className="py-4 text-right text-slate-600">
+                            <td className="py-3 text-right text-slate-600">
                               {Number(it.price || 0).toLocaleString("fr-FR")}
                             </td>
-                            <td className="py-4 text-right font-extrabold text-slate-900">
+                            <td className="py-3 text-right font-extrabold text-slate-900">
                               {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
                             </td>
                           </>
@@ -545,27 +568,52 @@ export default function App() {
                   </tbody>
                 </table>
 
+                {/* Paiement + Totaux */}
                 {!isAtt && !isBL && (
-                  <div className="mt-5 flex justify-end">
-                    <div className="w-[340px] bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
-                      <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-600 to-red-600" />
-                      <div className="pl-3">
-                        <KRow label="Sous-total (HT)" value={formatCurrency(subtotal)} />
-                        <KRow label={`TVA (${currentInvoice.tvaRate}%)`} value={formatCurrency(tvaAmt)} />
-                        <div className="h-px bg-slate-200 my-2" />
-                        <KRow label="TOTAL TTC" value={formatCurrency(total)} strong />
+                  <div className="mt-4 grid grid-cols-2 gap-3 items-start">
+                    <div>
+                      {currentInvoice.showPayment && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
+                          <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-600 to-red-600" />
+                          <div className="pl-3">
+                            <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                              Mode de paiement
+                            </div>
+                            <div className="mt-1 font-extrabold text-slate-900 pb-clamp-1">
+                              {paymentLabel}
+                            </div>
+
+                            {currentInvoice.paymentMethod === "cheque" && (
+                              <div className="mt-1 text-sm text-slate-700 pb-clamp-1">
+                                N° chèque : <span className="font-mono font-bold text-red-600">{currentInvoice.clientChequeNumber || "—"}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-600 to-red-600" />
+                        <div className="pl-3">
+                          <KRow label="Sous-total (HT)" value={formatCurrency(subtotal)} />
+                          <KRow label={`TVA (${currentInvoice.tvaRate}%)`} value={formatCurrency(tvaAmt)} />
+                          <div className="h-px bg-slate-200 my-2" />
+                          <KRow label="TOTAL TTC" value={formatCurrency(total)} strong />
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {isFactOrPro && (
-                  <div className="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
+                  <div className="mt-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
                     <div className="absolute top-0 right-0 h-20 w-20 bg-indigo-100 rounded-bl-[32px]" />
                     <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
                       Arrêté la présente facture à la somme de :
                     </div>
-                    <div className="mt-1 text-sm font-bold text-slate-800 break-words">
+                    <div className="mt-1 text-sm font-bold text-slate-800 pb-clamp-2">
                       {NumberToLetter(total)}
                     </div>
                   </div>
@@ -574,7 +622,26 @@ export default function App() {
             )}
           </div>
 
-          {/* FOOTER collé en bas */}
+          {/* SIGNATURES GRANDES (AU-DESSUS DU FOOTER FISCAL) */}
+          <div className="px-8 pb-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="border-2 border-dashed border-slate-300 rounded-2xl h-28 p-4 flex flex-col justify-between">
+                <div className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
+                  Cachet & Signature Gérant
+                </div>
+                <div className="text-[10px] text-slate-400">Tampon / Signature ici</div>
+              </div>
+
+              <div className="border-2 border-dashed border-slate-300 rounded-2xl h-28 p-4 flex flex-col justify-between">
+                <div className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
+                  Signature Client
+                </div>
+                <div className="text-[10px] text-slate-400">Signature ici</div>
+              </div>
+            </div>
+          </div>
+
+          {/* FOOTER fiscal/bancaire tout en bas */}
           <div className="relative mt-auto border-t border-slate-200 px-8 py-5">
             <div className="grid grid-cols-3 gap-4 text-[11px] text-slate-500">
               <div className="border border-slate-200 rounded-2xl p-3">
@@ -592,17 +659,8 @@ export default function App() {
 
               <div className="border border-slate-200 rounded-2xl p-3">
                 <div className="font-extrabold text-slate-700 mb-1">Société</div>
-                <div className="font-semibold text-slate-800">{companyConfig.footerText}</div>
-                <div className="text-slate-400">Pneuboat • Oran</div>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-between gap-4 text-[10px] text-slate-400">
-              <div className="flex-1 border border-dashed border-slate-200 rounded-2xl p-3 text-center">
-                Cachet & Signature gérant
-              </div>
-              <div className="flex-1 border border-dashed border-slate-200 rounded-2xl p-3 text-center">
-                Signature client
+                <div className="font-semibold text-slate-800 pb-clamp-2">{companyConfig.footerText}</div>
+                <div className="text-slate-400 pb-clamp-1">Pneuboat • Oran</div>
               </div>
             </div>
           </div>
@@ -636,8 +694,8 @@ export default function App() {
 
     return (
       <div className="pb-container">
-        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-start">
-          {/* Form = caché au print */}
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
+          {/* Form (print hidden) */}
           <div className="pb-card p-6 print-hidden">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-extrabold tracking-tight">
@@ -650,15 +708,28 @@ export default function App() {
 
             <div className="mt-5 space-y-4">
               <Field label="Client">
-                <input className="pb-input" value={currentInvoice.clientName} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientName: e.target.value })} />
+                <input
+                  className="pb-input"
+                  value={currentInvoice.clientName}
+                  onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientName: e.target.value })}
+                />
               </Field>
 
               <Field label="Adresse">
-                <textarea className="pb-input" rows={3} value={currentInvoice.clientAddress} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientAddress: e.target.value })} />
+                <textarea
+                  className="pb-input"
+                  rows={3}
+                  value={currentInvoice.clientAddress}
+                  onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientAddress: e.target.value })}
+                />
               </Field>
 
               <Field label="ID / Passeport">
-                <input className="pb-input font-mono" value={currentInvoice.clientIdNumber} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientIdNumber: e.target.value })} />
+                <input
+                  className="pb-input font-mono"
+                  value={currentInvoice.clientIdNumber}
+                  onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientIdNumber: e.target.value })}
+                />
               </Field>
 
               <div className="pb-card-soft p-4">
@@ -686,7 +757,12 @@ export default function App() {
                     <input
                       className="pb-input font-mono"
                       value={currentInvoice.boatDetails.serialNumber}
-                      onChange={(e) => setCurrentInvoice({ ...currentInvoice, boatDetails: { ...currentInvoice.boatDetails, serialNumber: e.target.value.toUpperCase() } })}
+                      onChange={(e) =>
+                        setCurrentInvoice({
+                          ...currentInvoice,
+                          boatDetails: { ...currentInvoice.boatDetails, serialNumber: e.target.value.toUpperCase() },
+                        })
+                      }
                       placeholder="DZ-PNB-0000"
                     />
                   </Field>
@@ -714,6 +790,54 @@ export default function App() {
                   </Field>
                 </div>
               </div>
+
+              {/* PAIEMENT (nouveau) */}
+              <div className="pb-card-soft p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-extrabold text-slate-800">
+                    Paiement <span className="text-red-600">•</span>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={!!currentInvoice.showPayment}
+                      onChange={(e) => setCurrentInvoice({ ...currentInvoice, showPayment: e.target.checked })}
+                    />
+                    Afficher sur facture
+                  </label>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  <Field label="Mode de paiement">
+                    <select
+                      className="pb-input"
+                      value={currentInvoice.paymentMethod}
+                      onChange={(e) =>
+                        setCurrentInvoice({
+                          ...currentInvoice,
+                          paymentMethod: e.target.value,
+                          clientChequeNumber: e.target.value === "cheque" ? currentInvoice.clientChequeNumber : "",
+                        })
+                      }
+                    >
+                      <option value="virement">Virement bancaire</option>
+                      <option value="espece">Espèces</option>
+                      <option value="cheque">Chèque</option>
+                    </select>
+                  </Field>
+
+                  {currentInvoice.paymentMethod === "cheque" && (
+                    <Field label="Numéro de chèque">
+                      <input
+                        className="pb-input font-mono"
+                        value={currentInvoice.clientChequeNumber}
+                        onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientChequeNumber: e.target.value })}
+                        placeholder="000000"
+                      />
+                    </Field>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="mt-5 flex gap-3">
@@ -726,7 +850,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Preview = imprimable */}
+          {/* Preview printable */}
           <div className="pb-card p-4 bg-white min-w-0">
             <div className="flex justify-center">
               <div className="w-full overflow-auto">
@@ -748,7 +872,7 @@ export default function App() {
 
             <style>{`
               @media print {
-                .scale-\\[0\\.86\\] { transform: none !important; }
+                .scale-\$begin:math:display$0\\\\\.86\\$end:math:display$ { transform: none !important; }
                 #printable-area { transform: none !important; }
               }
             `}</style>
@@ -1184,7 +1308,7 @@ function Info({ label, value, mono, accent }) {
   return (
     <div>
       <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">{label}</div>
-      <div className={`${mono ? "font-mono" : "font-semibold"} ${accent ? "text-indigo-600 font-extrabold" : "text-slate-900"} mt-1 break-words`}>
+      <div className={`${mono ? "font-mono" : "font-semibold"} ${accent ? "text-indigo-600 font-extrabold" : "text-slate-900"} mt-1 break-words pb-clamp-2`}>
         {value || "—"}
       </div>
     </div>
