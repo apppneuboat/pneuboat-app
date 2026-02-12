@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus, Trash2, Printer, Save, FileText, FolderOpen, ClipboardList,
   Database, History, Search, X, Upload, Settings, LayoutDashboard, Anchor,
-  PackageCheck, ShieldCheck, LogOut, Lock, Cloud, CheckCircle
+  PackageCheck, ShieldCheck, LogOut, Lock, Cloud
 } from "lucide-react";
 import { supabase } from "./supabase";
 
-/* ------------------ UTILITAIRES (Calculs & Textes) ------------------ */
+/* ------------------ UTILITAIRES ------------------ */
 const NumberToLetter = (nombre) => {
   const unites = ["", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"];
   const dizaines = ["", "dix", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante-dix", "quatre-vingt", "quatre-vingt-dix"];
@@ -64,18 +64,11 @@ const Button = ({ children, onClick, variant = "primary", className = "", disabl
     danger: "bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-red-200",
     ghost: "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
   };
-  return (
-    <button disabled={disabled} onClick={onClick} className={`${base} ${styles[variant]} ${className}`}>
-      {children}
-    </button>
-  );
+  return <button disabled={disabled} onClick={onClick} className={`${base} ${styles[variant]} ${className}`}>{children}</button>;
 };
 
 const InputGroup = ({ label, children }) => (
-  <div className="mb-4">
-    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 ml-1">{label}</label>
-    {children}
-  </div>
+  <div className="mb-4"><label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 ml-1">{label}</label>{children}</div>
 );
 
 const Input = (props) => (
@@ -87,9 +80,7 @@ const TextArea = (props) => (
 );
 
 const Select = (props) => (
-  <select {...props} className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium cursor-pointer">
-    {props.children}
-  </select>
+  <select {...props} className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium cursor-pointer">{props.children}</select>
 );
 
 /* ------------------ APP PRINCIPALE ------------------ */
@@ -106,26 +97,12 @@ export default function MainApp() {
   const [printModelId, setPrintModelId] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  // CONFIGURATION PAR DÉFAUT
   const [companyConfig, setCompanyConfig] = useState({
-    name: "PNEUBOAT SARL",
-    managerName: "Sekkal Gherbi Youcef",
-    address: "Rue sans Nom num 5 partie 2 local 03, Hai el Badr Oran",
-    email: "info@pneuboat.net",
-    phone: "0563269639 / 0557687966",
-    fax: "041245330",
-    rc: "18B0117285-00/31",
-    nif: "001831011728522",
-    nis: "001831010078354",
-    capital: "2.000.000,00 DA",
-    bankName: "CPA",
-    bankRib: "004 00418400026468131",
-    footerText: "Chantier Naval & Maintenance Maritime Algérie",
-    nextInvoiceNumber: 1,
-    nextProformaNumber: 1,
-    nextDeliveryNumber: 1,
-    nextAttestationNumber: 1,
-    logo: null,
+    name: "PNEUBOAT SARL", managerName: "Sekkal Gherbi Youcef", address: "Rue sans Nom num 5 partie 2 local 03, Hai el Badr Oran",
+    email: "info@pneuboat.net", phone: "0563269639 / 0557687966", fax: "041245330",
+    rc: "18B0117285-00/31", nif: "001831011728522", nis: "001831010078354", capital: "2.000.000,00 DA",
+    bankName: "CPA", bankRib: "004 00418400026468131", footerText: "Chantier Naval & Maintenance Maritime Algérie",
+    nextInvoiceNumber: 1, nextProformaNumber: 1, nextDeliveryNumber: 1, nextAttestationNumber: 1, logo: null,
     boatModels: [
       { id: 1, name: "PNB-360", length: "3.60 m", approvalNumber: "N° 689 DU 15/04/2021", type: "Semi-rigide" },
       { id: 2, name: "PNB-420", length: "4.20 m", approvalNumber: "N° 689 DU 15/04/2021", type: "Semi-rigide" },
@@ -137,82 +114,70 @@ export default function MainApp() {
     ],
   });
 
-  /* ------------------ INIT & CHARGEMENT SUPABASE ------------------ */
+  /* ------------------ INIT & CHARGEMENT ------------------ */
   useEffect(() => {
-    // Vérifier mot de passe session
     const storedAuth = localStorage.getItem("pb_is_authenticated");
     if (storedAuth === "true") {
       setIsAuthenticated(true);
-      loadOnlineData(); // Charger les données si connecté
+      // On charge les données seulement si on est connecté
+      setTimeout(() => loadOnlineData(), 500); 
     }
-    
-    // Plans (restent local pour l'instant pour éviter la lenteur, ou on peut les mettre online plus tard)
     const savedDocs = localStorage.getItem("pb_model_docs");
     if (savedDocs) setModelDocs(JSON.parse(savedDocs));
   }, []);
 
-  useEffect(() => {
-    if (isAuthenticated) loadOnlineData();
-  }, [isAuthenticated]);
-
-  // CHARGER TOUT DEPUIS SUPABASE
+  // Fonction sécurisée pour charger les données sans planter
   const loadOnlineData = async () => {
     setBusy(true);
-    
-    // 1. Charger Config
-    const { data: configData } = await supabase.from("app_settings").select("config").limit(1).single();
-    if (configData?.config) {
-      setCompanyConfig(configData.config);
-    }
+    try {
+      // 1. Config
+      const { data: configData } = await supabase.from("app_settings").select("config").limit(1).maybeSingle();
+      if (configData?.config) setCompanyConfig(configData.config);
 
-    // 2. Charger Factures
-    const { data: invData, error } = await supabase
-      .from("invoices")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
+      // 2. Factures (PROTECTION CONTRE LE TABLEAU VIDE)
+      const { data: invData, error } = await supabase.from("invoices").select("*").order("created_at", { ascending: false }).limit(200);
       
-    if (error) {
-      console.error("Erreur chargement:", error);
-    } else {
-      const mapped = invData.map(row => ({
-        ...row.data,
-        db_id: row.id, // ID Supabase
-        doc_number: row.doc_number,
-        client_name: row.client_name,
-        total: row.total,
-        created_at: row.created_at
-      }));
-      setInvoiceHistory(mapped);
+      if (error) {
+        console.error("Erreur Supabase:", error);
+      } else if (invData) {
+        // Mapping sécurisé : si row.data est null, on met {}
+        const mapped = invData.map(row => {
+          const d = row.data || {}; 
+          return {
+            ...d,
+            db_id: row.id,
+            doc_number: row.doc_number,
+            client_name: row.client_name,
+            total: row.total,
+            created_at: row.created_at
+          };
+        });
+        setInvoiceHistory(mapped);
+      }
+    } catch (e) {
+      console.error("Erreur critique chargement:", e);
     }
     setBusy(false);
   };
 
-  // SAUVEGARDER CONFIG (SUPABASE)
   const saveConfigOnline = async (newConfig) => {
-    setCompanyConfig(newConfig); // Mise à jour UI immédiate
-    
-    // On sauvegarde aussi en local en backup
+    setCompanyConfig(newConfig);
     localStorage.setItem("pb_vfinal_config", JSON.stringify(newConfig));
-
-    // Sauvegarde Cloud (on écrase la ligne ID 1 ou on en crée une)
-    // Astuce: On utilise upsert sans ID spécifique, ou on fixe l'ID à 1
-    const { data: existing } = await supabase.from("app_settings").select("id").limit(1);
-    
-    if (existing && existing.length > 0) {
-       await supabase.from("app_settings").update({ config: newConfig }).eq("id", existing[0].id);
-    } else {
-       await supabase.from("app_settings").insert({ config: newConfig });
-    }
+    try {
+      const { data: existing } = await supabase.from("app_settings").select("id").limit(1);
+      if (existing && existing.length > 0) await supabase.from("app_settings").update({ config: newConfig }).eq("id", existing[0].id);
+      else await supabase.from("app_settings").insert({ config: newConfig });
+    } catch(e) { console.error(e); }
   };
 
-  /* ------------------ AUTHENTIFICATION ------------------ */
+  /* ------------------ AUTH ------------------ */
   const handleLogin = () => {
     const secretPass = import.meta.env.VITE_APP_PASSWORD;
     if (passwordInput === secretPass) {
       setIsAuthenticated(true);
       localStorage.setItem("pb_is_authenticated", "true");
       setAuthError("");
+      loadOnlineData();
     } else {
       setAuthError("Mot de passe incorrect");
     }
@@ -224,35 +189,29 @@ export default function MainApp() {
     setPasswordInput("");
   };
 
-  /* ------------------ GESTION FACTURES (SUPABASE) ------------------ */
+  /* ------------------ ACTIONS ------------------ */
   const saveInvoiceToCloud = async () => {
     if (!currentInvoice?.clientName) return alert("Nom du client manquant.");
     setBusy(true);
 
-    const subtotal = calculateSubtotal(currentInvoice.items || []);
-    const total = calculateTotal(currentInvoice.items || [], Number(currentInvoice.tvaRate || 0));
-    
-    // Préparation pour Supabase
-    const payload = {
-      doc_number: currentInvoice.number,
-      client_name: currentInvoice.clientName,
-      total: total,
-      data: { ...currentInvoice, total } // On stocke tout l'objet JSON
-    };
-
-    let error = null;
-
-    if (currentInvoice.db_id) {
-      // UPDATE
-      const { error: err } = await supabase.from("invoices").update(payload).eq("id", currentInvoice.db_id);
-      error = err;
-    } else {
-      // INSERT
-      const { error: err } = await supabase.from("invoices").insert(payload);
-      error = err;
+    try {
+      const subtotal = calculateSubtotal(currentInvoice.items || []);
+      const total = calculateTotal(currentInvoice.items || [], Number(currentInvoice.tvaRate || 0));
       
-      // Incrémenter compteurs seulement si c'est nouveau
-      if (!error) {
+      const payload = {
+        doc_number: currentInvoice.number,
+        client_name: currentInvoice.clientName,
+        total: total,
+        data: { ...currentInvoice, total }
+      };
+
+      if (currentInvoice.db_id) {
+        await supabase.from("invoices").update(payload).eq("id", currentInvoice.db_id);
+      } else {
+        const { error } = await supabase.from("invoices").insert(payload);
+        if (error) throw error;
+
+        // Incrémentation Compteurs
         let newConfig = { ...companyConfig };
         const doc_type = currentInvoice.type;
         if (doc_type === "dossier") { 
@@ -263,34 +222,28 @@ export default function MainApp() {
         }
         await saveConfigOnline(newConfig);
       }
-    }
-
-    if (error) {
-      alert("Erreur sauvegarde: " + error.message);
-    } else {
-      await loadOnlineData(); // Recharger la liste
+      
+      await loadOnlineData();
       setView("history");
+
+    } catch (error) {
+      alert("Erreur de sauvegarde : " + error.message);
     }
     setBusy(false);
   };
 
   const deleteInvoice = async (inv) => {
-    if (!window.confirm("Supprimer définitivement ce document du Cloud ?")) return;
+    if (!window.confirm("Supprimer définitivement ce document ?")) return;
     setBusy(true);
-    const { error } = await supabase.from("invoices").delete().eq("id", inv.db_id);
-    if (error) alert("Erreur suppression: " + error.message);
-    else await loadOnlineData();
+    await supabase.from("invoices").delete().eq("id", inv.db_id);
+    await loadOnlineData();
     setBusy(false);
   };
 
-  /* ------------------ UPLOAD ------------------ */
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => { 
-      const nc = { ...companyConfig, logo: reader.result }; 
-      saveConfigOnline(nc); // Sauvegarde auto de la config avec logo
-    };
+    reader.onloadend = () => { const nc = { ...companyConfig, logo: reader.result }; saveConfigOnline(nc); };
     reader.readAsDataURL(file);
   };
 
@@ -298,16 +251,10 @@ export default function MainApp() {
     const file = e.target.files?.[0]; if (!file) return;
     if (file.size > 3 * 1024 * 1024) return alert("Fichier trop lourd (Max 3Mo).");
     const reader = new FileReader();
-    reader.onloadend = () => { 
-      const next = { ...modelDocs, [modelId]: { ...(modelDocs[modelId] || {}), [docKey]: reader.result } }; 
-      setModelDocs(next); 
-      // LocalStorage pour les plans (trop gros pour la config DB simple)
-      try { localStorage.setItem("pb_model_docs", JSON.stringify(next)); } catch(e){}
-    };
+    reader.onloadend = () => { const next = { ...modelDocs, [modelId]: { ...(modelDocs[modelId] || {}), [docKey]: reader.result } }; setModelDocs(next); try { localStorage.setItem("pb_model_docs", JSON.stringify(next)); } catch(e){} };
     reader.readAsDataURL(file);
   };
 
-  /* ------------------ NOUVEAU DOC ------------------ */
   const startNew = (type) => {
     const year = new Date().getFullYear();
     const { nextInvoiceNumber: nf, nextAttestationNumber: na, nextDeliveryNumber: nbl, nextProformaNumber: np } = companyConfig;
@@ -338,7 +285,6 @@ export default function MainApp() {
 
   const handlePrint = () => { setTimeout(() => window.print(), 50); };
 
-  /* ------------------ RENDER DOCUMENT ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
     const total = calculateTotal(currentInvoice.items, currentInvoice.tvaRate);
@@ -352,51 +298,20 @@ export default function MainApp() {
       <div className="print-area bg-white w-[210mm] h-[297mm] p-[20mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-sm leading-normal font-sans flex flex-col justify-between overflow-hidden" style={{ height: "297mm", maxHeight: "297mm" }}>
         <div>
           <div className="flex justify-between items-start border-b-2 border-slate-100 pb-6 mb-6">
-            <div className="w-7/12">
-              {companyConfig.logo ? ( <img src={companyConfig.logo} alt="logo" className="h-16 object-contain mb-3" /> ) : (
-                <div className="mb-2"><h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Pneuboat <span className="text-red-600">SARL</span></h1><p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{companyConfig.footerText}</p></div>
-              )}
-              <div className="text-xs text-slate-500 font-medium leading-relaxed">
-                <p>{companyConfig.address}</p><p>Tél: {companyConfig.phone} • Email: {companyConfig.email}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-900 text-xs font-black uppercase tracking-wider border border-blue-100"><span className="w-2 h-2 rounded-full bg-red-500" />{labelDoc(subType)}</span>
-              <div className="mt-3"><div className="font-mono text-lg font-bold text-slate-900">{docNumber}</div><div className="text-xs font-semibold text-slate-400">Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}</div></div>
-            </div>
+            <div className="w-7/12">{companyConfig.logo ? ( <img src={companyConfig.logo} alt="logo" className="h-16 object-contain mb-3" /> ) : (<div className="mb-2"><h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Pneuboat <span className="text-red-600">SARL</span></h1><p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{companyConfig.footerText}</p></div>)}<div className="text-xs text-slate-500 font-medium leading-relaxed"><p>{companyConfig.address}</p><p>Tél: {companyConfig.phone} • Email: {companyConfig.email}</p></div></div>
+            <div className="text-right"><span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-900 text-xs font-black uppercase tracking-wider border border-blue-100"><span className="w-2 h-2 rounded-full bg-red-500" />{labelDoc(subType)}</span><div className="mt-3"><div className="font-mono text-lg font-bold text-slate-900">{docNumber}</div><div className="text-xs font-semibold text-slate-400">Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}</div></div></div>
           </div>
-          <div className="mb-8">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-900 to-blue-600" />
-              <div className="pl-3">
-                <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Client</h3>
-                <div className="text-lg font-bold text-slate-900 uppercase truncate">{currentInvoice.clientName || "—"}</div>
-                <div className="text-sm text-slate-600 font-medium mt-1 leading-snug max-w-md line-clamp-2">{currentInvoice.clientAddress || "—"}</div>
-                {currentInvoice.clientIdNumber && ( <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm"><ShieldCheck size={12} className="text-blue-700" /><span className="text-xs font-bold text-slate-700">ID: <span className="font-mono text-red-600">{currentInvoice.clientIdNumber}</span></span></div> )}
-              </div>
-            </div>
-          </div>
+          <div className="mb-8"><div className="bg-slate-50 border border-slate-200 rounded-xl p-5 relative overflow-hidden"><div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-900 to-blue-600" /><div className="pl-3"><h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Client</h3><div className="text-lg font-bold text-slate-900 uppercase truncate">{currentInvoice.clientName || "—"}</div><div className="text-sm text-slate-600 font-medium mt-1 leading-snug max-w-md line-clamp-2">{currentInvoice.clientAddress || "—"}</div>{currentInvoice.clientIdNumber && ( <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm"><ShieldCheck size={12} className="text-blue-700" /><span className="text-xs font-bold text-slate-700">ID: <span className="font-mono text-red-600">{currentInvoice.clientIdNumber}</span></span></div> )}</div></div></div>
           <div className="min-h-[200px]">
             {isAtt ? (
               <div className="space-y-6">
                 <p className="text-justify leading-relaxed text-slate-700">Je soussigné, <b className="text-slate-900">{companyConfig.managerName}</b>, gérant de la société <b className="text-slate-900">{companyConfig.name}</b>, certifie par la présente que le navire désigné ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de <b className="text-slate-900 uppercase">{currentInvoice.clientName || ".........."}</b>.</p>
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                  <div className="bg-slate-900 text-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-center">Fiche Technique</div>
-                  <div className="p-5 grid grid-cols-2 gap-y-4 gap-x-8 bg-white">
-                    <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modèle</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.model}</div></div>
-                    <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">N° de série</div><div className="font-bold text-red-600 font-mono">{currentInvoice.boatDetails.serialNumber}</div></div>
-                    <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Année</div><div className="font-bold text-slate-900">2026</div></div>
-                    <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Homologation</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.approvalNumber}</div></div>
-                  </div>
-                </div>
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm"><div className="bg-slate-900 text-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-center">Fiche Technique</div><div className="p-5 grid grid-cols-2 gap-y-4 gap-x-8 bg-white"><div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modèle</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.model}</div></div><div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">N° de série</div><div className="font-bold text-red-600 font-mono">{currentInvoice.boatDetails.serialNumber}</div></div><div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Année</div><div className="font-bold text-slate-900">2026</div></div><div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Homologation</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.approvalNumber}</div></div></div></div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-500 italic line-clamp-3">Notes : {currentInvoice.boatDetails.notes}</div>
               </div>
             ) : (
               <div>
-                <table className="w-full border-collapse">
-                  <thead><tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"><th className="py-3 pl-2">Désignation</th><th className="py-3 text-center w-20">Qté</th>{!isBL && (<><th className="py-3 text-right w-32">P.U</th><th className="py-3 text-right w-32">Total</th></>)}</tr></thead>
-                  <tbody className="text-sm">{(currentInvoice.items || []).map((it, i) => (<tr key={it.id || i} className="border-b border-slate-50"><td className="py-3 pl-2"><div className="font-bold text-slate-900">{it.description || "—"}</div>{i === 0 && currentInvoice.boatDetails?.serialNumber && (<div className="text-xs text-slate-500 mt-1 font-medium">N/S: <span className="font-mono text-red-600">{currentInvoice.boatDetails.serialNumber}</span></div>)}</td><td className="py-3 text-center font-bold text-slate-700">{Number(it.quantity || 0)}</td>{!isBL && (<><td className="py-3 text-right text-slate-500 font-medium">{Number(it.price || 0).toLocaleString("fr-FR")}</td><td className="py-3 text-right font-bold text-slate-900">{(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}</td></>)}</tr>))}</tbody>
-                </table>
+                <table className="w-full border-collapse"><thead><tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"><th className="py-3 pl-2">Désignation</th><th className="py-3 text-center w-20">Qté</th>{!isBL && (<><th className="py-3 text-right w-32">P.U</th><th className="py-3 text-right w-32">Total</th></>)}</tr></thead><tbody className="text-sm">{(currentInvoice.items || []).map((it, i) => (<tr key={it.id || i} className="border-b border-slate-50"><td className="py-3 pl-2"><div className="font-bold text-slate-900">{it.description || "—"}</div>{i === 0 && currentInvoice.boatDetails?.serialNumber && (<div className="text-xs text-slate-500 mt-1 font-medium">N/S: <span className="font-mono text-red-600">{currentInvoice.boatDetails.serialNumber}</span></div>)}</td><td className="py-3 text-center font-bold text-slate-700">{Number(it.quantity || 0)}</td>{!isBL && (<><td className="py-3 text-right text-slate-500 font-medium">{Number(it.price || 0).toLocaleString("fr-FR")}</td><td className="py-3 text-right font-bold text-slate-900">{(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}</td></>)}</tr>))}</tbody></table>
                 {!isBL && (<div className="mt-8 flex justify-end"><div className="w-1/2 bg-slate-50 rounded-xl p-4 border border-slate-200 relative overflow-hidden"><div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-900 to-red-500" /><div className="pl-2 space-y-2"><div className="flex justify-between text-xs font-semibold text-slate-500"><span>Sous-total (HT)</span><span className="text-slate-900 font-bold">{formatCurrency(subtotal)}</span></div><div className="flex justify-between text-xs font-semibold text-slate-500"><span>TVA ({currentInvoice.tvaRate}%)</span><span className="text-slate-900 font-bold">{formatCurrency(tvaAmt)}</span></div><div className="border-t border-slate-200 my-2 pt-2 flex justify-between text-sm font-black text-slate-900"><span>TOTAL TTC</span><span className="text-blue-900">{formatCurrency(total)}</span></div></div></div></div>)}
                 {isFactOrPro && (<div className="mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-lg text-center"><div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Arrêté la présente facture à la somme de</div><div className="font-black text-slate-800 text-sm capitalize">{NumberToLetter(total)}</div></div>)}
                 {!isBL && currentInvoice.showPayment && (<div className="mt-6 border-t border-dashed border-slate-200 pt-4"><div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Conditions de règlement</div><div className="flex items-center gap-4 text-xs font-medium text-slate-700"><span className="px-2 py-1 bg-slate-100 rounded border border-slate-200">{paymentLabel}</span>{currentInvoice.paymentMethod === "cheque" && (<span>N° Chèque : <span className="font-mono font-bold text-slate-900">{currentInvoice.clientChequeNumber || "—"}</span></span>)}</div></div>)}
@@ -405,10 +320,7 @@ export default function MainApp() {
           </div>
         </div>
         <div>
-          <div className="mt-auto mb-6 grid grid-cols-2 gap-8">
-            <div className="border-2 border-dashed border-slate-300 rounded-xl h-28 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cachet & Signature Gérant</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Tampon ici</span></div>
-            <div className="border-2 border-dashed border-slate-300 rounded-xl h-28 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Signature Client</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Lu et approuvé</span></div>
-          </div>
+          <div className="mt-auto mb-6 grid grid-cols-2 gap-8"><div className="border-2 border-dashed border-slate-300 rounded-xl h-28 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cachet & Signature Gérant</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Tampon ici</span></div><div className="border-2 border-dashed border-slate-300 rounded-xl h-28 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Signature Client</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Lu et approuvé</span></div></div>
           <div className="border-t border-slate-200 pt-4 text-[10px] text-slate-500 leading-tight grid grid-cols-3 gap-4"><div><b className="block text-slate-900 mb-1">BANQUE</b>{companyConfig.bankName}<br/>RIB: <span className="font-mono text-slate-700">{companyConfig.bankRib}</span></div><div><b className="block text-slate-900 mb-1">FISCAL</b>RC: {companyConfig.rc}<br/>NIF: {companyConfig.nif}<br/>NIS: {companyConfig.nis}</div><div className="text-right"><b className="block text-slate-900 mb-1">{companyConfig.name}</b>Capital social: {companyConfig.capital}</div></div>
         </div>
       </div>
@@ -444,7 +356,7 @@ export default function MainApp() {
       <main className="flex-1 w-full bg-[#f8fafc] p-4 md:p-8 pt-20 md:pt-8 min-h-screen">
         {view === "list" && (
           <div className="max-w-6xl mx-auto space-y-8">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden"><div className="absolute right-0 top-0 h-full w-2/3 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div><h2 className="text-3xl font-black mb-2 relative z-10">Bonjour, Gérant 👋</h2><p className="text-blue-100 font-medium relative z-10">Stockage Cloud activé (Supabase).</p></div>
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden"><div className="absolute right-0 top-0 h-full w-2/3 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div><h2 className="text-3xl font-black mb-2 relative z-10">Bonjour, Gérant 👋</h2><p className="text-blue-100 font-medium relative z-10">Système sécurisé.</p></div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                {[ { title: "Dossier Complet", icon: <FolderOpen size={24}/>, action: () => startNew("dossier"), primary: true }, { title: "Facture", icon: <FileText size={24}/>, action: () => startNew("facture") }, { title: "Proforma", icon: <ClipboardList size={24}/>, action: () => startNew("proforma") }, { title: "Bon de Livraison", icon: <PackageCheck size={24}/>, action: () => startNew("livraison") }, { title: "Attestation", icon: <Anchor size={24}/>, action: () => startNew("attestation") } ].map((card, i) => (
                   <div key={i} onClick={card.action} className={`group cursor-pointer rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex flex-col items-center justify-center gap-4 text-center h-48 bg-white ${card.primary ? "border-blue-300 shadow-md ring-4 ring-blue-50" : "border-slate-200 shadow-sm hover:border-blue-300"}`}><div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors shadow-sm ${card.primary ? "bg-blue-600 text-white group-hover:bg-blue-700" : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"}`}>{card.icon}</div><span className="font-bold text-slate-700 group-hover:text-blue-900">{card.title}</span></div>
@@ -456,7 +368,7 @@ export default function MainApp() {
         {view === "edit" && currentInvoice && (
           <div className="flex flex-col xl:flex-row gap-6 items-start h-full">
              <div className="w-full xl:w-[400px] bg-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 no-print flex flex-col h-[calc(100vh-4rem)] sticky top-4">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200"><h3 className="font-black text-lg text-red-600 flex items-center gap-2"><div className="w-2 h-6 bg-red-600 rounded-full"/> Édition Cloud</h3><button onClick={() => setView("history")} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={18}/></button></div>
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200"><h3 className="font-black text-lg text-blue-900 flex items-center gap-2"><div className="w-2 h-6 bg-blue-600 rounded-full"/> Édition</h3><button onClick={() => setView("history")} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={18}/></button></div>
                 <div className="overflow-y-auto custom-scrollbar flex-1 pr-2 space-y-6">
                    <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm"><InputGroup label="Client"><Input value={currentInvoice.clientName} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientName: e.target.value })} placeholder="Nom du client" /></InputGroup><InputGroup label="Adresse"><TextArea rows={2} value={currentInvoice.clientAddress} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientAddress: e.target.value })} placeholder="Adresse..." /></InputGroup><InputGroup label="ID / Passeport"><Input value={currentInvoice.clientIdNumber} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientIdNumber: e.target.value })} /></InputGroup></div>
                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 shadow-sm"><div className="font-bold text-blue-900 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider"><Anchor size={14} className="text-blue-600"/> Navire</div><InputGroup label="Modèle"><Select value={companyConfig.boatModels.find((m) => m.name === currentInvoice.boatDetails.model)?.id || ""} onChange={(e) => selectModel(e.target.value)}><option value="">— Choisir Modèle —</option>{companyConfig.boatModels.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}</Select></InputGroup><div className="grid grid-cols-2 gap-3"><InputGroup label="N° Série"><Input value={currentInvoice.boatDetails.serialNumber} onChange={(e) => setCurrentInvoice({ ...currentInvoice, boatDetails: { ...currentInvoice.boatDetails, serialNumber: e.target.value.toUpperCase() } })} placeholder="DZ-PNB..." /></InputGroup><InputGroup label="Prix (DA)"><Input type="number" value={currentInvoice.items?.[0]?.price || 0} onChange={(e) => { const ni = [...currentInvoice.items]; ni[0] = { ...ni[0], price: parseFloat(e.target.value) || 0 }; setCurrentInvoice({ ...currentInvoice, items: ni }); }} /></InputGroup></div><InputGroup label="TVA (%)"><Input type="number" value={currentInvoice.tvaRate} onChange={(e) => setCurrentInvoice({ ...currentInvoice, tvaRate: Number(e.target.value || 0) })} /></InputGroup></div>
