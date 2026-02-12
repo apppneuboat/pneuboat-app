@@ -9,25 +9,13 @@ export default function App() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const saved = localStorage.getItem("pb_unlock");
-    if (saved === "1") {
-      setIsUnlocked(true);
-    }
+    setIsUnlocked(localStorage.getItem("pb_unlock") === "1");
   }, []);
 
   const handleLogin = () => {
     setError("");
-
-    if (!APP_PASSWORD) {
-      setError("Mot de passe non configuré sur Vercel (VITE_APP_PASSWORD).");
-      return;
-    }
-
-    if (password !== APP_PASSWORD) {
-      setError("Mot de passe incorrect.");
-      return;
-    }
-
+    if (!APP_PASSWORD) return setError("VITE_APP_PASSWORD est manquant dans Vercel.");
+    if (password !== APP_PASSWORD) return setError("Mot de passe incorrect.");
     localStorage.setItem("pb_unlock", "1");
     setIsUnlocked(true);
     setPassword("");
@@ -58,19 +46,39 @@ export default function App() {
             background: "#fff",
             border: "1px solid #e2e8f0",
             borderRadius: 20,
-            padding: 24,
-            boxShadow: "0 2px 6px rgba(15,23,42,.08)",
+            padding: 22,
+            boxShadow: "0 2px 10px rgba(15,23,42,.08)",
           }}
         >
-          <h2 style={{ margin: 0, fontWeight: 900 }}>PNEUBOAT</h2>
-          <p style={{ color: "#64748b", marginTop: 6 }}>
-            Accès sécurisé – Compte unique
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 14,
+                background: "#1e3a8a",
+                color: "white",
+                fontWeight: 900,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              P
+            </div>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 18 }}>PNEUBOAT</div>
+              <div style={{ color: "#64748b", fontSize: 13 }}>Accès sécurisé</div>
+            </div>
+          </div>
 
           <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "#475569", marginBottom: 6 }}>
+              Mot de passe
+            </div>
             <input
               type="password"
-              placeholder="Mot de passe"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{
@@ -85,7 +93,7 @@ export default function App() {
           </div>
 
           {error && (
-            <div style={{ marginTop: 10, color: "#b91c1c", fontWeight: 600 }}>
+            <div style={{ marginTop: 10, color: "#b91c1c", fontWeight: 800, fontSize: 13 }}>
               {error}
             </div>
           )}
@@ -98,14 +106,18 @@ export default function App() {
               padding: "12px",
               borderRadius: 14,
               border: "none",
-              background: "#1e3a8a",
+              background: "#dc2626",
               color: "white",
-              fontWeight: 800,
+              fontWeight: 900,
               cursor: "pointer",
             }}
           >
-            Se connecter
+            Ouvrir l’application
           </button>
+
+          <div style={{ marginTop: 10, color: "#64748b", fontSize: 12 }}>
+            Astuce iPad : si tu vois une page blanche, efface “Données des sites” (Safari).
+          </div>
         </div>
       </div>
     );
