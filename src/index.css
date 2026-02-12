@@ -1,107 +1,235 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* =========================
+   Pneuboat Premium Theme
+   ========================= */
 
-/* --- Pneuboat Premium (Indigo + Red accents) --- */
 :root{
-  --bg: 248 250 252;        /* slate-50 */
-  --card: 255 255 255;      /* white */
-  --border: 226 232 240;    /* slate-200 */
-  --text: 15 23 42;         /* slate-900 */
-  --muted: 100 116 139;     /* slate-500 */
+  --pb-blue: #0b2a6f;
+  --pb-blue2:#123b9a;
+  --pb-red:  #d21f2b;
+  --pb-bg:   #f6f7fb;
+  --pb-card: #ffffff;
+  --pb-text: #0f172a;
+  --pb-muted:#64748b;
+  --pb-line: #e5e7eb;
 
-  --brand: 30 64 175;       /* blue-800 */
-  --brand2: 79 70 229;      /* indigo-600 */
-  --red: 220 38 38;         /* red-600 */
+  --pb-radius: 18px;
+  --pb-radius-lg: 26px;
+
+  --pb-shadow: 0 10px 35px rgba(2,6,23,.10);
 }
 
-.pb-page { min-height: 100vh; background: rgb(var(--bg)); color: rgb(var(--text)); }
-.pb-container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+*{ box-sizing: border-box; }
+html, body { height: 100%; }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  color: var(--pb-text);
+  background: var(--pb-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-.pb-card { background: rgb(var(--card)); border: 1px solid rgb(var(--border)); border-radius: 18px; box-shadow: 0 1px 2px rgba(15,23,42,.06); }
-.pb-card-soft { background: rgba(255,255,255,.74); border: 1px solid rgb(var(--border)); border-radius: 18px; backdrop-filter: blur(10px); }
+.pb-page{ min-height: 100vh; }
 
-.pb-nav { position: sticky; top: 0; z-index: 50; border-bottom: 1px solid rgb(var(--border)); background: rgba(255,255,255,.76); backdrop-filter: blur(10px); }
+/* Container */
+.pb-container{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px;
+}
 
-.pb-tab { display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius: 14px; font-size: 14px; font-weight: 900; color: rgb(51,65,85); }
-.pb-tab:hover { background: rgba(241,245,249,.95); }
-.pb-tab-active { background: rgba(239,246,255,.9); color: rgb(30,64,175); border: 1px solid rgba(191,219,254,.9); }
-
-.pb-btn { display:inline-flex; align-items:center; justify-content:center; gap:10px; border-radius: 14px; padding: 10px 14px; font-size: 14px; font-weight: 950; transition: transform .06s ease, background .2s ease, border-color .2s ease; }
-.pb-btn:active { transform: scale(.98); }
-
-.pb-btn-primary { background: rgb(var(--brand2)); color: white; }
-.pb-btn-primary:hover { background: rgb(var(--brand)); }
-
-.pb-btn-ghost { background: white; border: 1px solid rgb(var(--border)); color: rgb(15,23,42); }
-.pb-btn-ghost:hover { background: rgb(248,250,252); }
-
-.pb-btn-danger { background: rgba(254,242,242,.7); border: 1px solid rgb(254,202,202); color: rgb(185,28,28); }
-.pb-btn-danger:hover { background: rgb(254,226,226); border-color: rgb(252,165,165); }
-
-.pb-input { width:100%; border-radius: 14px; border:1px solid rgb(var(--border)); background:white; padding: 10px 12px; font-size: 14px; outline:none; }
-.pb-input:focus { box-shadow: 0 0 0 3px rgba(79,70,229,.18); border-color: rgba(79,70,229,.55); }
-
-.pb-muted { color: rgb(var(--muted)); }
-
-/* --- Bande verticale Pneuboat (doc) --- */
-.pb-ribbon {
-  position: absolute;
-  left: 0;
+/* Nav */
+.pb-nav{
+  position: sticky;
   top: 0;
-  bottom: 0;
-  width: 14mm;
-  background: linear-gradient(180deg, rgb(79 70 229), rgb(30 64 175), rgb(220 38 38));
+  z-index: 50;
+  background: rgba(255,255,255,.86);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--pb-line);
 }
-.pb-ribbon::after{
-  content:"PNEUBOAT";
-  position:absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) rotate(-90deg);
-  color: rgba(255,255,255,.92);
+.pb-nav .pb-container{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 12px 18px;
+}
+
+/* Cards */
+.pb-card{
+  background: var(--pb-card);
+  border: 1px solid var(--pb-line);
+  border-radius: var(--pb-radius-lg);
+  box-shadow: var(--pb-shadow);
+}
+.pb-card-soft{
+  background: #fbfbfe;
+  border: 1px solid var(--pb-line);
+  border-radius: var(--pb-radius);
+}
+
+/* Inputs */
+.pb-input{
+  width:100%;
+  border: 1px solid var(--pb-line);
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  outline: none;
+}
+.pb-input:focus{
+  border-color: rgba(11,42,111,.35);
+  box-shadow: 0 0 0 4px rgba(18,59,154,.10);
+}
+
+.pb-muted{ color: var(--pb-muted); }
+
+/* Buttons */
+.pb-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap: 8px;
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--pb-line);
+  background: #fff;
+  cursor: pointer;
   font-weight: 900;
-  letter-spacing: .35em;
-  font-size: 10px;
-  white-space: nowrap;
 }
+.pb-btn:hover{ filter: brightness(.98); }
+.pb-btn:active{ transform: translateY(1px); }
 
-/* Arrondis premium */
-.pb-doc { border-radius: 22px !important; }
-
-/* IMPORTANT: empêche le document d’augmenter en hauteur -> coupe proprement si trop de texte */
-.pb-doc-fixed { height: 29.7cm; }
-.pb-doc-body { overflow: hidden; }
-
-/* Clamp lignes (pour éviter que le texte pousse et casse l’A4) */
-.pb-clamp-1, .pb-clamp-2, .pb-clamp-3 {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.pb-btn-primary{
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, var(--pb-blue2), var(--pb-blue));
+  box-shadow: 0 12px 30px rgba(18,59,154,.25);
 }
-.pb-clamp-1 { -webkit-line-clamp: 1; }
-.pb-clamp-2 { -webkit-line-clamp: 2; }
-.pb-clamp-3 { -webkit-line-clamp: 3; }
+.pb-btn-danger{
+  border: 1px solid rgba(210,31,43,.25);
+  color: var(--pb-red);
+  background: #fff;
+}
+.pb-btn-ghost{ background:#fff; }
+
+.pb-tab{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--pb-line);
+  background: #fff;
+  font-weight: 900;
+  color: #0f172a;
+}
+.pb-tab-active{
+  background: rgba(18,59,154,.08);
+  border-color: rgba(18,59,154,.25);
+  color: var(--pb-blue);
+}
 
 /* Print helpers */
-@media print {
-  .print-hidden { display: none !important; }
+.print-hidden{ display:block; }
 
-  html, body { width: 100% !important; }
-  body { background: white !important; margin: 0 !important; padding: 0 !important; }
+/* Clamp helpers */
+.pb-clamp-1{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow:hidden;
+}
+.pb-clamp-2{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow:hidden;
+}
+.pb-clamp-3{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow:hidden;
+}
 
-  /* IMPORTANT: marge imprimante (évite la coupe à droite) */
-  @page { size: A4; margin: 8mm; }
+/* =========================
+   A4 DOCUMENT
+   ========================= */
 
-  /* zone doc “safe” (évite overflow + coupe à droite) */
-  .pb-doc {
-    width: 194mm !important;          /* 210mm - 16mm */
-    height: 281mm !important;         /* 297mm - 16mm */
-    margin: 0 auto !important;
-    border: none !important;
-    overflow: hidden !important;
-    border-radius: 16px !important;   /* arrondi léger au print */
+.pb-doc{
+  width: 210mm;
+  height: 297mm;         /* FIXE */
+  background: #fff;
+  border: 1px solid var(--pb-line);
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Bande verticale */
+.pb-ribbon{
+  position:absolute;
+  inset:0 auto 0 0;
+  width: 12mm;
+  background: linear-gradient(180deg, var(--pb-blue2), var(--pb-blue), var(--pb-red));
+}
+
+.pb-doc-inner{
+  position: relative;
+  height: 100%;
+  padding-left: 16mm;
+  display:flex;
+  flex-direction: column;
+}
+
+.pb-doc-body{
+  flex: 1 1 auto;
+  min-height: 0;       /* CRITIQUE */
+  overflow: hidden;    /* ne pousse pas A4 */
+}
+
+.pb-doc-footer{ margin-top:auto; }
+
+/* =========================
+   PRINT – 1 DOC = 1 PAGE
+   ========================= */
+@page{
+  size: A4;
+  margin: 0;
+}
+
+@media print{
+  html, body{
+    width: 210mm;
+    height: 297mm;
+    background: #fff !important;
   }
 
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .print-hidden, .pb-nav{ display:none !important; }
+  .pb-container{ max-width:none !important; padding:0 !important; margin:0 !important; }
+  .pb-card, .pb-card-soft{ box-shadow:none !important; }
+
+  /* stop le bug pages blanches */
+  *{
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    transform: none !important;
+  }
+
+  .pb-print-page{
+    page-break-after: always;
+    break-after: page;
+  }
+  .pb-print-page:last-child{
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .pb-doc{
+    border: none !important;
+    border-radius: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+  }
 }
