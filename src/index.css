@@ -1,202 +1,53 @@
-/* =========================
-   Pneuboat Premium Theme
-   ========================= */
-
-:root{
-  --pb-blue: #0b2a6f;
-  --pb-blue2:#123b9a;
-  --pb-red:  #d21f2b;
-  --pb-bg:   #f6f7fb;
-  --pb-card: #ffffff;
-  --pb-text: #0f172a;
-  --pb-muted:#64748b;
-  --pb-line: #e5e7eb;
-
-  --pb-radius: 18px;
-  --pb-radius-lg: 26px;
-
-  --pb-shadow: 0 10px 35px rgba(2,6,23,.10);
-}
-
+/* ====== Base (léger, ne casse pas ton design) ====== */
 *{ box-sizing: border-box; }
 html, body { height: 100%; }
-body{
-  margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  color: var(--pb-text);
-  background: var(--pb-bg);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+body { margin:0; }
 
-.pb-page{ min-height: 100vh; }
-
-/* Container */
-.pb-container{
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 18px;
-}
-
-/* Nav */
-.pb-nav{
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: rgba(255,255,255,.86);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--pb-line);
-}
-.pb-nav .pb-container{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding: 12px 18px;
-}
-
-/* Cards */
-.pb-card{
-  background: var(--pb-card);
-  border: 1px solid var(--pb-line);
-  border-radius: var(--pb-radius-lg);
-  box-shadow: var(--pb-shadow);
-}
-.pb-card-soft{
-  background: #fbfbfe;
-  border: 1px solid var(--pb-line);
-  border-radius: var(--pb-radius);
-}
-
-/* Inputs */
-.pb-input{
-  width:100%;
-  border: 1px solid var(--pb-line);
-  background: #fff;
-  border-radius: 14px;
-  padding: 10px 12px;
-  outline: none;
-}
-.pb-input:focus{
-  border-color: rgba(11,42,111,.35);
-  box-shadow: 0 0 0 4px rgba(18,59,154,.10);
-}
-
-.pb-muted{ color: var(--pb-muted); }
-
-/* Buttons */
-.pb-btn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap: 8px;
-  border-radius: 14px;
-  padding: 10px 12px;
-  border: 1px solid var(--pb-line);
-  background: #fff;
-  cursor: pointer;
-  font-weight: 900;
-}
-.pb-btn:hover{ filter: brightness(.98); }
-.pb-btn:active{ transform: translateY(1px); }
-
-.pb-btn-primary{
-  border: none;
-  color: #fff;
-  background: linear-gradient(135deg, var(--pb-blue2), var(--pb-blue));
-  box-shadow: 0 12px 30px rgba(18,59,154,.25);
-}
-.pb-btn-danger{
-  border: 1px solid rgba(210,31,43,.25);
-  color: var(--pb-red);
-  background: #fff;
-}
-.pb-btn-ghost{ background:#fff; }
-
-.pb-tab{
-  display:inline-flex;
-  align-items:center;
-  gap: 8px;
-  padding: 9px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--pb-line);
-  background: #fff;
-  font-weight: 900;
-  color: #0f172a;
-}
-.pb-tab-active{
-  background: rgba(18,59,154,.08);
-  border-color: rgba(18,59,154,.25);
-  color: var(--pb-blue);
-}
-
-/* Print helpers */
+/* Helpers */
 .print-hidden{ display:block; }
 
-/* Clamp helpers */
-.pb-clamp-1{
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  overflow:hidden;
-}
-.pb-clamp-2{
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow:hidden;
-}
-.pb-clamp-3{
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow:hidden;
-}
+/* Clamp */
+.pb-clamp-1{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1; overflow:hidden; }
+.pb-clamp-2{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.pb-clamp-3{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }
 
-/* =========================
-   A4 DOCUMENT
-   ========================= */
-
-.pb-doc{
+/* ====== FIX A4 (NE CHANGE PAS TA UI) ====== */
+/* Important: le doc ne doit JAMAIS grandir -> hauteur A4 fixe */
+.pb-doc-fixed{
   width: 210mm;
-  height: 297mm;         /* FIXE */
-  background: #fff;
-  border: 1px solid var(--pb-line);
-  border-radius: 18px;
-  overflow: hidden;
+  height: 297mm;       /* FIXE A4 */
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;     /* empêche de dépasser */
   position: relative;
 }
 
-/* Bande verticale */
-.pb-ribbon{
-  position:absolute;
-  inset:0 auto 0 0;
-  width: 12mm;
-  background: linear-gradient(180deg, var(--pb-blue2), var(--pb-blue), var(--pb-red));
-}
-
-.pb-doc-inner{
-  position: relative;
-  height: 100%;
-  padding-left: 16mm;
-  display:flex;
-  flex-direction: column;
-}
-
+/* Corps flexible mais bloqué */
 .pb-doc-body{
   flex: 1 1 auto;
-  min-height: 0;       /* CRITIQUE */
-  overflow: hidden;    /* ne pousse pas A4 */
+  min-height: 0;        /* CRITIQUE pour flex */
+  overflow: hidden;     /* empêche la page de s’allonger */
 }
 
-.pb-doc-footer{ margin-top:auto; }
+/* Footer toujours en bas */
+.pb-doc-footer{
+  margin-top: auto;
+}
 
-/* =========================
-   PRINT – 1 DOC = 1 PAGE
-   ========================= */
+/* Chaque document = 1 page imprimée */
+.pb-print-page{
+  break-after: page;
+  page-break-after: always;
+}
+.pb-print-page:last-child{
+  break-after: auto;
+  page-break-after: auto;
+}
+
+/* ====== PRINT (le vrai fix) ====== */
 @page{
   size: A4;
-  margin: 0;
+  margin: 0;          /* évite le “coupé à droite” */
 }
 
 @media print{
@@ -204,32 +55,34 @@ body{
     width: 210mm;
     height: 297mm;
     background: #fff !important;
+    overflow: hidden !important;
   }
 
-  .print-hidden, .pb-nav{ display:none !important; }
-  .pb-container{ max-width:none !important; padding:0 !important; margin:0 !important; }
-  .pb-card, .pb-card-soft{ box-shadow:none !important; }
+  /* cacher l’UI */
+  .print-hidden{ display:none !important; }
 
-  /* stop le bug pages blanches */
+  /* IMPORTANT: enlever les transforms/scale qui créent pages blanches */
   *{
+    transform: none !important;
+    filter: none !important;
+    box-shadow: none !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    transform: none !important;
   }
 
-  .pb-print-page{
-    page-break-after: always;
-    break-after: page;
-  }
-  .pb-print-page:last-child{
-    page-break-after: auto;
-    break-after: auto;
+  /* Zone imprimée sans marge */
+  #printable-area{
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  .pb-doc{
-    border: none !important;
-    border-radius: 0 !important;
+  /* A4 strict */
+  .pb-doc-fixed{
     width: 210mm !important;
     height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
   }
 }
