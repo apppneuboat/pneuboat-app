@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus, Trash2, Printer, Save, FileText, FolderOpen, ClipboardList,
   Database, History, Search, X, Upload, Settings, LayoutDashboard, Anchor,
-  PackageCheck, ShieldCheck, LogOut, User
+  PackageCheck, ShieldCheck, LogOut, User, FileType
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -143,7 +143,11 @@ export default function MainApp() {
 
   const saveLocal = (config, docs) => {
     localStorage.setItem("pb_vfinal_config", JSON.stringify(config));
-    localStorage.setItem("pb_model_docs", JSON.stringify(docs));
+    try {
+      localStorage.setItem("pb_model_docs", JSON.stringify(docs));
+    } catch (e) {
+      alert("Attention: Fichier trop volumineux. Le stockage local est plein.");
+    }
   };
 
   useEffect(() => {
@@ -202,10 +206,20 @@ export default function MainApp() {
     reader.readAsDataURL(file);
   };
 
+  // UPLOAD AVEC SUPPORT PDF
   const handleDocUpload = (e, modelId, docKey) => {
-    const file = e.target.files?.[0]; if (!file) return;
+    const file = e.target.files?.[0]; 
+    if (!file) return;
+    // Petit check taille (max 3Mo pour pas bloquer localStorage)
+    if (file.size > 3 * 1024 * 1024) {
+      return alert("Fichier trop lourd (Max 3Mo). Compressez le PDF.");
+    }
     const reader = new FileReader();
-    reader.onloadend = () => { const next = { ...modelDocs, [modelId]: { ...(modelDocs[modelId] || {}), [docKey]: reader.result } }; setModelDocs(next); saveLocal(companyConfig, next); };
+    reader.onloadend = () => { 
+      const next = { ...modelDocs, [modelId]: { ...(modelDocs[modelId] || {}), [docKey]: reader.result } }; 
+      setModelDocs(next); 
+      saveLocal(companyConfig, next); 
+    };
     reader.readAsDataURL(file);
   };
 
@@ -275,7 +289,7 @@ export default function MainApp() {
 
   const handlePrint = () => { setTimeout(() => window.print(), 50); };
 
-  /* ------------------ RENDU DOCUMENT A4 (CORRIGÉ POUR TAILLE FIXE) ------------------ */
+  /* ------------------ RENDU DOCUMENT ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
     const total = calculateTotal(currentInvoice.items, currentInvoice.tvaRate);
@@ -288,10 +302,8 @@ export default function MainApp() {
     return (
       <div 
         className="print-area bg-white w-[210mm] h-[297mm] p-[20mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-sm leading-normal font-sans flex flex-col justify-between overflow-hidden"
-        style={{ height: "297mm", maxHeight: "297mm" }} // Force brute la hauteur A4
+        style={{ height: "297mm", maxHeight: "297mm" }}
       >
-        
-        {/* --- HAUT DE PAGE --- */}
         <div>
           <div className="flex justify-between items-start border-b-2 border-slate-100 pb-6 mb-6">
             <div className="w-7/12">
@@ -319,7 +331,6 @@ export default function MainApp() {
               <div className="pl-3">
                 <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Client</h3>
                 <div className="text-lg font-bold text-slate-900 uppercase truncate">{currentInvoice.clientName || "—"}</div>
-                {/* ICI: line-clamp-2 pour couper l'adresse si trop longue */}
                 <div className="text-sm text-slate-600 font-medium mt-1 leading-snug max-w-md line-clamp-2">{currentInvoice.clientAddress || "—"}</div>
                 {currentInvoice.clientIdNumber && ( <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm"><ShieldCheck size={12} className="text-blue-700" /><span className="text-xs font-bold text-slate-700">ID: <span className="font-mono text-red-600">{currentInvoice.clientIdNumber}</span></span></div> )}
               </div>
@@ -339,7 +350,6 @@ export default function MainApp() {
                     <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Homologation</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.approvalNumber}</div></div>
                   </div>
                 </div>
-                {/* ICI: line-clamp pour les notes */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-500 italic line-clamp-3">Notes : {currentInvoice.boatDetails.notes}</div>
               </div>
             ) : (
@@ -356,7 +366,6 @@ export default function MainApp() {
           </div>
         </div>
 
-        {/* --- BAS DE PAGE (FIGÉ) --- */}
         <div>
           <div className="mt-auto mb-6 grid grid-cols-2 gap-8">
             <div className="border-2 border-dashed border-slate-300 rounded-xl h-28 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cachet & Signature Gérant</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Tampon ici</span></div>
@@ -364,7 +373,6 @@ export default function MainApp() {
           </div>
           <div className="border-t border-slate-200 pt-4 text-[10px] text-slate-500 leading-tight grid grid-cols-3 gap-4"><div><b className="block text-slate-900 mb-1">BANQUE</b>{companyConfig.bankName}<br/>RIB: <span className="font-mono text-slate-700">{companyConfig.bankRib}</span></div><div><b className="block text-slate-900 mb-1">FISCAL</b>RC: {companyConfig.rc}<br/>NIF: {companyConfig.nif}<br/>NIS: {companyConfig.nis}</div><div className="text-right"><b className="block text-slate-900 mb-1">{companyConfig.name}</b>Capital social: {companyConfig.capital}</div></div>
         </div>
-
       </div>
     );
   };
@@ -468,10 +476,10 @@ export default function MainApp() {
         {view === "edit" && currentInvoice && (
           <div className="flex flex-col xl:flex-row gap-6 items-start h-full">
              
-             {/* --- COLONNE GAUCHE: FORMULAIRE (Fond coloré modifié) --- */}
+             {/* --- COLONNE GAUCHE --- */}
              <div className="w-full xl:w-[400px] bg-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 no-print flex flex-col h-[calc(100vh-4rem)] sticky top-4">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
-                   <h3 className="font-black text-lg text-red-600 flex items-center gap-2"><div className="w-2 h-6 bg-red-600 rounded-full"/> Édition</h3>
+                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2"><div className="w-2 h-6 bg-blue-600 rounded-full"/> Édition</h3>
                    <button onClick={() => setView("history")} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={18}/></button>
                 </div>
                 
@@ -509,10 +517,10 @@ export default function MainApp() {
                 </div>
              </div>
 
-             {/* Colonne Droite: Prévisualisation */}
+             {/* --- COLONNE DROITE --- */}
              <div className="flex-1 w-full bg-slate-200 rounded-2xl p-8 border border-slate-300 shadow-inner overflow-auto flex justify-center custom-scrollbar h-[calc(100vh-4rem)]">
                 <div id="printable-area" className="scale-90 origin-top">
-                   {/* --- ZONE D'IMPRESSION AVEC SAUTS DE PAGE --- */}
+                   {/* --- ZONE D'IMPRESSION --- */}
                    {currentInvoice.type === "dossier" ? (
                       <div>
                          <div className="page-break"><RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} /></div>
@@ -557,7 +565,7 @@ export default function MainApp() {
           </div>
         )}
 
-        {/* VUE: PLANS */}
+        {/* VUE: PLANS (MISE A JOUR POUR PDF) */}
         {view === "database" && (
            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {companyConfig.boatModels.map((m) => (
@@ -568,7 +576,12 @@ export default function MainApp() {
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                        {["fiche", "jauge", "plan", "approbation"].map((doc) => (
-                          <label key={doc} className={`cursor-pointer rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-2 border transition-all ${modelDocs[m.id]?.[doc] ? "bg-green-50 border-green-200 text-green-700" : "bg-white border-dashed border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50"}`}><Upload size={14}/><span className="capitalize">{doc}</span><input type="file" className="hidden" accept="image/*" onChange={(e) => handleDocUpload(e, m.id, doc)} /></label>
+                          <label key={doc} className={`cursor-pointer rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-2 border transition-all ${modelDocs[m.id]?.[doc] ? "bg-green-50 border-green-200 text-green-700" : "bg-white border-dashed border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50"}`}>
+                             <Upload size={14}/>
+                             <span className="capitalize">{doc}</span>
+                             {/* MODIFICATION ICI: accept image + pdf */}
+                             <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleDocUpload(e, m.id, doc)} />
+                          </label>
                        ))}
                     </div>
                     <Button onClick={() => { if (!modelDocs[m.id]) return alert("Aucun plan."); setPrintModelId(m.id); setView("print_tech_view"); }} className="w-full justify-center mt-auto shadow-md shadow-blue-100">Imprimer Dossier</Button>
@@ -577,14 +590,33 @@ export default function MainApp() {
            </div>
         )}
 
-        {/* VUE: IMPRESSION PLANS */}
+        {/* VUE: IMPRESSION PLANS (MISE A JOUR POUR PDF) */}
         {view === "print_tech_view" && (
            <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
               <div className="flex justify-between items-center mb-8 no-print border-b border-slate-100 pb-4">
                  <h2 className="text-2xl font-black text-slate-900">Dossier Technique</h2>
                  <div className="flex gap-2"><Button variant="secondary" onClick={() => setView("database")}>Retour</Button><Button onClick={handlePrint}>Imprimer</Button></div>
               </div>
-              <div className="space-y-12 print-area">{["fiche", "jauge", "plan", "approbation"].map((doc) => modelDocs[printModelId]?.[doc] && (<div key={doc} className="page-break flex flex-col items-center justify-center min-h-[90vh]"><img src={modelDocs[printModelId][doc]} alt={doc} className="max-w-full max-h-[250mm] object-contain" /></div>))}</div>
+              <div className="space-y-12 print-area">
+                {["fiche", "jauge", "plan", "approbation"].map((doc) => {
+                  const fileData = modelDocs[printModelId]?.[doc];
+                  if (!fileData) return null;
+                  
+                  // DETECTION PDF
+                  const isPdf = fileData.startsWith("data:application/pdf");
+
+                  return (
+                    <div key={doc} className="page-break flex flex-col items-center justify-center min-h-[90vh]">
+                       <div className="text-xs font-bold mb-2 uppercase text-slate-400 no-print">{doc}</div>
+                       {isPdf ? (
+                         <embed src={fileData} type="application/pdf" className="w-full h-[290mm]" />
+                       ) : (
+                         <img src={fileData} alt={doc} className="max-w-full max-h-[290mm] object-contain" />
+                       )}
+                    </div>
+                  );
+                })}
+              </div>
            </div>
         )}
 
