@@ -44,10 +44,50 @@
 
 .pb-muted { color: rgb(var(--muted)); }
 
+/* --- Bande verticale Pneuboat (doc) --- */
+.pb-ribbon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 14mm;
+  background: linear-gradient(180deg, rgb(79 70 229), rgb(30 64 175), rgb(220 38 38));
+}
+.pb-ribbon::after{
+  content:"PNEUBOAT";
+  position:absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  color: rgba(255,255,255,.92);
+  font-weight: 900;
+  letter-spacing: .35em;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Arrondis premium */
+.pb-doc { border-radius: 22px !important; }
+
 /* Print helpers */
 @media print {
   .print-hidden { display: none !important; }
+
+  html, body { width: 100% !important; }
   body { background: white !important; margin: 0 !important; padding: 0 !important; }
-  @page { size: A4; margin: 0; }
+
+  /* IMPORTANT: marge imprimante (évite la coupe à droite) */
+  @page { size: A4; margin: 8mm; }
+
+  /* zone doc “safe” (évite overflow) */
+  .pb-doc {
+    width: 194mm !important;          /* 210mm - 16mm */
+    min-height: 281mm !important;     /* 297mm - 16mm */
+    margin: 0 auto !important;
+    border: none !important;
+    overflow: hidden !important;
+    border-radius: 16px !important;   /* arrondi léger au print */
+  }
+
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
