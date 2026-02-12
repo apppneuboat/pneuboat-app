@@ -69,6 +69,20 @@
 /* Arrondis premium */
 .pb-doc { border-radius: 22px !important; }
 
+/* IMPORTANT: empêche le document d’augmenter en hauteur -> coupe proprement si trop de texte */
+.pb-doc-fixed { height: 29.7cm; }
+.pb-doc-body { overflow: hidden; }
+
+/* Clamp lignes (pour éviter que le texte pousse et casse l’A4) */
+.pb-clamp-1, .pb-clamp-2, .pb-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pb-clamp-1 { -webkit-line-clamp: 1; }
+.pb-clamp-2 { -webkit-line-clamp: 2; }
+.pb-clamp-3 { -webkit-line-clamp: 3; }
+
 /* Print helpers */
 @media print {
   .print-hidden { display: none !important; }
@@ -79,10 +93,10 @@
   /* IMPORTANT: marge imprimante (évite la coupe à droite) */
   @page { size: A4; margin: 8mm; }
 
-  /* zone doc “safe” (évite overflow) */
+  /* zone doc “safe” (évite overflow + coupe à droite) */
   .pb-doc {
     width: 194mm !important;          /* 210mm - 16mm */
-    min-height: 281mm !important;     /* 297mm - 16mm */
+    height: 281mm !important;         /* 297mm - 16mm */
     margin: 0 auto !important;
     border: none !important;
     overflow: hidden !important;
