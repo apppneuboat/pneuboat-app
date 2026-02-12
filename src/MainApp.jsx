@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Plus, Trash2, Printer, Save, FileText, FolderOpen, ClipboardList,
   Database, History, Search, X, Upload, Settings, LayoutDashboard, Anchor,
-  PackageCheck, ShieldCheck, LogOut, Lock, Cloud
+  PackageCheck, ShieldCheck, LogOut, Lock, Cloud, AlertTriangle
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -114,48 +114,44 @@ export default function MainApp() {
     ],
   });
 
-  /* ------------------ INIT & CHARGEMENT ------------------ */
+  /* ------------------ INIT ------------------ */
   useEffect(() => {
     const storedAuth = localStorage.getItem("pb_is_authenticated");
     if (storedAuth === "true") {
       setIsAuthenticated(true);
-      // On charge les données seulement si on est connecté
       setTimeout(() => loadOnlineData(), 500); 
     }
     const savedDocs = localStorage.getItem("pb_model_docs");
     if (savedDocs) setModelDocs(JSON.parse(savedDocs));
   }, []);
 
-  // Fonction sécurisée pour charger les données sans planter
+  // CHARGEMENT BLINDÉ (Anti-Page Blanche)
   const loadOnlineData = async () => {
     setBusy(true);
     try {
-      // 1. Config
       const { data: configData } = await supabase.from("app_settings").select("config").limit(1).maybeSingle();
       if (configData?.config) setCompanyConfig(configData.config);
 
-      // 2. Factures (PROTECTION CONTRE LE TABLEAU VIDE)
       const { data: invData, error } = await supabase.from("invoices").select("*").order("created_at", { ascending: false }).limit(200);
       
-      if (error) {
-        console.error("Erreur Supabase:", error);
-      } else if (invData) {
-        // Mapping sécurisé : si row.data est null, on met {}
-        const mapped = invData.map(row => {
-          const d = row.data || {}; 
-          return {
-            ...d,
-            db_id: row.id,
-            doc_number: row.doc_number,
-            client_name: row.client_name,
-            total: row.total,
-            created_at: row.created_at
-          };
-        });
-        setInvoiceHistory(mapped);
-      }
+      // PROTECTION ICI : Si invData est null, on utilise []
+      const safeData = invData || [];
+      
+      const mapped = safeData.map(row => {
+        const d = row.data || {}; 
+        return {
+          ...d,
+          db_id: row.id,
+          doc_number: row.doc_number,
+          client_name: row.client_name,
+          total: row.total,
+          created_at: row.created_at
+        };
+      });
+      setInvoiceHistory(mapped);
+      
     } catch (e) {
-      console.error("Erreur critique chargement:", e);
+      console.error("Erreur safe:", e);
     }
     setBusy(false);
   };
@@ -189,7 +185,7 @@ export default function MainApp() {
     setPasswordInput("");
   };
 
-  /* ------------------ ACTIONS ------------------ */
+  /* ------------------ ACTIONS (Sécurisées) ------------------ */
   const saveInvoiceToCloud = async () => {
     if (!currentInvoice?.clientName) return alert("Nom du client manquant.");
     setBusy(true);
@@ -227,13 +223,14 @@ export default function MainApp() {
       setView("history");
 
     } catch (error) {
-      alert("Erreur de sauvegarde : " + error.message);
+      console.error(error);
+      alert("Erreur de sauvegarde. Vérifiez votre connexion.");
     }
     setBusy(false);
   };
 
   const deleteInvoice = async (inv) => {
-    if (!window.confirm("Supprimer définitivement ce document ?")) return;
+    if (!window.confirm("Supprimer définitivement ce document du Cloud ?")) return;
     setBusy(true);
     await supabase.from("invoices").delete().eq("id", inv.db_id);
     await loadOnlineData();
@@ -327,6 +324,8 @@ export default function MainApp() {
     );
   };
 
+  const filteredHistory = useMemo(() => { const q = (searchTerm || "").toLowerCase().trim(); if (!q) return invoiceHistory; return (invoiceHistory || []).filter((i) => (i.clientName || "").toLowerCase().includes(q) || (i.doc_number || "").toLowerCase().includes(q)); }, [invoiceHistory, searchTerm]);
+
   /* ------------------ VUES ------------------ */
   if (!isAuthenticated) {
     return (
@@ -356,7 +355,7 @@ export default function MainApp() {
       <main className="flex-1 w-full bg-[#f8fafc] p-4 md:p-8 pt-20 md:pt-8 min-h-screen">
         {view === "list" && (
           <div className="max-w-6xl mx-auto space-y-8">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden"><div className="absolute right-0 top-0 h-full w-2/3 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div><h2 className="text-3xl font-black mb-2 relative z-10">Bonjour, Gérant 👋</h2><p className="text-blue-100 font-medium relative z-10">Système sécurisé.</p></div>
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden"><div className="absolute right-0 top-0 h-full w-2/3 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div><h2 className="text-3xl font-black mb-2 relative z-10">Bonjour, Gérant 👋</h2><p className="text-blue-100 font-medium relative z-10">Stockage Cloud activé (Supabase).</p></div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                {[ { title: "Dossier Complet", icon: <FolderOpen size={24}/>, action: () => startNew("dossier"), primary: true }, { title: "Facture", icon: <FileText size={24}/>, action: () => startNew("facture") }, { title: "Proforma", icon: <ClipboardList size={24}/>, action: () => startNew("proforma") }, { title: "Bon de Livraison", icon: <PackageCheck size={24}/>, action: () => startNew("livraison") }, { title: "Attestation", icon: <Anchor size={24}/>, action: () => startNew("attestation") } ].map((card, i) => (
                   <div key={i} onClick={card.action} className={`group cursor-pointer rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex flex-col items-center justify-center gap-4 text-center h-48 bg-white ${card.primary ? "border-blue-300 shadow-md ring-4 ring-blue-50" : "border-slate-200 shadow-sm hover:border-blue-300"}`}><div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors shadow-sm ${card.primary ? "bg-blue-600 text-white group-hover:bg-blue-700" : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"}`}>{card.icon}</div><span className="font-bold text-slate-700 group-hover:text-blue-900">{card.title}</span></div>
@@ -368,7 +367,7 @@ export default function MainApp() {
         {view === "edit" && currentInvoice && (
           <div className="flex flex-col xl:flex-row gap-6 items-start h-full">
              <div className="w-full xl:w-[400px] bg-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 no-print flex flex-col h-[calc(100vh-4rem)] sticky top-4">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200"><h3 className="font-black text-lg text-blue-900 flex items-center gap-2"><div className="w-2 h-6 bg-blue-600 rounded-full"/> Édition</h3><button onClick={() => setView("history")} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={18}/></button></div>
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200"><h3 className="font-black text-lg text-red-600 flex items-center gap-2"><div className="w-2 h-6 bg-red-600 rounded-full"/> Édition Cloud</h3><button onClick={() => setView("history")} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={18}/></button></div>
                 <div className="overflow-y-auto custom-scrollbar flex-1 pr-2 space-y-6">
                    <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm"><InputGroup label="Client"><Input value={currentInvoice.clientName} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientName: e.target.value })} placeholder="Nom du client" /></InputGroup><InputGroup label="Adresse"><TextArea rows={2} value={currentInvoice.clientAddress} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientAddress: e.target.value })} placeholder="Adresse..." /></InputGroup><InputGroup label="ID / Passeport"><Input value={currentInvoice.clientIdNumber} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientIdNumber: e.target.value })} /></InputGroup></div>
                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 shadow-sm"><div className="font-bold text-blue-900 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider"><Anchor size={14} className="text-blue-600"/> Navire</div><InputGroup label="Modèle"><Select value={companyConfig.boatModels.find((m) => m.name === currentInvoice.boatDetails.model)?.id || ""} onChange={(e) => selectModel(e.target.value)}><option value="">— Choisir Modèle —</option>{companyConfig.boatModels.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}</Select></InputGroup><div className="grid grid-cols-2 gap-3"><InputGroup label="N° Série"><Input value={currentInvoice.boatDetails.serialNumber} onChange={(e) => setCurrentInvoice({ ...currentInvoice, boatDetails: { ...currentInvoice.boatDetails, serialNumber: e.target.value.toUpperCase() } })} placeholder="DZ-PNB..." /></InputGroup><InputGroup label="Prix (DA)"><Input type="number" value={currentInvoice.items?.[0]?.price || 0} onChange={(e) => { const ni = [...currentInvoice.items]; ni[0] = { ...ni[0], price: parseFloat(e.target.value) || 0 }; setCurrentInvoice({ ...currentInvoice, items: ni }); }} /></InputGroup></div><InputGroup label="TVA (%)"><Input type="number" value={currentInvoice.tvaRate} onChange={(e) => setCurrentInvoice({ ...currentInvoice, tvaRate: Number(e.target.value || 0) })} /></InputGroup></div>
@@ -396,7 +395,7 @@ export default function MainApp() {
                 <table className="w-full text-left text-sm text-slate-600">
                    <thead className="bg-blue-50/50 text-xs uppercase font-bold text-blue-800"><tr><th className="px-6 py-4">Date</th><th className="px-6 py-4">Ref</th><th className="px-6 py-4">Client</th><th className="px-6 py-4 text-right">Montant</th><th className="px-6 py-4 text-right">Actions</th></tr></thead>
                    <tbody className="divide-y divide-slate-100">
-                      {filteredHistory.map((inv) => (
+                      {(filteredHistory || []).map((inv) => (
                          <tr key={inv.db_id} className="hover:bg-blue-50/30 transition-colors group">
                             <td className="px-6 py-4 font-medium text-slate-500">{inv.created_at ? new Date(inv.created_at).toLocaleDateString() : inv.date}</td>
                             <td className="px-6 py-4"><span className="font-mono text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded group-hover:bg-white group-hover:text-blue-600 transition-colors">{inv.doc_number || inv.number}</span></td>
@@ -405,7 +404,7 @@ export default function MainApp() {
                             <td className="px-6 py-4 text-right flex justify-end gap-2"><Button variant="secondary" onClick={() => { setCurrentInvoice({...inv, db_id: inv.db_id}); setView("edit"); }} className="!px-3 !py-1.5"><FileText size={14}/> Ouvrir</Button><Button variant="ghost" onClick={() => deleteInvoice(inv)} className="!px-2 !py-1.5 hover:text-red-600 hover:bg-red-50"><Trash2 size={14}/></Button></td>
                          </tr>
                       ))}
-                      {filteredHistory.length === 0 && (<tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">Aucune facture en ligne.</td></tr>)}
+                      {(!filteredHistory || filteredHistory.length === 0) && (<tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">Aucune facture en ligne.</td></tr>)}
                    </tbody>
                 </table>
              </div>
