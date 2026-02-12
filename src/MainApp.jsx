@@ -22,97 +22,17 @@ import {
 import { supabase } from "./supabase";
 
 /* ------------------ UTILITAIRES ------------------ */
-const NumberToLetter = (nombre) => {
-  const unites = [
-    "",
-    "un",
-    "deux",
-    "trois",
-    "quatre",
-    "cinq",
-    "six",
-    "sept",
-    "huit",
-    "neuf",
-    "dix",
-    "onze",
-    "douze",
-    "treize",
-    "quatorze",
-    "quinze",
-    "seize",
-    "dix-sept",
-    "dix-huit",
-    "dix-neuf",
-  ];
-  const dizaines = [
-    "",
-    "dix",
-    "vingt",
-    "trente",
-    "quarante",
-    "cinquante",
-    "soixante",
-    "soixante-dix",
-    "quatre-vingt",
-    "quatre-vingt-dix",
-  ];
-  const conv99 = (n) => {
-    if (n < 20) return unites[n];
-    let d = Math.floor(n / 10);
-    let u = n % 10;
-    if (d === 7 || d === 9) {
-      d -= 1;
-      u += 10;
-    }
-    let res = dizaines[d];
-    if (u === 1 && d < 8) res += " et un";
-    else if (u > 0) res += "-" + unites[u];
-    return res;
-  };
-  const conv999 = (n) => {
-    let c = Math.floor(n / 100);
-    let r = n % 100;
-    let res = "";
-    if (c > 0)
-      res +=
-        (c === 1 ? "" : unites[c] + " ") +
-        "cent" +
-        (r === 0 && c > 1 ? "s" : "");
-    if (r > 0) res += (res ? " " : "") + conv99(r);
-    return res;
-  };
-  if (nombre === 0) return "zéro";
-  let n = Math.floor(nombre);
-  let res = "";
-  if (n >= 1000000) {
-    let m = Math.floor(n / 1000000);
-    res += (m === 1 ? "un million" : conv999(m) + " millions") + " ";
-    n %= 1000000;
-  }
-  if (n >= 1000) {
-    let k = Math.floor(n / 1000);
-    res += (k === 1 ? "mille" : conv999(k) + " mille") + " ";
-    n %= 1000;
-  }
-  if (n > 0) res += conv999(n);
-  const ent = Math.floor(nombre);
-  const dec = Math.round((nombre - ent) * 100);
-  let final = res.trim() + " Dinars Algériens";
-  if (dec > 0) final += " et " + conv99(dec) + " Centimes";
-  return final.charAt(0).toUpperCase() + final.slice(1);
-};
-
 const calculateSubtotal = (items) =>
   (items || []).reduce(
     (acc, item) => acc + Number(item.quantity || 0) * Number(item.price || 0),
     0
   );
+
 const calculateTotal = (items, tvaRate) =>
   calculateSubtotal(items) * (1 + Number(tvaRate || 0) / 100);
+
 const formatCurrency = (amount) =>
-  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) +
-  " DA";
+  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
 
 const labelDoc = (t) => {
   if (t === "facture") return "FACTURE";
@@ -121,6 +41,13 @@ const labelDoc = (t) => {
   if (t === "attestation") return "ATTESTATION DE CONSTRUCTION";
   if (t === "dossier") return "DOSSIER COMPLET";
   return String(t || "").toUpperCase();
+};
+
+const paymentLabel = (pm) => {
+  if (pm === "cheque") return "Chèque";
+  if (pm === "virement") return "Virement bancaire";
+  if (pm === "espece") return "Espèce";
+  return "—";
 };
 
 /* ------------------ UI COMPONENTS ------------------ */
@@ -200,7 +127,7 @@ export default function MainApp() {
   const [printModelId, setPrintModelId] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  // Docs par modèle (local) + un espace “Documents PDF” global
+  // Docs par modèle + bibliothèque PDF (impression à la demande)
   const [modelDocs, setModelDocs] = useState({});
   const [pdfLibrary, setPdfLibrary] = useState([]);
   const [pdfSelected, setPdfSelected] = useState(null);
@@ -252,7 +179,7 @@ export default function MainApp() {
     const storedAuth = localStorage.getItem("pb_is_authenticated");
     if (storedAuth === "true") {
       setIsAuthenticated(true);
-      setTimeout(() => loadOnlineData(), 300);
+      setTimeout(() => loadOnlineData(), 250);
     }
 
     const savedDocs = localStorage.getItem("pb_model_docs");
@@ -269,6 +196,12 @@ export default function MainApp() {
       } catch {}
     }
   }, []);
+
+  const rememberLocal = (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {}
+  };
 
   /* ------------------ SUPABASE ------------------ */
   const loadOnlineData = async () => {
@@ -300,12 +233,6 @@ export default function MainApp() {
       console.error(e);
     }
     setBusy(false);
-  };
-
-  const rememberingLocal = (key, value) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
   };
 
   const saveConfigOnline = async (nc) => {
@@ -464,11 +391,15 @@ export default function MainApp() {
         year: String(year),
         notes: "Certifié construit à neuf.",
       },
+      showPayment: true,
+      paymentMethod: "virement",
+      clientChequeNumber: "",
     });
 
     const n =
       type === "facture" ? nf : type === "proforma" ? np : type === "livraison" ? nbl : na;
-    const pref = type === "facture" ? "FAC" : type === "proforma" ? "PRO" : type === "livraison" ? "BL" : "ATT";
+    const pref =
+      type === "facture" ? "FAC" : type === "proforma" ? "PRO" : type === "livraison" ? "BL" : "ATT";
 
     newDoc.number =
       type === "dossier"
@@ -491,7 +422,9 @@ export default function MainApp() {
 
     setCurrentInvoice((p) => {
       const prev = normalizeInvoice(p || {});
-      const firstItem = prev.items?.[0] || { id: Date.now(), description: "", quantity: 1, price: 0 };
+      const firstItem =
+        prev.items?.[0] || { id: Date.now(), description: "", quantity: 1, price: 0 };
+
       return {
         ...prev,
         boatDetails: {
@@ -511,7 +444,7 @@ export default function MainApp() {
     });
   };
 
-  /* ------------------ UPLOAD LOGO & DOCS (LOCAL) ------------------ */
+  /* ------------------ UPLOAD LOGO & DOCS ------------------ */
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -528,21 +461,15 @@ export default function MainApp() {
     }
   };
 
-  // Upload doc (plan/fiche/jauge/approbation) : stockage local base64 (simple)
   const handleDocUpload = async (e, modelId, docKey) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Astuce: base64 peut être lourd, garde plutôt des PDFs "raisonnables"
     setBusy(true);
     try {
       const b64 = await toBase64(file);
       setModelDocs((prev) => {
-        const next = {
-          ...prev,
-          [modelId]: { ...(prev[modelId] || {}), [docKey]: b64 },
-        };
-        localStorage.setItem("pb_model_docs", JSON.stringify(next));
+        const next = { ...prev, [modelId]: { ...(prev[modelId] || {}), [docKey]: b64 } };
+        rememberLocal("pb_model_docs", next);
         return next;
       });
     } catch (err) {
@@ -559,12 +486,12 @@ export default function MainApp() {
       if (!next[modelId]) return prev;
       next[modelId] = { ...next[modelId] };
       delete next[modelId][docKey];
-      rememberingLocal("pb_model_docs", next);
+      rememberLocal("pb_model_docs", next);
       return next;
     });
   };
 
-  /* ------------------ LIBRAIRIE PDF (IMPRESSION À LA DEMANDE) ------------------ */
+  /* ------------------ BIBLIOTHÈQUE PDF ------------------ */
   const addPdfToLibrary = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -572,7 +499,6 @@ export default function MainApp() {
       alert("Merci de choisir un fichier PDF.");
       return;
     }
-
     setBusy(true);
     try {
       const b64 = await toBase64(file);
@@ -584,7 +510,7 @@ export default function MainApp() {
       };
       setPdfLibrary((prev) => {
         const next = [entry, ...(prev || [])];
-        rememberingLocal("pb_pdf_library", next);
+        rememberLocal("pb_pdf_library", next);
         return next;
       });
     } catch (err) {
@@ -598,7 +524,7 @@ export default function MainApp() {
   const removePdf = (id) => {
     setPdfLibrary((prev) => {
       const next = (prev || []).filter((x) => x.id !== id);
-      rememberingLocal("pb_pdf_library", next);
+      rememberLocal("pb_pdf_library", next);
       if (pdfSelected?.id === id) setPdfSelected(null);
       return next;
     });
@@ -606,7 +532,6 @@ export default function MainApp() {
 
   const printPdf = (pdfData) => {
     if (!pdfData) return;
-    // Méthode stable : ouvrir dans nouvel onglet (ou iframe) puis print
     const w = window.open();
     if (!w) {
       alert("Pop-up bloquée. Autorise les pop-ups puis réessaye.");
@@ -626,7 +551,7 @@ export default function MainApp() {
     w.document.close();
   };
 
-  /* ------------------ HISTORY FILTER (FIX CRASH) ------------------ */
+  /* ------------------ HISTORY FILTER (FIX) ------------------ */
   const filteredHistory = useMemo(() => {
     const q = (searchTerm || "").trim().toLowerCase();
     const list = invoiceHistory || [];
@@ -638,39 +563,48 @@ export default function MainApp() {
     });
   }, [invoiceHistory, searchTerm]);
 
-  /* ------------------ RENDU DOCUMENT ------------------ */
+  /* ------------------ RENDU DOCUMENT (PLUS MODERNE / COLORÉ) ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
     const inv = normalizeInvoice(currentInvoice);
     const total = calculateTotal(inv.items, inv.tvaRate);
     const subtotal = calculateSubtotal(inv.items);
 
+    const showTotals = subType !== "livraison" && subType !== "attestation";
+    const showPayBlock = showTotals && !!inv.showPayment;
+
     return (
-      <div className="bg-white w-[210mm] h-[297mm] p-[15mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden">
-        <div>
+      <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden">
+        {/* Bande couleur haut (moderne) */}
+        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500" />
+        <div className="absolute -right-24 -top-24 w-64 h-64 rounded-full bg-blue-50" />
+        <div className="absolute -left-24 -bottom-24 w-64 h-64 rounded-full bg-cyan-50" />
+
+        <div className="relative">
           <div className="flex justify-between items-start border-b-2 border-slate-100 pb-4 mb-4">
             <div>
               {companyConfig.logo ? (
                 <img src={companyConfig.logo} alt="logo" className="h-12 object-contain mb-2" />
               ) : (
-                <h1 className="text-xl font-black uppercase">
-                  Pneuboat <span className="text-red-600">SARL</span>
+                <h1 className="text-xl font-black uppercase tracking-tight">
+                  Pneuboat <span className="text-blue-700">SARL</span>
                 </h1>
               )}
               <div className="text-[10px] text-slate-500 leading-tight">
                 <p>{companyConfig.address}</p>
                 <p>Tél: {companyConfig.phone}</p>
+                <p className="text-slate-400">{companyConfig.email}</p>
               </div>
             </div>
 
             <div className="text-right">
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-900 text-[10px] font-black uppercase border border-blue-100">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase border border-slate-900">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 {labelDoc(subType)}
               </span>
 
-              <div className="mt-2">
-                <div className="font-mono text-sm font-bold">{docNumber}</div>
+              <div className="mt-3">
+                <div className="font-mono text-base font-black text-slate-900">{docNumber}</div>
                 <div className="text-[10px] font-semibold text-slate-400">
                   Le {new Date(inv.date).toLocaleDateString("fr-FR")}
                 </div>
@@ -678,105 +612,173 @@ export default function MainApp() {
             </div>
           </div>
 
-          <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4 relative overflow-hidden">
+          <div className="mb-5 bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600" />
             <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">
               Client
             </h3>
-            <div className="text-md font-bold uppercase truncate">{inv.clientName || "—"}</div>
+            <div className="text-[14px] font-black uppercase truncate text-slate-900">
+              {inv.clientName || "—"}
+            </div>
             <div className="text-[11px] text-slate-600 line-clamp-1">
               {inv.clientAddress || "—"}
             </div>
+            {!!inv.clientIdNumber && (
+              <div className="mt-2 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <span className="px-2 py-1 rounded-lg bg-white border border-slate-200">
+                  ID: {inv.clientIdNumber}
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="min-h-[150px]">
+          <div className="min-h-[170px]">
             {subType === "attestation" ? (
               <div className="space-y-4">
                 <p className="text-justify text-[11px]">
                   Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
-                  <b>{companyConfig.name}</b>, certifie que le navire a été construit
-                  à neuf dans nos ateliers pour le compte de{" "}
+                  <b>{companyConfig.name}</b>, certifie que le navire a été construit à
+                  neuf dans nos ateliers pour le compte de{" "}
                   <b>{inv.clientName || ".........."}</b>.
                 </p>
 
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <div className="bg-slate-900 text-white px-3 py-1 text-[9px] font-bold uppercase text-center">
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
                     Fiche Technique
                   </div>
-                  <div className="p-3 grid grid-cols-2 gap-2 bg-white">
-                    <div>
-                      <div className="text-[8px] text-slate-400 uppercase">Modèle</div>
-                      <div className="font-bold">{inv.boatDetails.model}</div>
+                  <div className="p-4 grid grid-cols-2 gap-3 bg-white">
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Modèle
+                      </div>
+                      <div className="font-black">{inv.boatDetails.model || "—"}</div>
                     </div>
-                    <div>
-                      <div className="text-[8px] text-slate-400 uppercase">N° de série</div>
-                      <div className="font-bold text-red-600 font-mono">
-                        {inv.boatDetails.serialNumber}
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        N° de série
+                      </div>
+                      <div className="font-black text-blue-700 font-mono">
+                        {inv.boatDetails.serialNumber || "—"}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-400 font-bold uppercase">
-                    <th className="py-2">Désignation</th>
-                    <th className="py-2 text-center">Qté</th>
-                    {subType !== "livraison" && (
-                      <>
-                        <th className="py-2 text-right">P.U</th>
-                        <th className="py-2 text-right">Total</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {inv.items.map((it, i) => (
-                    <tr key={it.id || i} className="border-b border-slate-50">
-                      <td className="py-2 font-bold">{it.description}</td>
-                      <td className="py-2 text-center font-bold">{it.quantity}</td>
+              <div className="rounded-2xl overflow-hidden border border-slate-200">
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="text-left text-slate-700 font-black uppercase bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
+                      <th className="py-2.5 px-3">Désignation</th>
+                      <th className="py-2.5 px-3 text-center w-16">Qté</th>
                       {subType !== "livraison" && (
                         <>
-                          <td className="py-2 text-right">
-                            {Number(it.price || 0).toLocaleString("fr-FR")}
-                          </td>
-                          <td className="py-2 text-right font-bold">
-                            {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString(
-                              "fr-FR"
-                            )}
-                          </td>
+                          <th className="py-2.5 px-3 text-right w-24">P.U</th>
+                          <th className="py-2.5 px-3 text-right w-28">Total</th>
                         </>
                       )}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {inv.items.map((it, i) => (
+                      <tr key={it.id || i} className="border-b border-slate-100 last:border-b-0">
+                        <td className="py-2.5 px-3 font-bold">{it.description}</td>
+                        <td className="py-2.5 px-3 text-center font-black">
+                          {Number(it.quantity || 0)}
+                        </td>
+                        {subType !== "livraison" && (
+                          <>
+                            <td className="py-2.5 px-3 text-right">
+                              {Number(it.price || 0).toLocaleString("fr-FR")}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-black text-slate-900">
+                              {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString(
+                                "fr-FR"
+                              )}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                    {inv.items.length === 0 && (
+                      <tr>
+                        <td className="p-6 text-center text-slate-400 font-black" colSpan={4}>
+                          Aucun article
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
 
-        <div>
-          {subType !== "livraison" && subType !== "attestation" && (
+        <div className="relative">
+          {showTotals && (
             <div className="flex justify-end mb-4">
-              <div className="w-1/2 bg-slate-50 p-3 rounded-lg border border-slate-200 text-[10px] space-y-1">
-                <div className="flex justify-between text-slate-500">
-                  <span>Sous-total HT</span>
-                  <span>{formatCurrency(subtotal)}</span>
+              <div className="w-[58%] rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Récapitulatif
                 </div>
-                <div className="flex justify-between font-black text-blue-900 text-[12px] pt-1 border-t">
-                  <span>TOTAL TTC</span>
-                  <span>{formatCurrency(total)}</span>
+                <div className="p-4 bg-white text-[10px] space-y-2">
+                  <div className="flex justify-between text-slate-500 font-bold">
+                    <span>Sous-total HT</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 font-bold">
+                    <span>TVA</span>
+                    <span>{Number(inv.tvaRate || 0)}%</span>
+                  </div>
+                  <div className="pt-2 border-t flex justify-between font-black text-[13px]">
+                    <span className="text-slate-900">TOTAL TTC</span>
+                    <span className="text-blue-700">{formatCurrency(total)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="border border-dashed border-slate-200 rounded-lg h-20 p-2 text-[9px] text-slate-400 uppercase font-bold flex flex-col justify-between">
+          {/* Bloc paiement (affichable/masquable depuis l'édition) */}
+          {showPayBlock && (
+            <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
+              <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                Paiement
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[12px] font-black text-slate-900">
+                    Mode : <span className="text-blue-700">{paymentLabel(inv.paymentMethod)}</span>
+                  </div>
+                  {inv.paymentMethod === "cheque" && inv.clientChequeNumber ? (
+                    <div className="text-[10px] text-slate-600 font-bold mt-1">
+                      N° Chèque : <span className="font-mono">{inv.clientChequeNumber}</span>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-600 font-bold mt-1">
+                      {inv.paymentMethod === "cheque"
+                        ? "N° Chèque : —"
+                        : inv.paymentMethod === "virement"
+                        ? "Paiement par virement bancaire"
+                        : "Paiement en espèces"}
+                    </div>
+                  )}
+                </div>
+                <div className="text-right text-[10px] font-bold text-slate-600">
+                  <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Paiement prévu
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4 mb-3">
+            <div className="border border-dashed border-slate-200 rounded-2xl h-20 p-3 text-[9px] text-slate-400 uppercase font-black flex flex-col justify-between">
               Cachet Gérant<span>....................</span>
             </div>
-            <div className="border border-dashed border-slate-200 rounded-lg h-20 p-2 text-[9px] text-slate-400 uppercase font-bold flex flex-col justify-between">
+            <div className="border border-dashed border-slate-200 rounded-2xl h-20 p-3 text-[9px] text-slate-400 uppercase font-black flex flex-col justify-between">
               Signature Client<span>....................</span>
             </div>
           </div>
@@ -792,14 +794,14 @@ export default function MainApp() {
               <br />
               <b>NIF:</b> {companyConfig.nif || "—"}
             </div>
-            <div className="text-right uppercase font-bold text-slate-900">{companyConfig.name}</div>
+            <div className="text-right uppercase font-black text-slate-900">{companyConfig.name}</div>
           </div>
         </div>
       </div>
     );
   };
 
-  /* ------------------ VUES ------------------ */
+  /* ------------------ LOGIN ------------------ */
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
@@ -832,6 +834,7 @@ export default function MainApp() {
     );
   }
 
+  /* ------------------ APP ------------------ */
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans pb-24 md:pb-0 md:pl-64">
       {/* MENU NAVIGATION */}
@@ -874,8 +877,8 @@ export default function MainApp() {
         </div>
       </nav>
 
-      {/* CONTENU */}
       <main className="p-4 md:p-10 max-w-7xl mx-auto">
+        {/* LIST */}
         {view === "list" && (
           <div className="space-y-6 animate-in fade-in duration-500">
             <div className="bg-slate-900 rounded-[2rem] p-8 md:p-12 text-white shadow-2xl flex justify-between items-center overflow-hidden relative">
@@ -887,7 +890,10 @@ export default function MainApp() {
                   Chantier Naval Pneuboat
                 </p>
               </div>
-              <Anchor size={120} className="text-slate-800 absolute -right-8 -bottom-8 md:static md:opacity-10 opacity-20" />
+              <Anchor
+                size={120}
+                className="text-slate-800 absolute -right-8 -bottom-8 md:static md:opacity-10 opacity-20"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -899,30 +905,10 @@ export default function MainApp() {
                   desc: "Facture + Attestation + BL",
                   color: "bg-blue-600",
                 },
-                {
-                  title: "Facture Client",
-                  icon: <FileText />,
-                  action: () => startNew("facture"),
-                  desc: "Document de vente simple",
-                },
-                {
-                  title: "Facture Proforma",
-                  icon: <ClipboardList />,
-                  action: () => startNew("proforma"),
-                  desc: "Devis / Facture proforma",
-                },
-                {
-                  title: "Bon de Livraison",
-                  icon: <PackageCheck />,
-                  action: () => startNew("livraison"),
-                  desc: "Preuve de livraison",
-                },
-                {
-                  title: "Attestation",
-                  icon: <Anchor />,
-                  action: () => startNew("attestation"),
-                  desc: "Attestation de construction",
-                },
+                { title: "Facture Client", icon: <FileText />, action: () => startNew("facture"), desc: "Document de vente simple" },
+                { title: "Facture Proforma", icon: <ClipboardList />, action: () => startNew("proforma"), desc: "Devis / Facture proforma" },
+                { title: "Bon de Livraison", icon: <PackageCheck />, action: () => startNew("livraison"), desc: "Preuve de livraison" },
+                { title: "Attestation", icon: <Anchor />, action: () => startNew("attestation"), desc: "Attestation de construction" },
               ].map((card, i) => (
                 <div
                   key={i}
@@ -948,7 +934,7 @@ export default function MainApp() {
               ))}
             </div>
 
-            {/* Espace PDF : impression à la demande */}
+            {/* BIBLIOTHÈQUE PDF */}
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
@@ -964,7 +950,12 @@ export default function MainApp() {
                   <span className="inline-flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm bg-blue-600 text-white shadow-sm">
                     <Upload size={18} /> Ajouter PDF
                   </span>
-                  <input type="file" className="hidden" accept="application/pdf,.pdf" onChange={addPdfToLibrary} />
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="application/pdf,.pdf"
+                    onChange={addPdfToLibrary}
+                  />
                 </label>
               </div>
 
@@ -1027,7 +1018,11 @@ export default function MainApp() {
 
                 <div className="md:col-span-2 bg-white rounded-2xl border border-slate-100 overflow-hidden min-h-[340px]">
                   {pdfSelected?.data ? (
-                    <embed src={pdfSelected.data} type="application/pdf" className="w-full h-[340px] md:h-[420px]" />
+                    <embed
+                      src={pdfSelected.data}
+                      type="application/pdf"
+                      className="w-full h-[340px] md:h-[420px]"
+                    />
                   ) : (
                     <div className="h-full p-10 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center">
                       Sélectionne un PDF pour l’aperçu
@@ -1045,9 +1040,11 @@ export default function MainApp() {
           </div>
         )}
 
+        {/* EDIT */}
         {view === "edit" && currentInvoice && (
           <div className="flex flex-col lg:flex-row gap-6 animate-in slide-in-from-right duration-300">
-            <div className="w-full lg:w-96 bg-white rounded-[2rem] shadow-xl p-6 no-print space-y-5 border border-slate-100">
+            {/* Panneau gauche */}
+            <div className="w-full lg:w-[430px] bg-white rounded-[2rem] shadow-xl p-6 no-print space-y-5 border border-slate-100">
               <div className="flex items-center justify-between border-b border-slate-50 pb-4">
                 <h3 className="font-black text-slate-800 uppercase text-[10px] tracking-widest">
                   Édition en cours
@@ -1061,7 +1058,7 @@ export default function MainApp() {
               </div>
 
               <div className="space-y-4">
-                <div className="bg-slate-50 p-4 rounded-2xl space-y-3">
+                <div className="bg-slate-50 p-4 rounded-2xl space-y-3 border border-slate-100">
                   <InputGroup label="Client">
                     <Input
                       value={currentInvoice.clientName || ""}
@@ -1088,20 +1085,20 @@ export default function MainApp() {
                       onChange={(e) =>
                         setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientIdNumber: e.target.value }))
                       }
+                      placeholder="Optionnel"
                     />
                   </InputGroup>
                 </div>
 
-                <div className="bg-blue-600 p-5 rounded-[1.5rem] shadow-xl shadow-blue-100 text-white space-y-3">
+                <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-5 rounded-[1.5rem] shadow-xl shadow-blue-100 text-white space-y-3">
                   <div className="text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                     <CheckCircle size={10} /> Sélection Unité
                   </div>
 
                   <select
-                    className="w-full px-4 py-3 bg-blue-700/50 border-2 border-blue-500 rounded-xl text-sm font-bold outline-none"
+                    className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black outline-none"
                     value={
-                      companyConfig.boatModels.find((m) => m.name === currentInvoice?.boatDetails?.model)?.id ||
-                      ""
+                      companyConfig.boatModels.find((m) => m.name === currentInvoice?.boatDetails?.model)?.id || ""
                     }
                     onChange={(e) => selectModel(e.target.value)}
                   >
@@ -1115,7 +1112,7 @@ export default function MainApp() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <input
-                      className="w-full px-4 py-3 bg-blue-700/50 border-2 border-blue-500 rounded-xl text-sm font-bold placeholder-blue-300 outline-none"
+                      className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       value={currentInvoice?.boatDetails?.serialNumber || ""}
                       onChange={(e) =>
                         setCurrentInvoice((p) => {
@@ -1133,7 +1130,7 @@ export default function MainApp() {
                     />
 
                     <input
-                      className="w-full px-4 py-3 bg-blue-700/50 border-2 border-blue-500 rounded-xl text-sm font-bold outline-none"
+                      className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black outline-none"
                       type="number"
                       value={Number(currentInvoice?.items?.[0]?.price || 0)}
                       onChange={(e) => {
@@ -1150,7 +1147,66 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 pt-2">
+                {/* ✅ PAIEMENT (cheque/virement/espece) + afficher/masquer */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Paiement
+                    </div>
+
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <input
+                        type="checkbox"
+                        checked={!!currentInvoice.showPayment}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            showPayment: e.target.checked,
+                          }))
+                        }
+                      />
+                      Afficher sur facture
+                    </label>
+                  </div>
+
+                  <select
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-black outline-none focus:border-blue-500"
+                    value={currentInvoice.paymentMethod || "virement"}
+                    onChange={(e) =>
+                      setCurrentInvoice((p) => ({
+                        ...normalizeInvoice(p),
+                        paymentMethod: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="cheque">Chèque</option>
+                    <option value="virement">Virement bancaire</option>
+                    <option value="espece">Espèce</option>
+                  </select>
+
+                  {currentInvoice.paymentMethod === "cheque" && (
+                    <input
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-black outline-none focus:border-blue-500"
+                      placeholder="N° de chèque (optionnel)"
+                      value={currentInvoice.clientChequeNumber || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => ({
+                          ...normalizeInvoice(p),
+                          clientChequeNumber: e.target.value,
+                        }))
+                      }
+                    />
+                  )}
+
+                  <div className="text-[10px] font-bold text-slate-500">
+                    Mode sélectionné :{" "}
+                    <span className="text-slate-900 font-black">
+                      {paymentLabel(currentInvoice.paymentMethod)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 pt-1">
                   <Button
                     onClick={saveInvoiceToCloud}
                     disabled={busy}
@@ -1170,28 +1226,39 @@ export default function MainApp() {
               </div>
             </div>
 
-            <div className="flex-1 bg-slate-200 rounded-[2rem] p-4 md:p-8 overflow-auto h-[60vh] md:h-[calc(100vh-10rem)] flex justify-center shadow-inner border-4 border-white">
-              <div id="printable-area" className="scale-[0.45] md:scale-90 origin-top">
-                {currentInvoice.type === "dossier" ? (
-                  <div>
-                    <div className="page-break">
-                      <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
+            {/* ✅ Zone aperçu AGRANDIE */}
+            <div className="flex-1 bg-slate-200 rounded-[2rem] p-3 md:p-6 overflow-auto h-[78vh] md:h-[calc(100vh-6.5rem)] flex justify-center shadow-inner border-4 border-white">
+              <div
+                id="printable-area"
+                className="origin-top w-full flex justify-center"
+                style={{
+                  transform: window.innerWidth < 768 ? "scale(0.72)" : "scale(0.97)",
+                  transformOrigin: "top center",
+                }}
+              >
+                <div className="w-[210mm]">
+                  {currentInvoice.type === "dossier" ? (
+                    <div>
+                      <div className="page-break">
+                        <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
+                      </div>
+                      <div className="page-break">
+                        <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
+                      </div>
+                      <div className="page-break">
+                        <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
+                      </div>
                     </div>
-                    <div className="page-break">
-                      <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
-                    </div>
-                    <div className="page-break">
-                      <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
-                    </div>
-                  </div>
-                ) : (
-                  <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
-                )}
+                  ) : (
+                    <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
+                  )}
+                </div>
               </div>
             </div>
           </div>
         )}
 
+        {/* HISTORY */}
         {view === "history" && (
           <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
             <div className="p-6 md:p-8 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1206,7 +1273,7 @@ export default function MainApp() {
               <div className="relative md:w-80">
                 <Search className="absolute left-4 top-3.5 text-slate-500" size={18} />
                 <input
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800 border-none rounded-2xl text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                   placeholder="Nom ou N° de facture..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -1225,9 +1292,7 @@ export default function MainApp() {
                         </div>
                         <div className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">
                           {inv.doc_number || inv.number} •{" "}
-                          {inv.created_at
-                            ? new Date(inv.created_at).toLocaleDateString("fr-FR")
-                            : ""}
+                          {inv.created_at ? new Date(inv.created_at).toLocaleDateString("fr-FR") : ""}
                         </div>
                       </td>
                       <td className="p-5 md:p-7 text-right font-black text-blue-900">
@@ -1258,10 +1323,7 @@ export default function MainApp() {
 
                   {(!filteredHistory || filteredHistory.length === 0) && (
                     <tr>
-                      <td
-                        colSpan={3}
-                        className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em]"
-                      >
+                      <td colSpan={3} className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em]">
                         Aucune donnée trouvée
                       </td>
                     </tr>
@@ -1272,7 +1334,7 @@ export default function MainApp() {
           </div>
         )}
 
-        {/* PLANS + UPLOAD DOCS PAR MODELE + IMPRESSION DOSSIER */}
+        {/* DATABASE / PLANS */}
         {view === "database" && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
@@ -1352,7 +1414,7 @@ export default function MainApp() {
           </div>
         )}
 
-        {/* CONFIG */}
+        {/* SETTINGS */}
         {view === "settings" && (
           <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom duration-400">
             <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-sm border border-slate-100">
@@ -1429,7 +1491,7 @@ export default function MainApp() {
           </div>
         )}
 
-        {/* IMPRESSION DOSSIER TECH (MODEL DOCS) */}
+        {/* PRINT TECH VIEW */}
         {view === "print_tech_view" && (
           <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-2xl p-6 md:p-10 border border-slate-100">
             <div className="flex justify-between items-center mb-8 no-print">
@@ -1456,10 +1518,7 @@ export default function MainApp() {
                 const pdf = isPdfLike(fileData);
 
                 return (
-                  <div
-                    key={doc}
-                    className="page-break flex flex-col items-center justify-center min-h-[90vh]"
-                  >
+                  <div key={doc} className="page-break flex flex-col items-center justify-center min-h-[90vh]">
                     {pdf ? (
                       <embed src={fileData} type="application/pdf" className="w-full h-[290mm]" />
                     ) : (
