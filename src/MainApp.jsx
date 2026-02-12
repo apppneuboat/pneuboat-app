@@ -46,12 +46,11 @@ const calculateSubtotal = (items) => (items || []).reduce((acc, item) => acc + (
 const calculateTotal = (items, tvaRate) => calculateSubtotal(items) * (1 + Number(tvaRate || 0) / 100);
 const formatCurrency = (amount) => Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
 
-// --- MODIFICATION ICI : NOMS CORRIGÉS ---
 const labelDoc = (t) => {
   if (t === "facture") return "FACTURE";
   if (t === "proforma") return "FACTURE PROFORMA";
-  if (t === "livraison") return "BON DE LIVRAISON"; // Changé
-  if (t === "attestation") return "ATTESTATION DE CONSTRUCTION"; // Changé
+  if (t === "livraison") return "BON DE LIVRAISON";
+  if (t === "attestation") return "ATTESTATION DE CONSTRUCTION";
   if (t === "dossier") return "DOSSIER COMPLET";
   return String(t || "").toUpperCase();
 };
@@ -276,7 +275,7 @@ export default function MainApp() {
 
   const handlePrint = () => { setTimeout(() => window.print(), 50); };
 
-  /* ------------------ RENDU DOCUMENT A4 ------------------ */
+  /* ------------------ RENDU DOCUMENT A4 (CORRIGÉ POUR TAILLE FIXE) ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
     const total = calculateTotal(currentInvoice.items, currentInvoice.tvaRate);
@@ -287,69 +286,85 @@ export default function MainApp() {
     const paymentLabel = currentInvoice.paymentMethod === "virement" ? "Virement bancaire" : currentInvoice.paymentMethod === "espece" ? "Espèces" : "Chèque";
 
     return (
-      <div className="print-area bg-white w-[210mm] p-[20mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-sm leading-normal font-sans">
-        <div className="flex justify-between items-start border-b-2 border-slate-100 pb-6 mb-6">
-          <div className="w-7/12">
-            {companyConfig.logo ? ( <img src={companyConfig.logo} alt="logo" className="h-16 object-contain mb-3" /> ) : (
-              <div className="mb-2">
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Pneuboat <span className="text-red-600">SARL</span></h1>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{companyConfig.footerText}</p>
+      <div 
+        className="print-area bg-white w-[210mm] h-[297mm] p-[20mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-sm leading-normal font-sans flex flex-col justify-between overflow-hidden"
+        style={{ height: "297mm", maxHeight: "297mm" }} // Force brute la hauteur A4
+      >
+        
+        {/* --- HAUT DE PAGE --- */}
+        <div>
+          <div className="flex justify-between items-start border-b-2 border-slate-100 pb-6 mb-6">
+            <div className="w-7/12">
+              {companyConfig.logo ? ( <img src={companyConfig.logo} alt="logo" className="h-16 object-contain mb-3" /> ) : (
+                <div className="mb-2">
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Pneuboat <span className="text-red-600">SARL</span></h1>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{companyConfig.footerText}</p>
+                </div>
+              )}
+              <div className="text-xs text-slate-500 font-medium leading-relaxed">
+                <p>{companyConfig.address}</p><p>Tél: {companyConfig.phone} • Email: {companyConfig.email}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-900 text-xs font-black uppercase tracking-wider border border-blue-100">
+                <span className="w-2 h-2 rounded-full bg-red-500" />{labelDoc(subType)}
+              </span>
+              <div className="mt-3"><div className="font-mono text-lg font-bold text-slate-900">{docNumber}</div><div className="text-xs font-semibold text-slate-400">Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}</div></div>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 relative overflow-hidden">
+              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-900 to-blue-600" />
+              <div className="pl-3">
+                <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Client</h3>
+                <div className="text-lg font-bold text-slate-900 uppercase truncate">{currentInvoice.clientName || "—"}</div>
+                {/* ICI: line-clamp-2 pour couper l'adresse si trop longue */}
+                <div className="text-sm text-slate-600 font-medium mt-1 leading-snug max-w-md line-clamp-2">{currentInvoice.clientAddress || "—"}</div>
+                {currentInvoice.clientIdNumber && ( <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm"><ShieldCheck size={12} className="text-blue-700" /><span className="text-xs font-bold text-slate-700">ID: <span className="font-mono text-red-600">{currentInvoice.clientIdNumber}</span></span></div> )}
+              </div>
+            </div>
+          </div>
+
+          <div className="min-h-[200px]">
+            {isAtt ? (
+              <div className="space-y-6">
+                <p className="text-justify leading-relaxed text-slate-700">Je soussigné, <b className="text-slate-900">{companyConfig.managerName}</b>, gérant de la société <b className="text-slate-900">{companyConfig.name}</b>, certifie par la présente que le navire désigné ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de <b className="text-slate-900 uppercase">{currentInvoice.clientName || ".........."}</b>.</p>
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="bg-slate-900 text-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-center">Fiche Technique</div>
+                  <div className="p-5 grid grid-cols-2 gap-y-4 gap-x-8 bg-white">
+                    <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modèle</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.model}</div></div>
+                    <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">N° de série</div><div className="font-bold text-red-600 font-mono">{currentInvoice.boatDetails.serialNumber}</div></div>
+                    <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Année</div><div className="font-bold text-slate-900">2026</div></div>
+                    <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Homologation</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.approvalNumber}</div></div>
+                  </div>
+                </div>
+                {/* ICI: line-clamp pour les notes */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-500 italic line-clamp-3">Notes : {currentInvoice.boatDetails.notes}</div>
+              </div>
+            ) : (
+              <div>
+                <table className="w-full border-collapse">
+                  <thead><tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"><th className="py-3 pl-2">Désignation</th><th className="py-3 text-center w-20">Qté</th>{!isBL && (<><th className="py-3 text-right w-32">P.U</th><th className="py-3 text-right w-32">Total</th></>)}</tr></thead>
+                  <tbody className="text-sm">{(currentInvoice.items || []).map((it, i) => (<tr key={it.id || i} className="border-b border-slate-50"><td className="py-3 pl-2"><div className="font-bold text-slate-900">{it.description || "—"}</div>{i === 0 && currentInvoice.boatDetails?.serialNumber && (<div className="text-xs text-slate-500 mt-1 font-medium">N/S: <span className="font-mono text-red-600">{currentInvoice.boatDetails.serialNumber}</span></div>)}</td><td className="py-3 text-center font-bold text-slate-700">{Number(it.quantity || 0)}</td>{!isBL && (<><td className="py-3 text-right text-slate-500 font-medium">{Number(it.price || 0).toLocaleString("fr-FR")}</td><td className="py-3 text-right font-bold text-slate-900">{(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}</td></>)}</tr>))}</tbody>
+                </table>
+                {!isBL && (<div className="mt-8 flex justify-end"><div className="w-1/2 bg-slate-50 rounded-xl p-4 border border-slate-200 relative overflow-hidden"><div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-900 to-red-500" /><div className="pl-2 space-y-2"><div className="flex justify-between text-xs font-semibold text-slate-500"><span>Sous-total (HT)</span><span className="text-slate-900 font-bold">{formatCurrency(subtotal)}</span></div><div className="flex justify-between text-xs font-semibold text-slate-500"><span>TVA ({currentInvoice.tvaRate}%)</span><span className="text-slate-900 font-bold">{formatCurrency(tvaAmt)}</span></div><div className="border-t border-slate-200 my-2 pt-2 flex justify-between text-sm font-black text-slate-900"><span>TOTAL TTC</span><span className="text-blue-900">{formatCurrency(total)}</span></div></div></div></div>)}
+                {isFactOrPro && (<div className="mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-lg text-center"><div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Arrêté la présente facture à la somme de</div><div className="font-black text-slate-800 text-sm capitalize">{NumberToLetter(total)}</div></div>)}
+                {!isBL && currentInvoice.showPayment && (<div className="mt-6 border-t border-dashed border-slate-200 pt-4"><div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Conditions de règlement</div><div className="flex items-center gap-4 text-xs font-medium text-slate-700"><span className="px-2 py-1 bg-slate-100 rounded border border-slate-200">{paymentLabel}</span>{currentInvoice.paymentMethod === "cheque" && (<span>N° Chèque : <span className="font-mono font-bold text-slate-900">{currentInvoice.clientChequeNumber || "—"}</span></span>)}</div></div>)}
               </div>
             )}
-            <div className="text-xs text-slate-500 font-medium leading-relaxed">
-              <p>{companyConfig.address}</p><p>Tél: {companyConfig.phone} • Email: {companyConfig.email}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-900 text-xs font-black uppercase tracking-wider border border-blue-100">
-              <span className="w-2 h-2 rounded-full bg-red-500" />{labelDoc(subType)}
-            </span>
-            <div className="mt-3"><div className="font-mono text-lg font-bold text-slate-900">{docNumber}</div><div className="text-xs font-semibold text-slate-400">Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}</div></div>
           </div>
         </div>
-        <div className="mb-8">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 relative overflow-hidden">
-            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-900 to-blue-600" />
-            <div className="pl-3">
-              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Client</h3>
-              <div className="text-lg font-bold text-slate-900 uppercase">{currentInvoice.clientName || "—"}</div>
-              <div className="text-sm text-slate-600 font-medium mt-1 leading-snug max-w-md">{currentInvoice.clientAddress || "—"}</div>
-              {currentInvoice.clientIdNumber && ( <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm"><ShieldCheck size={12} className="text-blue-700" /><span className="text-xs font-bold text-slate-700">ID: <span className="font-mono text-red-600">{currentInvoice.clientIdNumber}</span></span></div> )}
-            </div>
+
+        {/* --- BAS DE PAGE (FIGÉ) --- */}
+        <div>
+          <div className="mt-auto mb-6 grid grid-cols-2 gap-8">
+            <div className="border-2 border-dashed border-slate-300 rounded-xl h-28 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cachet & Signature Gérant</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Tampon ici</span></div>
+            <div className="border-2 border-dashed border-slate-300 rounded-xl h-28 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Signature Client</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Lu et approuvé</span></div>
           </div>
+          <div className="border-t border-slate-200 pt-4 text-[10px] text-slate-500 leading-tight grid grid-cols-3 gap-4"><div><b className="block text-slate-900 mb-1">BANQUE</b>{companyConfig.bankName}<br/>RIB: <span className="font-mono text-slate-700">{companyConfig.bankRib}</span></div><div><b className="block text-slate-900 mb-1">FISCAL</b>RC: {companyConfig.rc}<br/>NIF: {companyConfig.nif}<br/>NIS: {companyConfig.nis}</div><div className="text-right"><b className="block text-slate-900 mb-1">{companyConfig.name}</b>Capital social: {companyConfig.capital}</div></div>
         </div>
-        <div className="min-h-[300px]">
-          {isAtt ? (
-            <div className="space-y-6">
-              <p className="text-justify leading-relaxed text-slate-700">Je soussigné, <b className="text-slate-900">{companyConfig.managerName}</b>, gérant de la société <b className="text-slate-900">{companyConfig.name}</b>, certifie par la présente que le navire désigné ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de <b className="text-slate-900 uppercase">{currentInvoice.clientName || ".........."}</b>.</p>
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="bg-slate-900 text-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-center">Fiche Technique</div>
-                <div className="p-5 grid grid-cols-2 gap-y-4 gap-x-8 bg-white">
-                  <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modèle</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.model}</div></div>
-                  <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">N° de série</div><div className="font-bold text-red-600 font-mono">{currentInvoice.boatDetails.serialNumber}</div></div>
-                  <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Année</div><div className="font-bold text-slate-900">2026</div></div>
-                  <div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Homologation</div><div className="font-bold text-slate-900">{currentInvoice.boatDetails.approvalNumber}</div></div>
-                </div>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-500 italic">Notes : {currentInvoice.boatDetails.notes}</div>
-            </div>
-          ) : (
-            <div>
-              <table className="w-full border-collapse">
-                <thead><tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"><th className="py-3 pl-2">Désignation</th><th className="py-3 text-center w-20">Qté</th>{!isBL && (<><th className="py-3 text-right w-32">P.U</th><th className="py-3 text-right w-32">Total</th></>)}</tr></thead>
-                <tbody className="text-sm">{(currentInvoice.items || []).map((it, i) => (<tr key={it.id || i} className="border-b border-slate-50"><td className="py-3 pl-2"><div className="font-bold text-slate-900">{it.description || "—"}</div>{i === 0 && currentInvoice.boatDetails?.serialNumber && (<div className="text-xs text-slate-500 mt-1 font-medium">N/S: <span className="font-mono text-red-600">{currentInvoice.boatDetails.serialNumber}</span></div>)}</td><td className="py-3 text-center font-bold text-slate-700">{Number(it.quantity || 0)}</td>{!isBL && (<><td className="py-3 text-right text-slate-500 font-medium">{Number(it.price || 0).toLocaleString("fr-FR")}</td><td className="py-3 text-right font-bold text-slate-900">{(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}</td></>)}</tr>))}</tbody>
-              </table>
-              {!isBL && (<div className="mt-8 flex justify-end"><div className="w-1/2 bg-slate-50 rounded-xl p-4 border border-slate-200 relative overflow-hidden"><div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-900 to-red-500" /><div className="pl-2 space-y-2"><div className="flex justify-between text-xs font-semibold text-slate-500"><span>Sous-total (HT)</span><span className="text-slate-900 font-bold">{formatCurrency(subtotal)}</span></div><div className="flex justify-between text-xs font-semibold text-slate-500"><span>TVA ({currentInvoice.tvaRate}%)</span><span className="text-slate-900 font-bold">{formatCurrency(tvaAmt)}</span></div><div className="border-t border-slate-200 my-2 pt-2 flex justify-between text-sm font-black text-slate-900"><span>TOTAL TTC</span><span className="text-blue-900">{formatCurrency(total)}</span></div></div></div></div>)}
-              {isFactOrPro && (<div className="mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-lg text-center"><div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Arrêté la présente facture à la somme de</div><div className="font-black text-slate-800 text-sm capitalize">{NumberToLetter(total)}</div></div>)}
-              {!isBL && currentInvoice.showPayment && (<div className="mt-6 border-t border-dashed border-slate-200 pt-4"><div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Conditions de règlement</div><div className="flex items-center gap-4 text-xs font-medium text-slate-700"><span className="px-2 py-1 bg-slate-100 rounded border border-slate-200">{paymentLabel}</span>{currentInvoice.paymentMethod === "cheque" && (<span>N° Chèque : <span className="font-mono font-bold text-slate-900">{currentInvoice.clientChequeNumber || "—"}</span></span>)}</div></div>)}
-            </div>
-          )}
-        </div>
-        <div className="mt-12 mb-6 grid grid-cols-2 gap-8">
-          <div className="border-2 border-dashed border-slate-300 rounded-xl h-32 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cachet & Signature Gérant</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Tampon ici</span></div>
-          <div className="border-2 border-dashed border-slate-300 rounded-xl h-32 p-4 flex flex-col justify-between"><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Signature Client</span><span className="text-[10px] text-slate-300 text-center font-bold italic">Lu et approuvé</span></div>
-        </div>
-        <div className="border-t border-slate-200 pt-4 text-[10px] text-slate-500 leading-tight grid grid-cols-3 gap-4"><div><b className="block text-slate-900 mb-1">BANQUE</b>{companyConfig.bankName}<br/>RIB: <span className="font-mono text-slate-700">{companyConfig.bankRib}</span></div><div><b className="block text-slate-900 mb-1">FISCAL</b>RC: {companyConfig.rc}<br/>NIF: {companyConfig.nif}<br/>NIS: {companyConfig.nis}</div><div className="text-right"><b className="block text-slate-900 mb-1">{companyConfig.name}</b>Capital social: {companyConfig.capital}</div></div>
+
       </div>
     );
   };
@@ -436,7 +451,7 @@ export default function MainApp() {
                   { title: "Facture", icon: <FileText size={24}/>, action: () => startNew("facture") },
                   { title: "Proforma", icon: <ClipboardList size={24}/>, action: () => startNew("proforma") },
                   { title: "Bon de Livraison", icon: <PackageCheck size={24}/>, action: () => startNew("livraison") },
-                  { title: "Attestation", icon: <Anchor size={24}/>, action: () => startNew("attestation") },
+                  { title: "Attestation de Construction", icon: <Anchor size={24}/>, action: () => startNew("attestation") },
                ].map((card, i) => (
                   <div key={i} onClick={card.action} className={`group cursor-pointer rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex flex-col items-center justify-center gap-4 text-center h-48 bg-white ${card.primary ? "border-blue-300 shadow-md ring-4 ring-blue-50" : "border-slate-200 shadow-sm hover:border-blue-300"}`}>
                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors shadow-sm ${card.primary ? "bg-blue-600 text-white group-hover:bg-blue-700" : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"}`}>
@@ -453,10 +468,10 @@ export default function MainApp() {
         {view === "edit" && currentInvoice && (
           <div className="flex flex-col xl:flex-row gap-6 items-start h-full">
              
-             {/* --- COLONNE GAUCHE: FORMULAIRE --- */}
+             {/* --- COLONNE GAUCHE: FORMULAIRE (Fond coloré modifié) --- */}
              <div className="w-full xl:w-[400px] bg-slate-100 rounded-2xl shadow-lg border border-slate-200 p-6 no-print flex flex-col h-[calc(100vh-4rem)] sticky top-4">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
-                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2"><div className="w-2 h-6 bg-blue-600 rounded-full"/> Édition</h3>
+                   <h3 className="font-black text-lg text-red-600 flex items-center gap-2"><div className="w-2 h-6 bg-red-600 rounded-full"/> Édition</h3>
                    <button onClick={() => setView("history")} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm"><X size={18}/></button>
                 </div>
                 
