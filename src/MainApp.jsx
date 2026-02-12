@@ -18,18 +18,108 @@ import {
   LogOut,
   Cloud,
   CheckCircle,
+  Percent,
+  Eye,
 } from "lucide-react";
 import { supabase } from "./supabase";
 
 /* ------------------ UTILITAIRES ------------------ */
+const NumberToLetter = (nombre) => {
+  const unites = [
+    "",
+    "un",
+    "deux",
+    "trois",
+    "quatre",
+    "cinq",
+    "six",
+    "sept",
+    "huit",
+    "neuf",
+    "dix",
+    "onze",
+    "douze",
+    "treize",
+    "quatorze",
+    "quinze",
+    "seize",
+    "dix-sept",
+    "dix-huit",
+    "dix-neuf",
+  ];
+  const dizaines = [
+    "",
+    "dix",
+    "vingt",
+    "trente",
+    "quarante",
+    "cinquante",
+    "soixante",
+    "soixante-dix",
+    "quatre-vingt",
+    "quatre-vingt-dix",
+  ];
+  const conv99 = (n) => {
+    if (n < 20) return unites[n];
+    let d = Math.floor(n / 10);
+    let u = n % 10;
+    if (d === 7 || d === 9) {
+      d -= 1;
+      u += 10;
+    }
+    let res = dizaines[d];
+    if (u === 1 && d < 8) res += " et un";
+    else if (u > 0) res += "-" + unites[u];
+    return res;
+  };
+  const conv999 = (n) => {
+    let c = Math.floor(n / 100);
+    let r = n % 100;
+    let res = "";
+    if (c > 0)
+      res +=
+        (c === 1 ? "" : unites[c] + " ") +
+        "cent" +
+        (r === 0 && c > 1 ? "s" : "");
+    if (r > 0) res += (res ? " " : "") + conv99(r);
+    return res;
+  };
+
+  if (Number(nombre || 0) === 0) return "Zéro Dinars Algériens";
+  const ent = Math.floor(Number(nombre || 0));
+  const dec = Math.round((Number(nombre || 0) - ent) * 100);
+
+  let n = ent;
+  let res = "";
+
+  if (n >= 1000000) {
+    const m = Math.floor(n / 1000000);
+    res += (m === 1 ? "un million" : conv999(m) + " millions") + " ";
+    n %= 1000000;
+  }
+  if (n >= 1000) {
+    const k = Math.floor(n / 1000);
+    res += (k === 1 ? "mille" : conv999(k) + " mille") + " ";
+    n %= 1000;
+  }
+  if (n > 0) res += conv999(n);
+
+  let final = res.trim() + " Dinars Algériens";
+  if (dec > 0) final += " et " + conv99(dec) + " Centimes";
+  return final.charAt(0).toUpperCase() + final.slice(1);
+};
+
 const calculateSubtotal = (items) =>
   (items || []).reduce(
     (acc, item) => acc + Number(item.quantity || 0) * Number(item.price || 0),
     0
   );
 
-const calculateTotal = (items, tvaRate) =>
-  calculateSubtotal(items) * (1 + Number(tvaRate || 0) / 100);
+const calculateTotal = (items, tvaRate, applyTva = true) => {
+  const sub = calculateSubtotal(items);
+  const rate = applyTva ? Number(tvaRate || 0) : 0;
+  return sub * (1 + rate / 100);
+};
 
 const formatCurrency = (amount) =>
   Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
@@ -132,6 +222,9 @@ export default function MainApp() {
   const [pdfLibrary, setPdfLibrary] = useState([]);
   const [pdfSelected, setPdfSelected] = useState(null);
 
+  // Zoom aperçu facture (PC => grand)
+  const [previewZoom, setPreviewZoom] = useState(1.05);
+
   const [companyConfig, setCompanyConfig] = useState({
     name: "PNEUBOAT SARL",
     managerName: "Sekkal Gherbi Youcef",
@@ -148,6 +241,7 @@ export default function MainApp() {
     bankName: "",
     bankRib: "",
     logo: null,
+    favicon: null, // ✅ favicon en base64
     boatModels: [
       { id: 1, name: "PNB-360", length: "3.60 m", approvalNumber: "N° 689", type: "Semi-rigide" },
       { id: 2, name: "PNB-420", length: "4.20 m", approvalNumber: "N° 689", type: "Semi-rigide" },
@@ -158,6 +252,24 @@ export default function MainApp() {
       { id: 7, name: "PNB-700", length: "7.00 m", approvalNumber: "N° 750", type: "Semi-rigide" },
     ],
   });
+
+  /* ------------------ PRINT RULES (évite page blanche) ------------------ */
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.setAttribute("data-pb-print", "1");
+    style.innerHTML = `
+      @media print {
+        .no-print { display: none !important; }
+        .page-break { page-break-after: always; break-after: page; }
+        .page-break-last { page-break-after: auto; break-after: auto; }
+        body { background: white !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   /* ------------------ NAV (HISTORIQUE BOUTON RETOUR) ------------------ */
   const changeView = useCallback((newView) => {
@@ -195,6 +307,12 @@ export default function MainApp() {
         setPdfLibrary(JSON.parse(savedPdf));
       } catch {}
     }
+
+    // zoom par défaut plus grand sur PC
+    try {
+      if (window.innerWidth >= 1024) setPreviewZoom(1.15);
+      else setPreviewZoom(0.78);
+    } catch {}
   }, []);
 
   const rememberLocal = (key, value) => {
@@ -202,6 +320,24 @@ export default function MainApp() {
       localStorage.setItem(key, JSON.stringify(value));
     } catch {}
   };
+
+  /* ------------------ FAVICON DYNAMIQUE ------------------ */
+  useEffect(() => {
+    if (!companyConfig?.favicon) return;
+
+    try {
+      let link =
+        document.querySelector("link[rel='icon']") ||
+        document.querySelector("link[rel='shortcut icon']");
+      if (!link) {
+        link = document.createElement("link");
+        link.rel = "icon";
+        document.head.appendChild(link);
+      }
+      link.type = "image/png";
+      link.href = companyConfig.favicon;
+    } catch {}
+  }, [companyConfig?.favicon]);
 
   /* ------------------ SUPABASE ------------------ */
   const loadOnlineData = async () => {
@@ -288,13 +424,14 @@ export default function MainApp() {
         length: "",
         approvalNumber: "",
         year: "2026",
-        notes: "",
+        notes: "Certifié construit à neuf.",
       };
 
     return {
       ...inv,
       items,
       boatDetails,
+      applyTva: inv?.applyTva ?? true, // ✅ TVA activée ou non
       tvaRate: inv?.tvaRate ?? 19,
       showPayment: inv?.showPayment ?? true,
       paymentMethod: inv?.paymentMethod ?? "virement",
@@ -309,7 +446,11 @@ export default function MainApp() {
 
     try {
       const normalized = normalizeInvoice(currentInvoice);
-      const total = calculateTotal(normalized.items, normalized.tvaRate);
+      const total = calculateTotal(
+        normalized.items,
+        normalized.tvaRate,
+        normalized.applyTva
+      );
 
       const payload = {
         doc_number: normalized.number,
@@ -391,6 +532,8 @@ export default function MainApp() {
         year: String(year),
         notes: "Certifié construit à neuf.",
       },
+      applyTva: true,
+      tvaRate: 19,
       showPayment: true,
       paymentMethod: "virement",
       clientChequeNumber: "",
@@ -399,7 +542,13 @@ export default function MainApp() {
     const n =
       type === "facture" ? nf : type === "proforma" ? np : type === "livraison" ? nbl : na;
     const pref =
-      type === "facture" ? "FAC" : type === "proforma" ? "PRO" : type === "livraison" ? "BL" : "ATT";
+      type === "facture"
+        ? "FAC"
+        : type === "proforma"
+        ? "PRO"
+        : type === "livraison"
+        ? "BL"
+        : "ATT";
 
     newDoc.number =
       type === "dossier"
@@ -432,6 +581,7 @@ export default function MainApp() {
           model: m.name,
           length: m.length,
           approvalNumber: m.approvalNumber,
+          year: prev.boatDetails?.year || "2026",
         },
         items: [
           {
@@ -444,7 +594,7 @@ export default function MainApp() {
     });
   };
 
-  /* ------------------ UPLOAD LOGO & DOCS ------------------ */
+  /* ------------------ UPLOAD LOGO / FAVICON / DOCS ------------------ */
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -456,6 +606,22 @@ export default function MainApp() {
     } catch (err) {
       console.error(err);
       alert("Erreur logo");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleFaviconUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      const b64 = await toBase64(file);
+      const nc = { ...companyConfig, favicon: b64 };
+      await saveConfigOnline(nc);
+    } catch (err) {
+      console.error(err);
+      alert("Erreur favicon");
     } finally {
       setBusy(false);
     }
@@ -551,7 +717,7 @@ export default function MainApp() {
     w.document.close();
   };
 
-  /* ------------------ HISTORY FILTER (FIX) ------------------ */
+  /* ------------------ HISTORY FILTER ------------------ */
   const filteredHistory = useMemo(() => {
     const q = (searchTerm || "").trim().toLowerCase();
     const list = invoiceHistory || [];
@@ -563,19 +729,21 @@ export default function MainApp() {
     });
   }, [invoiceHistory, searchTerm]);
 
-  /* ------------------ RENDU DOCUMENT (PLUS MODERNE / COLORÉ) ------------------ */
+  /* ------------------ RENDU DOCUMENT ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
     const inv = normalizeInvoice(currentInvoice);
-    const total = calculateTotal(inv.items, inv.tvaRate);
+
     const subtotal = calculateSubtotal(inv.items);
+    const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
+    const totalWords = NumberToLetter(total);
 
     const showTotals = subType !== "livraison" && subType !== "attestation";
     const showPayBlock = showTotals && !!inv.showPayment;
 
     return (
-      <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl mb-10 text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden">
-        {/* Bande couleur haut (moderne) */}
+      <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none">
+        {/* Bande couleur haut */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500" />
         <div className="absolute -right-24 -top-24 w-64 h-64 rounded-full bg-blue-50" />
         <div className="absolute -left-24 -bottom-24 w-64 h-64 rounded-full bg-cyan-50" />
@@ -632,19 +800,20 @@ export default function MainApp() {
             )}
           </div>
 
-          <div className="min-h-[170px]">
+          <div className="min-h-[175px]">
             {subType === "attestation" ? (
               <div className="space-y-4">
                 <p className="text-justify text-[11px]">
                   Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
-                  <b>{companyConfig.name}</b>, certifie que le navire a été construit à
-                  neuf dans nos ateliers pour le compte de{" "}
+                  <b>{companyConfig.name}</b>, certifie que le navire a été construit
+                  à neuf dans nos ateliers pour le compte de{" "}
                   <b>{inv.clientName || ".........."}</b>.
                 </p>
 
+                {/* ✅ Attestation : modèle + série + longueur + année */}
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
-                    Fiche Technique
+                    Détails du Bateau
                   </div>
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -660,6 +829,18 @@ export default function MainApp() {
                       <div className="font-black text-blue-700 font-mono">
                         {inv.boatDetails.serialNumber || "—"}
                       </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Longueur
+                      </div>
+                      <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Année de construction
+                      </div>
+                      <div className="font-black">{inv.boatDetails.year || "—"}</div>
                     </div>
                   </div>
                 </div>
@@ -716,30 +897,54 @@ export default function MainApp() {
 
         <div className="relative">
           {showTotals && (
-            <div className="flex justify-end mb-4">
-              <div className="w-[58%] rounded-2xl border border-slate-200 overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  Récapitulatif
-                </div>
-                <div className="p-4 bg-white text-[10px] space-y-2">
-                  <div className="flex justify-between text-slate-500 font-bold">
-                    <span>Sous-total HT</span>
-                    <span>{formatCurrency(subtotal)}</span>
+            <>
+              <div className="flex justify-end mb-3">
+                <div className="w-[58%] rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Récapitulatif
                   </div>
-                  <div className="flex justify-between text-slate-500 font-bold">
-                    <span>TVA</span>
-                    <span>{Number(inv.tvaRate || 0)}%</span>
-                  </div>
-                  <div className="pt-2 border-t flex justify-between font-black text-[13px]">
-                    <span className="text-slate-900">TOTAL TTC</span>
-                    <span className="text-blue-700">{formatCurrency(total)}</span>
+                  <div className="p-4 bg-white text-[10px] space-y-2">
+                    <div className="flex justify-between text-slate-500 font-bold">
+                      <span>Sous-total HT</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+
+                    {inv.applyTva ? (
+                      <div className="flex justify-between text-slate-500 font-bold">
+                        <span>TVA</span>
+                        <span>{Number(inv.tvaRate || 0)}%</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-slate-500 font-bold">
+                        <span>TVA</span>
+                        <span>0% (désactivée)</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t flex justify-between font-black text-[13px]">
+                      <span className="text-slate-900">TOTAL TTC</span>
+                      <span className="text-blue-700">{formatCurrency(total)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+
+              {/* ✅ TOTAL EN LETTRES */}
+              <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                  Total en lettres
+                </div>
+                <div className="text-[11px] font-bold text-slate-800">
+                  Arrêté la présente facture à la somme de :
+                </div>
+                <div className="mt-1 text-[12px] font-black text-slate-900">
+                  {totalWords}
+                </div>
+              </div>
+            </>
           )}
 
-          {/* Bloc paiement (affichable/masquable depuis l'édition) */}
+          {/* Paiement affichable/masquable */}
           {showPayBlock && (
             <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
               <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -988,7 +1193,7 @@ export default function MainApp() {
                                 setPdfSelected(p);
                               }}
                             >
-                              Aperçu
+                              <Eye size={16} /> Aperçu
                             </Button>
                             <Button
                               className="!px-3 !py-2 !rounded-lg"
@@ -1044,7 +1249,7 @@ export default function MainApp() {
         {view === "edit" && currentInvoice && (
           <div className="flex flex-col lg:flex-row gap-6 animate-in slide-in-from-right duration-300">
             {/* Panneau gauche */}
-            <div className="w-full lg:w-[430px] bg-white rounded-[2rem] shadow-xl p-6 no-print space-y-5 border border-slate-100">
+            <div className="w-full lg:w-[460px] bg-white rounded-[2rem] shadow-xl p-6 no-print space-y-5 border border-slate-100">
               <div className="flex items-center justify-between border-b border-slate-50 pb-4">
                 <h3 className="font-black text-slate-800 uppercase text-[10px] tracking-widest">
                   Édition en cours
@@ -1126,7 +1331,7 @@ export default function MainApp() {
                           };
                         })
                       }
-                      placeholder="Série"
+                      placeholder="N° Série"
                     />
 
                     <input
@@ -1144,6 +1349,81 @@ export default function MainApp() {
                       }}
                       placeholder="Prix"
                     />
+                  </div>
+
+                  {/* ✅ année construction (utile surtout pour attestation) */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                      value={currentInvoice?.boatDetails?.length || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => {
+                          const inv = normalizeInvoice(p);
+                          return {
+                            ...inv,
+                            boatDetails: { ...inv.boatDetails, length: e.target.value },
+                          };
+                        })
+                      }
+                      placeholder="Longueur (ex: 5.25 m)"
+                    />
+                    <input
+                      className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                      value={currentInvoice?.boatDetails?.year || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => {
+                          const inv = normalizeInvoice(p);
+                          return {
+                            ...inv,
+                            boatDetails: { ...inv.boatDetails, year: e.target.value },
+                          };
+                        })
+                      }
+                      placeholder="Année (ex: 2026)"
+                    />
+                  </div>
+                </div>
+
+                {/* ✅ TVA: modifier ou désactiver */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                      <Percent size={14} /> TVA
+                    </div>
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      <input
+                        type="checkbox"
+                        checked={!!currentInvoice.applyTva}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            applyTva: e.target.checked,
+                          }))
+                        }
+                      />
+                      Appliquer TVA
+                    </label>
+                  </div>
+
+                  <input
+                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-black outline-none focus:border-blue-500 disabled:opacity-50"
+                    type="number"
+                    step="0.01"
+                    disabled={!currentInvoice.applyTva}
+                    value={Number(currentInvoice.tvaRate || 0)}
+                    onChange={(e) =>
+                      setCurrentInvoice((p) => ({
+                        ...normalizeInvoice(p),
+                        tvaRate: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    placeholder="TVA %"
+                  />
+                  <div className="text-[10px] font-bold text-slate-500">
+                    TVA actuelle :{" "}
+                    <span className="text-slate-900 font-black">
+                      {currentInvoice.applyTva ? `${Number(currentInvoice.tvaRate || 0)}%` : "Désactivée"}
+                    </span>
                   </div>
                 </div>
 
@@ -1206,6 +1486,25 @@ export default function MainApp() {
                   </div>
                 </div>
 
+                {/* ✅ Zoom aperçu sur PC */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3 no-print">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Aperçu (Zoom)
+                  </div>
+                  <input
+                    type="range"
+                    min="0.6"
+                    max="1.35"
+                    step="0.01"
+                    value={previewZoom}
+                    onChange={(e) => setPreviewZoom(parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="text-[10px] font-bold text-slate-500">
+                    Zoom : <span className="font-black text-slate-900">{Math.round(previewZoom * 100)}%</span>
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-2 pt-1">
                   <Button
                     onClick={saveInvoiceToCloud}
@@ -1226,17 +1525,17 @@ export default function MainApp() {
               </div>
             </div>
 
-            {/* ✅ Zone aperçu AGRANDIE */}
-            <div className="flex-1 bg-slate-200 rounded-[2rem] p-3 md:p-6 overflow-auto h-[78vh] md:h-[calc(100vh-6.5rem)] flex justify-center shadow-inner border-4 border-white">
-              <div
-                id="printable-area"
-                className="origin-top w-full flex justify-center"
-                style={{
-                  transform: window.innerWidth < 768 ? "scale(0.72)" : "scale(0.97)",
-                  transformOrigin: "top center",
-                }}
-              >
-                <div className="w-[210mm]">
+            {/* ✅ Zone aperçu TRÈS GRANDE sur PC */}
+            <div className="flex-1 bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[86vh] md:h-[calc(100vh-4.5rem)] shadow-inner border-4 border-white">
+              <div className="min-w-[900px] flex justify-center">
+                <div
+                  id="printable-area"
+                  className="origin-top"
+                  style={{
+                    transform: `scale(${previewZoom})`,
+                    transformOrigin: "top center",
+                  }}
+                >
                   {currentInvoice.type === "dossier" ? (
                     <div>
                       <div className="page-break">
@@ -1245,7 +1544,8 @@ export default function MainApp() {
                       <div className="page-break">
                         <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
                       </div>
-                      <div className="page-break">
+                      {/* ✅ dernier sans page-break => pas de 4e page blanche */}
+                      <div className="page-break-last">
                         <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
                       </div>
                     </div>
@@ -1431,13 +1731,30 @@ export default function MainApp() {
                   )}
                 </div>
 
-                <div className="text-center md:text-left">
-                  <label className="cursor-pointer bg-blue-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black shadow-xl shadow-blue-200 uppercase tracking-widest inline-block mb-3">
+                <div className="text-center md:text-left space-y-3">
+                  <label className="cursor-pointer bg-blue-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black shadow-xl shadow-blue-200 uppercase tracking-widest inline-block">
                     Changer le logo
                     <input type="file" onChange={handleLogoUpload} className="hidden" accept="image/*" />
                   </label>
+
+                  {/* ✅ favicon */}
+                  <div className="flex items-center gap-3 justify-center md:justify-start">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+                      {companyConfig.favicon ? (
+                        <img src={companyConfig.favicon} alt="favicon" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-[10px] font-black text-slate-400">ICO</span>
+                      )}
+                    </div>
+
+                    <label className="cursor-pointer bg-slate-900 text-white px-5 py-3 rounded-2xl text-[10px] font-black shadow uppercase tracking-widest inline-block">
+                      Ajouter Favicon
+                      <input type="file" onChange={handleFaviconUpload} className="hidden" accept="image/*" />
+                    </label>
+                  </div>
+
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                    Format PNG recommandé
+                    PNG recommandé (32x32 ou 64x64)
                   </p>
                 </div>
               </div>
@@ -1518,7 +1835,7 @@ export default function MainApp() {
                 const pdf = isPdfLike(fileData);
 
                 return (
-                  <div key={doc} className="page-break flex flex-col items-center justify-center min-h-[90vh]">
+                  <div key={doc} className="page-break-last flex flex-col items-center justify-center min-h-[90vh]">
                     {pdf ? (
                       <embed src={fileData} type="application/pdf" className="w-full h-[290mm]" />
                     ) : (
