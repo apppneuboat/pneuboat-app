@@ -19,7 +19,7 @@ import {
   Cloud,
   CheckCircle,
   Percent,
-  Eye,
+  Phone,
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -76,18 +76,21 @@ const NumberToLetter = (nombre) => {
     let c = Math.floor(n / 100);
     let r = n % 100;
     let res = "";
-    if (c > 0)
+    if (c > 0) {
       res +=
         (c === 1 ? "" : unites[c] + " ") +
         "cent" +
         (r === 0 && c > 1 ? "s" : "");
+    }
     if (r > 0) res += (res ? " " : "") + conv99(r);
     return res;
   };
 
-  if (Number(nombre || 0) === 0) return "Zéro Dinars Algériens";
-  const ent = Math.floor(Number(nombre || 0));
-  const dec = Math.round((Number(nombre || 0) - ent) * 100);
+  const val = Number(nombre || 0);
+  if (val === 0) return "Zéro Dinars Algériens";
+
+  const ent = Math.floor(val);
+  const dec = Math.round((val - ent) * 100);
 
   let n = ent;
   let res = "";
@@ -170,8 +173,8 @@ const Button = ({
   );
 };
 
-const InputGroup = ({ label, children }) => (
-  <div className="mb-3">
+const InputGroup = ({ label, children, compact }) => (
+  <div className={`${compact ? "mb-0" : "mb-3"}`}>
     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">
       {label}
     </label>
@@ -182,7 +185,7 @@ const InputGroup = ({ label, children }) => (
 const Input = (props) => (
   <input
     {...props}
-    className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all font-medium"
+    className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all font-semibold"
   />
 );
 
@@ -217,13 +220,11 @@ export default function MainApp() {
   const [printModelId, setPrintModelId] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  // Docs par modèle + bibliothèque PDF (impression à la demande)
   const [modelDocs, setModelDocs] = useState({});
   const [pdfLibrary, setPdfLibrary] = useState([]);
   const [pdfSelected, setPdfSelected] = useState(null);
 
-  // Zoom aperçu facture (PC => grand)
-  const [previewZoom, setPreviewZoom] = useState(1.05);
+  const [previewZoom, setPreviewZoom] = useState(1.12);
 
   const [companyConfig, setCompanyConfig] = useState({
     name: "PNEUBOAT SARL",
@@ -241,7 +242,7 @@ export default function MainApp() {
     bankName: "",
     bankRib: "",
     logo: null,
-    favicon: null, // ✅ favicon en base64
+    favicon: null,
     boatModels: [
       { id: 1, name: "PNB-360", length: "3.60 m", approvalNumber: "N° 689", type: "Semi-rigide" },
       { id: 2, name: "PNB-420", length: "4.20 m", approvalNumber: "N° 689", type: "Semi-rigide" },
@@ -271,7 +272,7 @@ export default function MainApp() {
     };
   }, []);
 
-  /* ------------------ NAV (HISTORIQUE BOUTON RETOUR) ------------------ */
+  /* ------------------ NAV ------------------ */
   const changeView = useCallback((newView) => {
     setView(newView);
     window.history.pushState({ view: newView }, "");
@@ -308,10 +309,9 @@ export default function MainApp() {
       } catch {}
     }
 
-    // zoom par défaut plus grand sur PC
     try {
-      if (window.innerWidth >= 1024) setPreviewZoom(1.15);
-      else setPreviewZoom(0.78);
+      if (window.innerWidth >= 1024) setPreviewZoom(1.18);
+      else setPreviewZoom(0.8);
     } catch {}
   }, []);
 
@@ -324,7 +324,6 @@ export default function MainApp() {
   /* ------------------ FAVICON DYNAMIQUE ------------------ */
   useEffect(() => {
     if (!companyConfig?.favicon) return;
-
     try {
       let link =
         document.querySelector("link[rel='icon']") ||
@@ -431,7 +430,8 @@ export default function MainApp() {
       ...inv,
       items,
       boatDetails,
-      applyTva: inv?.applyTva ?? true, // ✅ TVA activée ou non
+      clientPhone: inv?.clientPhone ?? "", // ✅ téléphone client
+      applyTva: inv?.applyTva ?? true,
       tvaRate: inv?.tvaRate ?? 19,
       showPayment: inv?.showPayment ?? true,
       paymentMethod: inv?.paymentMethod ?? "virement",
@@ -446,11 +446,7 @@ export default function MainApp() {
 
     try {
       const normalized = normalizeInvoice(currentInvoice);
-      const total = calculateTotal(
-        normalized.items,
-        normalized.tvaRate,
-        normalized.applyTva
-      );
+      const total = calculateTotal(normalized.items, normalized.tvaRate, normalized.applyTva);
 
       const payload = {
         doc_number: normalized.number,
@@ -523,6 +519,7 @@ export default function MainApp() {
       clientName: "",
       clientAddress: "",
       clientIdNumber: "",
+      clientPhone: "",
       items: [{ id: Date.now(), description: "", quantity: 1, price: 0 }],
       boatDetails: {
         model: "",
@@ -791,14 +788,49 @@ export default function MainApp() {
             <div className="text-[11px] text-slate-600 line-clamp-1">
               {inv.clientAddress || "—"}
             </div>
-            {!!inv.clientIdNumber && (
-              <div className="mt-2 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                <span className="px-2 py-1 rounded-lg bg-white border border-slate-200">
+
+            <div className="mt-2 flex flex-wrap gap-2">
+              {!!inv.clientIdNumber && (
+                <span className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
                   ID: {inv.clientIdNumber}
                 </span>
-              </div>
-            )}
+              )}
+              {!!inv.clientPhone && (
+                <span className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 inline-flex items-center gap-1">
+                  <Phone size={12} /> {inv.clientPhone}
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* ✅ Ajouts demandé sur BON DE LIVRAISON */}
+          {subType === "livraison" && (
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                Détails Livraison
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                  <div className="font-black">{inv.boatDetails.model || "—"}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                  <div className="font-black font-mono text-blue-700">
+                    {inv.boatDetails.serialNumber || "—"}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">Téléphone client</div>
+                  <div className="font-black">{inv.clientPhone || "—"}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                  <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="min-h-[175px]">
             {subType === "attestation" ? (
@@ -810,36 +842,25 @@ export default function MainApp() {
                   <b>{inv.clientName || ".........."}</b>.
                 </p>
 
-                {/* ✅ Attestation : modèle + série + longueur + année */}
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
                     Détails du Bateau
                   </div>
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Modèle
-                      </div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
                       <div className="font-black">{inv.boatDetails.model || "—"}</div>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        N° de série
-                      </div>
-                      <div className="font-black text-blue-700 font-mono">
-                        {inv.boatDetails.serialNumber || "—"}
-                      </div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                      <div className="font-black text-blue-700 font-mono">{inv.boatDetails.serialNumber || "—"}</div>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Longueur
-                      </div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
                       <div className="font-black">{inv.boatDetails.length || "—"}</div>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Année de construction
-                      </div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Année de construction</div>
                       <div className="font-black">{inv.boatDetails.year || "—"}</div>
                     </div>
                   </div>
@@ -873,9 +894,7 @@ export default function MainApp() {
                               {Number(it.price || 0).toLocaleString("fr-FR")}
                             </td>
                             <td className="py-2.5 px-3 text-right font-black text-slate-900">
-                              {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString(
-                                "fr-FR"
-                              )}
+                              {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
                             </td>
                           </>
                         )}
@@ -909,27 +928,22 @@ export default function MainApp() {
                       <span>{formatCurrency(subtotal)}</span>
                     </div>
 
-                    {inv.applyTva ? (
+                    {/* ✅ TVA DISPARAIT COMPLETEMENT si désactivée */}
+                    {inv.applyTva && (
                       <div className="flex justify-between text-slate-500 font-bold">
                         <span>TVA</span>
                         <span>{Number(inv.tvaRate || 0)}%</span>
                       </div>
-                    ) : (
-                      <div className="flex justify-between text-slate-500 font-bold">
-                        <span>TVA</span>
-                        <span>0% (désactivée)</span>
-                      </div>
                     )}
 
                     <div className="pt-2 border-t flex justify-between font-black text-[13px]">
-                      <span className="text-slate-900">TOTAL TTC</span>
+                      <span className="text-slate-900">{inv.applyTva ? "TOTAL TTC" : "TOTAL"}</span>
                       <span className="text-blue-700">{formatCurrency(total)}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* ✅ TOTAL EN LETTRES */}
               <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
                   Total en lettres
@@ -937,14 +951,11 @@ export default function MainApp() {
                 <div className="text-[11px] font-bold text-slate-800">
                   Arrêté la présente facture à la somme de :
                 </div>
-                <div className="mt-1 text-[12px] font-black text-slate-900">
-                  {totalWords}
-                </div>
+                <div className="mt-1 text-[12px] font-black text-slate-900">{totalWords}</div>
               </div>
             </>
           )}
 
-          {/* Paiement affichable/masquable */}
           {showPayBlock && (
             <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
               <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -1046,7 +1057,7 @@ export default function MainApp() {
       <nav className="fixed bottom-0 left-0 w-full md:w-64 md:h-screen bg-slate-900 text-white z-50 no-print flex md:flex-col shadow-2xl md:shadow-none">
         <div className="hidden md:block p-8 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <Anchor className="text-blue-500" />{" "}
+            <Anchor className="text-blue-500" />
             <span className="text-xl font-black uppercase">Pneuboat</span>
           </div>
         </div>
@@ -1193,13 +1204,22 @@ export default function MainApp() {
                                 setPdfSelected(p);
                               }}
                             >
-                              <Eye size={16} /> Aperçu
+                              Aperçu
                             </Button>
                             <Button
                               className="!px-3 !py-2 !rounded-lg"
                               onClick={(ev) => {
                                 ev.stopPropagation();
-                                printPdf(p.data);
+                                const w = window.open();
+                                if (!w) return alert("Pop-up bloquée.");
+                                w.document.write(`
+                                  <html><head><title>PDF</title></head>
+                                  <body style="margin:0">
+                                    <embed src="${p.data}" type="application/pdf" style="width:100vw;height:100vh" />
+                                    <script>setTimeout(()=>{window.focus();window.print();},400)</script>
+                                  </body></html>
+                                `);
+                                w.document.close();
                               }}
                             >
                               <Printer size={16} /> Imprimer
@@ -1223,11 +1243,7 @@ export default function MainApp() {
 
                 <div className="md:col-span-2 bg-white rounded-2xl border border-slate-100 overflow-hidden min-h-[340px]">
                   {pdfSelected?.data ? (
-                    <embed
-                      src={pdfSelected.data}
-                      type="application/pdf"
-                      className="w-full h-[340px] md:h-[420px]"
-                    />
+                    <embed src={pdfSelected.data} type="application/pdf" className="w-full h-[420px]" />
                   ) : (
                     <div className="h-full p-10 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center">
                       Sélectionne un PDF pour l’aperçu
@@ -1245,63 +1261,90 @@ export default function MainApp() {
           </div>
         )}
 
-        {/* EDIT */}
+        {/* EDIT — ✅ Nouveau design: barre horizontale en haut + aperçu géant en bas */}
         {view === "edit" && currentInvoice && (
-          <div className="flex flex-col lg:flex-row gap-6 animate-in slide-in-from-right duration-300">
-            {/* Panneau gauche */}
-            <div className="w-full lg:w-[460px] bg-white rounded-[2rem] shadow-xl p-6 no-print space-y-5 border border-slate-100">
-              <div className="flex items-center justify-between border-b border-slate-50 pb-4">
-                <h3 className="font-black text-slate-800 uppercase text-[10px] tracking-widest">
-                  Édition en cours
-                </h3>
-                <button
-                  onClick={() => changeView("list")}
-                  className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-slate-50 p-4 rounded-2xl space-y-3 border border-slate-100">
-                  <InputGroup label="Client">
-                    <Input
-                      value={currentInvoice.clientName || ""}
-                      onChange={(e) =>
-                        setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientName: e.target.value }))
-                      }
-                      placeholder="Nom complet"
-                    />
-                  </InputGroup>
-
-                  <InputGroup label="Adresse">
-                    <Input
-                      value={currentInvoice.clientAddress || ""}
-                      onChange={(e) =>
-                        setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientAddress: e.target.value }))
-                      }
-                      placeholder="Adresse"
-                    />
-                  </InputGroup>
-
-                  <InputGroup label="ID / Passport">
-                    <Input
-                      value={currentInvoice.clientIdNumber || ""}
-                      onChange={(e) =>
-                        setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientIdNumber: e.target.value }))
-                      }
-                      placeholder="Optionnel"
-                    />
-                  </InputGroup>
+          <div className="space-y-4 animate-in slide-in-from-right duration-300">
+            {/* BARRE EDITION (haut) */}
+            <div className="no-print bg-white rounded-[1.5rem] shadow-sm border border-slate-100 p-3 md:p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <div className="font-black uppercase text-slate-800 text-sm tracking-tight">
+                      Édition
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      Remplis en haut • aperçu en bas
+                    </div>
+                  </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-5 rounded-[1.5rem] shadow-xl shadow-blue-100 text-white space-y-3">
-                  <div className="text-[9px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <CheckCircle size={10} /> Sélection Unité
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" onClick={() => changeView("list")} className="!py-2 !px-3 !rounded-xl">
+                    <X size={16} /> Fermer
+                  </Button>
+                  <Button onClick={saveInvoiceToCloud} disabled={busy} className="!py-2 !px-4 !rounded-xl">
+                    <Save size={16} /> {busy ? "Envoi..." : "Sauvegarder"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setTimeout(() => window.print(), 100)}
+                    className="!py-2 !px-4 !rounded-xl border-2 border-blue-50"
+                  >
+                    <Printer size={16} /> Imprimer
+                  </Button>
+                </div>
+              </div>
+
+              {/* FORM HORIZONTAL */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                {/* Client */}
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="grid grid-cols-1 gap-2">
+                    <InputGroup label="Client" compact>
+                      <Input
+                        value={currentInvoice.clientName || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientName: e.target.value }))
+                        }
+                        placeholder="Nom complet"
+                      />
+                    </InputGroup>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <InputGroup label="Téléphone" compact>
+                        <Input
+                          value={currentInvoice.clientPhone || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientPhone: e.target.value }))
+                          }
+                          placeholder="0550..."
+                        />
+                      </InputGroup>
+
+                      <InputGroup label="ID / Passport" compact>
+                        <Input
+                          value={currentInvoice.clientIdNumber || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientIdNumber: e.target.value }))
+                          }
+                          placeholder="Optionnel"
+                        />
+                      </InputGroup>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modèle / Bateau */}
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
+                  <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <CheckCircle size={12} /> Bateau
                   </div>
 
                   <select
-                    className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black outline-none"
+                    className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black outline-none"
                     value={
                       companyConfig.boatModels.find((m) => m.name === currentInvoice?.boatDetails?.model)?.id || ""
                     }
@@ -1315,27 +1358,48 @@ export default function MainApp() {
                     ))}
                   </select>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 mt-2">
                     <input
-                      className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       value={currentInvoice?.boatDetails?.serialNumber || ""}
                       onChange={(e) =>
                         setCurrentInvoice((p) => {
                           const inv = normalizeInvoice(p);
                           return {
                             ...inv,
-                            boatDetails: {
-                              ...inv.boatDetails,
-                              serialNumber: String(e.target.value || "").toUpperCase(),
-                            },
+                            boatDetails: { ...inv.boatDetails, serialNumber: String(e.target.value || "").toUpperCase() },
                           };
                         })
                       }
                       placeholder="N° Série"
                     />
-
                     <input
-                      className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black outline-none"
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                      value={currentInvoice?.boatDetails?.year || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => {
+                          const inv = normalizeInvoice(p);
+                          return { ...inv, boatDetails: { ...inv.boatDetails, year: e.target.value } };
+                        })
+                      }
+                      placeholder="Année"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <input
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                      value={currentInvoice?.boatDetails?.length || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => {
+                          const inv = normalizeInvoice(p);
+                          return { ...inv, boatDetails: { ...inv.boatDetails, length: e.target.value } };
+                        })
+                      }
+                      placeholder="Longueur"
+                    />
+                    <input
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       type="number"
                       value={Number(currentInvoice?.items?.[0]?.price || 0)}
                       onChange={(e) => {
@@ -1350,191 +1414,129 @@ export default function MainApp() {
                       placeholder="Prix"
                     />
                   </div>
-
-                  {/* ✅ année construction (utile surtout pour attestation) */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
-                      value={currentInvoice?.boatDetails?.length || ""}
-                      onChange={(e) =>
-                        setCurrentInvoice((p) => {
-                          const inv = normalizeInvoice(p);
-                          return {
-                            ...inv,
-                            boatDetails: { ...inv.boatDetails, length: e.target.value },
-                          };
-                        })
-                      }
-                      placeholder="Longueur (ex: 5.25 m)"
-                    />
-                    <input
-                      className="w-full px-4 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
-                      value={currentInvoice?.boatDetails?.year || ""}
-                      onChange={(e) =>
-                        setCurrentInvoice((p) => {
-                          const inv = normalizeInvoice(p);
-                          return {
-                            ...inv,
-                            boatDetails: { ...inv.boatDetails, year: e.target.value },
-                          };
-                        })
-                      }
-                      placeholder="Année (ex: 2026)"
-                    />
-                  </div>
                 </div>
 
-                {/* ✅ TVA: modifier ou désactiver */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                      <Percent size={14} /> TVA
-                    </div>
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      <input
-                        type="checkbox"
-                        checked={!!currentInvoice.applyTva}
+                {/* TVA / Paiement / Zoom */}
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-white p-3">
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* TVA */}
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                          <Percent size={14} /> TVA
+                        </div>
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={!!currentInvoice.applyTva}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => ({ ...normalizeInvoice(p), applyTva: e.target.checked }))
+                            }
+                          />
+                          Appliquer
+                        </label>
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        disabled={!currentInvoice.applyTva}
+                        value={Number(currentInvoice.tvaRate || 0)}
                         onChange={(e) =>
-                          setCurrentInvoice((p) => ({
-                            ...normalizeInvoice(p),
-                            applyTva: e.target.checked,
-                          }))
+                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), tvaRate: parseFloat(e.target.value) || 0 }))
                         }
+                        placeholder="TVA %"
                       />
-                      Appliquer TVA
-                    </label>
-                  </div>
-
-                  <input
-                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-black outline-none focus:border-blue-500 disabled:opacity-50"
-                    type="number"
-                    step="0.01"
-                    disabled={!currentInvoice.applyTva}
-                    value={Number(currentInvoice.tvaRate || 0)}
-                    onChange={(e) =>
-                      setCurrentInvoice((p) => ({
-                        ...normalizeInvoice(p),
-                        tvaRate: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    placeholder="TVA %"
-                  />
-                  <div className="text-[10px] font-bold text-slate-500">
-                    TVA actuelle :{" "}
-                    <span className="text-slate-900 font-black">
-                      {currentInvoice.applyTva ? `${Number(currentInvoice.tvaRate || 0)}%` : "Désactivée"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* ✅ PAIEMENT (cheque/virement/espece) + afficher/masquer */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Paiement
+                      <div className="mt-1 text-[10px] font-bold text-slate-500">
+                        {currentInvoice.applyTva ? `TVA: ${Number(currentInvoice.tvaRate || 0)}%` : "TVA désactivée"}
+                      </div>
                     </div>
 
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      <input
-                        type="checkbox"
-                        checked={!!currentInvoice.showPayment}
+                    {/* Paiement */}
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Paiement</div>
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={!!currentInvoice.showPayment}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => ({ ...normalizeInvoice(p), showPayment: e.target.checked }))
+                            }
+                          />
+                          Afficher
+                        </label>
+                      </div>
+                      <select
+                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
+                        value={currentInvoice.paymentMethod || "virement"}
                         onChange={(e) =>
-                          setCurrentInvoice((p) => ({
-                            ...normalizeInvoice(p),
-                            showPayment: e.target.checked,
-                          }))
+                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), paymentMethod: e.target.value }))
                         }
+                      >
+                        <option value="cheque">Chèque</option>
+                        <option value="virement">Virement bancaire</option>
+                        <option value="espece">Espèce</option>
+                      </select>
+                      {currentInvoice.paymentMethod === "cheque" && (
+                        <input
+                          className="w-full mt-2 px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
+                          placeholder="N° de chèque (optionnel)"
+                          value={currentInvoice.clientChequeNumber || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientChequeNumber: e.target.value }))
+                          }
+                        />
+                      )}
+                      <div className="mt-1 text-[10px] font-bold text-slate-500">
+                        Mode: <span className="text-slate-900 font-black">{paymentLabel(currentInvoice.paymentMethod)}</span>
+                      </div>
+                    </div>
+
+                    {/* Zoom */}
+                    <div className="rounded-2xl border border-slate-100 bg-white p-3">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                        Zoom aperçu
+                      </div>
+                      <input
+                        type="range"
+                        min="0.7"
+                        max="1.35"
+                        step="0.01"
+                        value={previewZoom}
+                        onChange={(e) => setPreviewZoom(parseFloat(e.target.value))}
+                        className="w-full"
                       />
-                      Afficher sur facture
-                    </label>
+                      <div className="text-[10px] font-bold text-slate-500 mt-1">
+                        {Math.round(previewZoom * 100)}%
+                      </div>
+                    </div>
                   </div>
+                </div>
+              </div>
 
-                  <select
-                    className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-black outline-none focus:border-blue-500"
-                    value={currentInvoice.paymentMethod || "virement"}
-                    onChange={(e) =>
-                      setCurrentInvoice((p) => ({
-                        ...normalizeInvoice(p),
-                        paymentMethod: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="cheque">Chèque</option>
-                    <option value="virement">Virement bancaire</option>
-                    <option value="espece">Espèce</option>
-                  </select>
-
-                  {currentInvoice.paymentMethod === "cheque" && (
-                    <input
-                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-black outline-none focus:border-blue-500"
-                      placeholder="N° de chèque (optionnel)"
-                      value={currentInvoice.clientChequeNumber || ""}
+              {/* Adresse (compact en bas de la barre) */}
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div className="md:col-span-12">
+                  <InputGroup label="Adresse" compact>
+                    <Input
+                      value={currentInvoice.clientAddress || ""}
                       onChange={(e) =>
-                        setCurrentInvoice((p) => ({
-                          ...normalizeInvoice(p),
-                          clientChequeNumber: e.target.value,
-                        }))
+                        setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientAddress: e.target.value }))
                       }
+                      placeholder="Adresse du client"
                     />
-                  )}
-
-                  <div className="text-[10px] font-bold text-slate-500">
-                    Mode sélectionné :{" "}
-                    <span className="text-slate-900 font-black">
-                      {paymentLabel(currentInvoice.paymentMethod)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* ✅ Zoom aperçu sur PC */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3 no-print">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    Aperçu (Zoom)
-                  </div>
-                  <input
-                    type="range"
-                    min="0.6"
-                    max="1.35"
-                    step="0.01"
-                    value={previewZoom}
-                    onChange={(e) => setPreviewZoom(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="text-[10px] font-bold text-slate-500">
-                    Zoom : <span className="font-black text-slate-900">{Math.round(previewZoom * 100)}%</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 pt-1">
-                  <Button
-                    onClick={saveInvoiceToCloud}
-                    disabled={busy}
-                    className="w-full py-4 rounded-2xl justify-center uppercase tracking-widest text-xs"
-                  >
-                    <Save size={18} /> {busy ? "Envoi..." : "Sauvegarder Online"}
-                  </Button>
-
-                  <Button
-                    onClick={() => setTimeout(() => window.print(), 100)}
-                    variant="secondary"
-                    className="w-full py-4 rounded-2xl justify-center uppercase tracking-widest text-xs border-2 border-blue-50"
-                  >
-                    <Printer size={18} /> Imprimer Direct
-                  </Button>
+                  </InputGroup>
                 </div>
               </div>
             </div>
 
-            {/* ✅ Zone aperçu TRÈS GRANDE sur PC */}
-            <div className="flex-1 bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[86vh] md:h-[calc(100vh-4.5rem)] shadow-inner border-4 border-white">
-              <div className="min-w-[900px] flex justify-center">
+            {/* APERÇU (bas) — très grand */}
+            <div className="bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[82vh] md:h-[calc(100vh-18rem)] shadow-inner border-4 border-white">
+              <div className="min-w-[980px] flex justify-center">
                 <div
                   id="printable-area"
                   className="origin-top"
-                  style={{
-                    transform: `scale(${previewZoom})`,
-                    transformOrigin: "top center",
-                  }}
+                  style={{ transform: `scale(${previewZoom})`, transformOrigin: "top center" }}
                 >
                   {currentInvoice.type === "dossier" ? (
                     <div>
@@ -1544,7 +1546,6 @@ export default function MainApp() {
                       <div className="page-break">
                         <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
                       </div>
-                      {/* ✅ dernier sans page-break => pas de 4e page blanche */}
                       <div className="page-break-last">
                         <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
                       </div>
@@ -1737,7 +1738,6 @@ export default function MainApp() {
                     <input type="file" onChange={handleLogoUpload} className="hidden" accept="image/*" />
                   </label>
 
-                  {/* ✅ favicon */}
                   <div className="flex items-center gap-3 justify-center md:justify-start">
                     <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
                       {companyConfig.favicon ? (
@@ -1812,18 +1812,11 @@ export default function MainApp() {
         {view === "print_tech_view" && (
           <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-2xl p-6 md:p-10 border border-slate-100">
             <div className="flex justify-between items-center mb-8 no-print">
-              <Button
-                variant="secondary"
-                onClick={() => changeView("database")}
-                className="!px-6 rounded-2xl uppercase text-[10px] tracking-widest"
-              >
+              <Button variant="secondary" onClick={() => changeView("database")} className="!px-6 rounded-2xl uppercase text-[10px] tracking-widest">
                 <X size={16} /> Fermer
               </Button>
 
-              <Button
-                onClick={() => setTimeout(() => window.print(), 100)}
-                className="!px-8 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200"
-              >
+              <Button onClick={() => setTimeout(() => window.print(), 100)} className="!px-8 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200">
                 <Printer size={16} /> Tout Imprimer
               </Button>
             </div>
