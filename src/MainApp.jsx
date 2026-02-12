@@ -1,22 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Plus,
-  Trash2,
-  Printer,
-  Save,
-  FileText,
-  FolderOpen,
-  ClipboardList,
-  Database,
-  History,
-  Search,
-  X,
-  Upload,
-  Settings,
-  LayoutDashboard,
-  Anchor,
-  PackageCheck,
-  ShieldCheck,
+  Plus, Trash2, Printer, Save, FileText, FolderOpen, ClipboardList,
+  Database, History, Search, X, Upload, Settings, LayoutDashboard, Anchor,
+  PackageCheck, ShieldCheck
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -24,7 +10,6 @@ import { supabase } from "./supabase";
 const NumberToLetter = (nombre) => {
   const unites = ["", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"];
   const dizaines = ["", "dix", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante-dix", "quatre-vingt", "quatre-vingt-dix"];
-
   const conv99 = (n) => {
     if (n < 20) return unites[n];
     let d = Math.floor(n / 10);
@@ -35,7 +20,6 @@ const NumberToLetter = (nombre) => {
     else if (u > 0) res += "-" + unites[u];
     return res;
   };
-
   const conv999 = (n) => {
     let c = Math.floor(n / 100);
     let r = n % 100;
@@ -44,7 +28,6 @@ const NumberToLetter = (nombre) => {
     if (r > 0) res += (res ? " " : "") + conv99(r);
     return res;
   };
-
   if (nombre === 0) return "zéro";
   let n = Math.floor(nombre);
   let res = "";
@@ -60,7 +43,7 @@ const NumberToLetter = (nombre) => {
 };
 
 const calculateSubtotal = (items) =>
-  items.reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.price || 0)), 0);
+  (items || []).reduce((acc, item) => acc + (Number(item.quantity || 0) * Number(item.price || 0)), 0);
 
 const calculateTotal = (items, tvaRate) =>
   calculateSubtotal(items) * (1 + Number(tvaRate || 0) / 100);
@@ -68,15 +51,22 @@ const calculateTotal = (items, tvaRate) =>
 const formatCurrency = (amount) =>
   Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
 
+const labelDoc = (t) => {
+  if (t === "facture") return "FACTURE";
+  if (t === "proforma") return "FACTURE PROFORMA";
+  if (t === "livraison") return "BON DE LIVRAISON";
+  if (t === "attestation") return "ATTESTATION DE CONSTRUCTION";
+  if (t === "dossier") return "DOSSIER";
+  return String(t || "").toUpperCase();
+};
+
 /* ------------------ APP ------------------ */
-export default function MainApp({ onLogout }) {
-  // SUPABASE AUTH (1 seul compte, pas de signUp)
+export default function MainApp() {
   const [session, setSession] = useState(null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPass, setAuthPass] = useState("");
   const [authMsg, setAuthMsg] = useState("");
 
-  // APP STATE
   const [view, setView] = useState("list");
   const [invoiceHistory, setInvoiceHistory] = useState([]);
   const [modelDocs, setModelDocs] = useState({});
@@ -85,7 +75,6 @@ export default function MainApp({ onLogout }) {
   const [printModelId, setPrintModelId] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  // CONFIG
   const [companyConfig, setCompanyConfig] = useState({
     name: "PNEUBOAT SARL",
     managerName: "Sekkal Gherbi Youcef",
@@ -136,18 +125,23 @@ export default function MainApp({ onLogout }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  async function signUp() {
+    setAuthMsg("");
+    const { error } = await supabase.auth.signUp({ email: authEmail, password: authPass });
+    if (error) setAuthMsg(error.message);
+    else setAuthMsg("Compte créé. Vérifie ton email si Supabase demande confirmation.");
+  }
+
   async function signIn() {
     setAuthMsg("");
     const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPass });
     if (error) setAuthMsg(error.message);
   }
 
-  async function fullLogout() {
+  async function signOut() {
     await supabase.auth.signOut();
-    setSession(null);
     setView("list");
     setCurrentInvoice(null);
-    onLogout(); // 🔒 verrouille l’app (revient au mot de passe)
   }
 
   /* ------------------ LOAD HISTORY (SUPABASE) ------------------ */
@@ -183,7 +177,7 @@ export default function MainApp({ onLogout }) {
           length: "",
           approvalNumber: "",
           year: "2026",
-          notes: "",
+          notes: "Je certifie que le navire a été construit à neuf selon les spécifications techniques.",
         },
         showPayment: d.showPayment ?? true,
         paymentMethod: d.paymentMethod || "virement",
@@ -220,10 +214,7 @@ export default function MainApp({ onLogout }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onloadend = () => {
-      const next = {
-        ...modelDocs,
-        [modelId]: { ...(modelDocs[modelId] || {}), [docKey]: reader.result },
-      };
+      const next = { ...modelDocs, [modelId]: { ...(modelDocs[modelId] || {}), [docKey]: reader.result } };
       setModelDocs(next);
       saveLocal(companyConfig, next);
     };
@@ -232,7 +223,7 @@ export default function MainApp({ onLogout }) {
 
   /* ------------------ DOCS ------------------ */
   const startNew = (type) => {
-    const year = 2026;
+    const year = new Date().getFullYear();
     const { nextInvoiceNumber: nf, nextAttestationNumber: na, nextDeliveryNumber: nbl, nextProformaNumber: np } = companyConfig;
 
     let newDoc = {
@@ -246,7 +237,7 @@ export default function MainApp({ onLogout }) {
       tvaRate: 19,
 
       showPayment: true,
-      paymentMethod: "virement", // virement | espece | cheque
+      paymentMethod: "virement",
       clientChequeNumber: "",
 
       boatDetails: {
@@ -254,7 +245,7 @@ export default function MainApp({ onLogout }) {
         serialNumber: "",
         length: "",
         approvalNumber: "",
-        year: String(year),
+        year: "2026",
         notes: "Je certifie que le navire a été construit à neuf selon les spécifications techniques.",
       },
     };
@@ -274,21 +265,23 @@ export default function MainApp({ onLogout }) {
     setView("edit");
   };
 
-  // Désignation = "Bateau {type} {modèle}"
   const selectModel = (id) => {
     const m = companyConfig.boatModels.find((x) => x.id === parseInt(id));
     if (!m || !currentInvoice) return;
 
+    const designation =
+      `Bateau ${String(m.type || "").toLowerCase()} ${m.name}`.replace(/\s+/g, " ").trim();
+
     setCurrentInvoice((prev) => ({
       ...prev,
       boatDetails: { ...prev.boatDetails, model: m.name, length: m.length, approvalNumber: m.approvalNumber },
-      items: [{ ...prev.items[0], description: `Bateau ${m.type} ${m.name}` }],
+      items: [{ ...prev.items[0], description: designation }],
     }));
   };
 
   /* ------------------ SAVE / DELETE (SUPABASE) ------------------ */
   const saveInvoice = async () => {
-    if (!session?.user) return alert("Connecte-toi d’abord (admin).");
+    if (!session?.user) return;
     if (!currentInvoice?.clientName) return alert("Veuillez saisir le nom du client.");
     if (!currentInvoice?.number) return alert("Numéro manquant.");
 
@@ -368,7 +361,8 @@ export default function MainApp({ onLogout }) {
   };
 
   const handlePrint = () => {
-    requestAnimationFrame(() => window.print());
+    // petit délai = Safari iPad + Vercel + styles print
+    setTimeout(() => window.print(), 50);
   };
 
   /* ------------------ RENDER DOC A4 ------------------ */
@@ -383,12 +377,6 @@ export default function MainApp({ onLogout }) {
     const isBL = subType === "livraison";
     const isFactOrPro = subType === "facture" || subType === "proforma";
 
-    const docTitle =
-      subType === "facture" ? "FACTURE" :
-      subType === "proforma" ? "FACTURE PROFORMA" :
-      subType === "livraison" ? "BON DE LIVRAISON" :
-      "ATTESTATION DE CONSTRUCTION";
-
     const paymentLabel =
       currentInvoice.paymentMethod === "virement"
         ? "Virement bancaire"
@@ -397,148 +385,195 @@ export default function MainApp({ onLogout }) {
           : "Chèque";
 
     return (
-      <div className="pb-doc pb-doc-fixed bg-white mx-auto w-[21cm] min-h-[29.7cm] border border-slate-200 overflow-hidden flex flex-col relative">
+      <div className="pb-doc pb-print-page">
         <div className="pb-ribbon" />
+        <div className="pb-doc-inner">
 
-        <div className="pl-[16mm] flex flex-col h-full relative">
-          <div className="relative">
-            <div className="h-2 bg-gradient-to-r from-indigo-600 via-blue-700 to-red-600" />
-          </div>
-
-          <div className="pointer-events-none absolute inset-0 opacity-[0.04] flex items-center justify-center">
-            <div className="text-[110px] font-black tracking-tight text-slate-900 rotate-[-18deg]">PNEUBOAT</div>
-          </div>
-
-          <div className="relative px-8 py-6 border-b border-slate-200">
-            <div className="flex justify-between items-start gap-6">
-              <div className="w-1/2">
+          {/* HEADER */}
+          <div style={{ padding: "18px 22px 12px 22px", borderBottom: "1px solid var(--pb-line)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+              <div style={{ width: "60%" }}>
                 {companyConfig.logo ? (
-                  <img src={companyConfig.logo} className="h-12 object-contain mb-3" />
+                  <img src={companyConfig.logo} alt="logo" style={{ height: 44, objectFit: "contain", marginBottom: 8 }} />
                 ) : (
-                  <div className="mb-2">
-                    <h1 className="text-xl font-extrabold text-slate-900 leading-none">
-                      PNEUBOAT <span className="text-red-600">AT</span>
-                    </h1>
-                    <p className="text-[11px] font-semibold text-slate-500 mt-1 pb-clamp-1">{companyConfig.footerText}</p>
+                  <div style={{ marginBottom: 6 }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: -0.5 }}>
+                      PNEUBOAT <span style={{ color: "var(--pb-red)" }}>AT</span>
+                    </div>
+                    <div className="pb-muted pb-clamp-1" style={{ fontSize: 12, fontWeight: 700 }}>
+                      {companyConfig.footerText}
+                    </div>
                   </div>
                 )}
-                <div className="text-[11px] text-slate-500 leading-snug pb-clamp-2">
-                  <div className="font-semibold text-slate-800 pb-clamp-1">{companyConfig.address}</div>
+
+                <div className="pb-muted" style={{ fontSize: 11, lineHeight: 1.3 }}>
+                  <div className="pb-clamp-2" style={{ fontWeight: 700, color: "#111827" }}>{companyConfig.address}</div>
                   <div className="pb-clamp-1">Tél: {companyConfig.phone} • Email: {companyConfig.email}</div>
                 </div>
               </div>
 
-              <div className="text-right flex flex-col items-end">
-                <div className="inline-flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-red-600" />
-                  <span className="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold uppercase shadow-sm">
-                    {docTitle}
-                  </span>
+              <div style={{ textAlign: "right" }}>
+                <div style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 10px",
+                  borderRadius: 14,
+                  background: "linear-gradient(135deg, var(--pb-blue2), var(--pb-blue))",
+                  color: "#fff",
+                  fontWeight: 900,
+                  fontSize: 11,
+                  letterSpacing: 0.6,
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--pb-red)" }} />
+                  {labelDoc(subType)}
                 </div>
 
-                <div className="mt-3">
-                  <p className="font-mono text-base font-black text-slate-900 pb-clamp-1">REF: {docNumber}</p>
-                  <p className="text-[11px] font-semibold text-slate-500 pb-clamp-1">
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontWeight: 900 }}>
+                    REF: {docNumber}
+                  </div>
+                  <div className="pb-muted" style={{ fontSize: 11, fontWeight: 700 }}>
                     Fait le {new Date(currentInvoice.date).toLocaleDateString("fr-FR")}
-                  </p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="relative px-8 pt-6">
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-indigo-600 to-red-600" />
-              <div className="pl-3">
-                <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Client</p>
-                <div className="mt-1 text-lg font-extrabold text-slate-900 pb-clamp-1">
-                  {currentInvoice.clientName || "---"}
+          {/* CLIENT */}
+          <div style={{ padding: "14px 22px 0 22px" }}>
+            <div style={{
+              border: "1px solid var(--pb-line)",
+              borderRadius: 18,
+              background: "#fbfbfe",
+              padding: 14,
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute",
+                left: 0, top: 0, bottom: 0,
+                width: 8,
+                background: "linear-gradient(180deg, var(--pb-blue2), var(--pb-red))"
+              }} />
+              <div style={{ paddingLeft: 10 }}>
+                <div style={{ fontSize: 10, letterSpacing: 1.2, fontWeight: 900, color: "var(--pb-muted)" }}>
+                  CLIENT
                 </div>
-                <div className="text-sm text-slate-600 mt-1 pb-clamp-2">
-                  {currentInvoice.clientAddress || "---"}
+                <div className="pb-clamp-1" style={{ fontSize: 18, fontWeight: 900, marginTop: 3 }}>
+                  {currentInvoice.clientName || "—"}
+                </div>
+                <div className="pb-clamp-2" style={{ marginTop: 4, fontSize: 12, color: "#475569", fontWeight: 700, lineHeight: 1.25 }}>
+                  {currentInvoice.clientAddress || "—"}
                 </div>
 
                 {currentInvoice.clientIdNumber && (
-                  <div className="mt-3 inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
-                    <ShieldCheck size={14} className="text-indigo-600" />
-                    <span className="text-[11px] font-bold text-slate-700 pb-clamp-1">
-                      ID: <span className="font-mono">{currentInvoice.clientIdNumber}</span>
-                    </span>
+                  <div style={{
+                    marginTop: 10,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    border: "1px solid var(--pb-line)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    background: "#fff"
+                  }}>
+                    <ShieldCheck size={14} color={"#123b9a"} />
+                    <div style={{ fontSize: 11, fontWeight: 900, color: "#334155" }} className="pb-clamp-1">
+                      ID: <span style={{ fontFamily: "ui-monospace, monospace", color: "var(--pb-red)" }}>{currentInvoice.clientIdNumber}</span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* BODY fixé (ne grandit plus) */}
-          <div className="relative flex-1 px-8 py-5 pb-doc-body">
+          {/* BODY (bloqué A4) */}
+          <div className="pb-doc-body" style={{ padding: "12px 22px 0 22px" }}>
             {isAtt ? (
-              <>
-                <p className="text-sm text-slate-700 leading-relaxed text-justify pb-clamp-3">
-                  Je soussigné, <strong>{companyConfig.managerName}</strong>, gérant de la société{" "}
-                  <strong>{companyConfig.name}</strong>, certifie par la présente que le navire désigné
-                  ci-après a été entièrement construit à neuf dans nos ateliers pour le compte de{" "}
-                  <strong>{currentInvoice.clientName || ".........."}</strong>.
-                </p>
+              <div>
+                <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.35 }} className="pb-clamp-3">
+                  Je soussigné, <b>{companyConfig.managerName}</b>, gérant de la société <b>{companyConfig.name}</b>,
+                  certifie par la présente que le navire désigné ci-après a été entièrement construit à neuf
+                  dans nos ateliers pour le compte de <b>{currentInvoice.clientName || ".........."}</b>.
+                </div>
 
-                <div className="mt-5 border border-slate-200 rounded-2xl overflow-hidden">
-                  <div className="bg-slate-900 text-white px-6 py-3 text-[11px] font-extrabold uppercase tracking-wider text-center">
-                    Fiche Technique
+                <div style={{ marginTop: 12, border: "1px solid var(--pb-line)", borderRadius: 18, overflow: "hidden" }}>
+                  <div style={{
+                    background: "#0b1220",
+                    color: "#fff",
+                    padding: "10px 14px",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    letterSpacing: 1,
+                    textAlign: "center"
+                  }}>
+                    FICHE TECHNIQUE
                   </div>
-                  <div className="p-6 grid grid-cols-2 gap-5 text-sm">
+                  <div style={{ padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <Info label="Modèle" value={currentInvoice.boatDetails.model} />
                     <Info label="Numéro de série" value={currentInvoice.boatDetails.serialNumber} mono accent />
-                    <Info label="Année" value={"2026"} />
+                    <Info label="Année 2026" value={"2026"} />
                     <Info label="Homologation" value={currentInvoice.boatDetails.approvalNumber} />
                   </div>
                 </div>
 
-                <div className="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-600 italic pb-clamp-3">
+                <div style={{
+                  marginTop: 12,
+                  border: "1px solid var(--pb-line)",
+                  borderRadius: 18,
+                  padding: 12,
+                  background: "#fbfbfe",
+                  fontSize: 12,
+                  color: "#475569"
+                }} className="pb-clamp-3">
                   Notes : {currentInvoice.boatDetails.notes}
                 </div>
-              </>
+              </div>
             ) : (
-              <>
-                <table className="w-full text-sm">
+              <div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500 text-[12px] font-extrabold">
-                      <th className="py-2 text-left">Désignation</th>
-                      <th className="py-2 text-center w-20">Qté</th>
+                    <tr style={{ borderBottom: "1px solid var(--pb-line)", color: "#64748b" }}>
+                      <th style={{ textAlign: "left", padding: "8px 0", fontWeight: 900 }}>Désignation</th>
+                      <th style={{ textAlign: "center", width: 60, padding: "8px 0", fontWeight: 900 }}>Qté</th>
                       {!isBL && (
                         <>
-                          <th className="py-2 text-right w-28">P.U</th>
-                          <th className="py-2 text-right w-32">Total</th>
+                          <th style={{ textAlign: "right", width: 90, padding: "8px 0", fontWeight: 900 }}>P.U</th>
+                          <th style={{ textAlign: "right", width: 100, padding: "8px 0", fontWeight: 900 }}>Total</th>
                         </>
                       )}
                     </tr>
                   </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-                    {currentInvoice.items.map((it, i) => (
-                      <tr key={it.id || i} className="align-top">
-                        <td className="py-3 pr-3">
-                          <div className="font-bold text-slate-900 pb-clamp-1">
+                  <tbody>
+                    {(currentInvoice.items || []).map((it, i) => (
+                      <tr key={it.id || i} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "10px 0" }}>
+                          <div className="pb-clamp-1" style={{ fontWeight: 900, color: "#0f172a" }}>
                             {it.description || "—"}
                           </div>
 
                           {i === 0 && currentInvoice.boatDetails?.serialNumber && (
-                            <div className="text-[12px] text-slate-500 mt-1 pb-clamp-1">
+                            <div className="pb-clamp-1" style={{ marginTop: 4, color: "#64748b", fontWeight: 800 }}>
                               Numéro de série:{" "}
-                              <span className="font-mono text-red-600 font-bold">
+                              <span style={{ fontFamily: "ui-monospace, monospace", color: "var(--pb-red)" }}>
                                 {currentInvoice.boatDetails.serialNumber}
                               </span>
                             </div>
                           )}
                         </td>
 
-                        <td className="py-3 text-center font-bold">{Number(it.quantity || 0)}</td>
+                        <td style={{ padding: "10px 0", textAlign: "center", fontWeight: 900 }}>
+                          {Number(it.quantity || 0)}
+                        </td>
 
                         {!isBL && (
                           <>
-                            <td className="py-3 text-right text-slate-600">
+                            <td style={{ padding: "10px 0", textAlign: "right", color: "#475569", fontWeight: 800 }}>
                               {Number(it.price || 0).toLocaleString("fr-FR")}
                             </td>
-                            <td className="py-3 text-right font-extrabold text-slate-900">
+                            <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 900 }}>
                               {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
                             </td>
                           </>
@@ -548,24 +583,36 @@ export default function MainApp({ onLogout }) {
                   </tbody>
                 </table>
 
-                {!isAtt && !isBL && (
-                  <div className="mt-4 grid grid-cols-2 gap-3 items-start">
+                {/* Paiement + Totaux */}
+                {!isBL && (
+                  <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
                       {currentInvoice.showPayment && (
-                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
-                          <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-600 to-red-600" />
-                          <div className="pl-3">
-                            <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-                              Mode de paiement
+                        <div style={{
+                          border: "1px solid var(--pb-line)",
+                          borderRadius: 18,
+                          padding: 12,
+                          background: "#fbfbfe",
+                          position: "relative",
+                          overflow: "hidden"
+                        }}>
+                          <div style={{
+                            position: "absolute",
+                            left: 0, top: 0, bottom: 0,
+                            width: 8,
+                            background: "linear-gradient(180deg, var(--pb-blue2), var(--pb-red))"
+                          }} />
+                          <div style={{ paddingLeft: 10 }}>
+                            <div style={{ fontSize: 10, fontWeight: 900, color: "#64748b", letterSpacing: 1 }}>
+                              MODE DE PAIEMENT
                             </div>
-                            <div className="mt-1 font-extrabold text-slate-900 pb-clamp-1">
+                            <div className="pb-clamp-1" style={{ marginTop: 4, fontWeight: 900 }}>
                               {paymentLabel}
                             </div>
-
                             {currentInvoice.paymentMethod === "cheque" && (
-                              <div className="mt-1 text-sm text-slate-700 pb-clamp-1">
+                              <div className="pb-clamp-1" style={{ marginTop: 4, fontSize: 12, fontWeight: 900, color: "#334155" }}>
                                 N° chèque :{" "}
-                                <span className="font-mono font-bold text-red-600">
+                                <span style={{ fontFamily: "ui-monospace, monospace", color: "var(--pb-red)" }}>
                                   {currentInvoice.clientChequeNumber || "—"}
                                 </span>
                               </div>
@@ -575,13 +622,26 @@ export default function MainApp({ onLogout }) {
                       )}
                     </div>
 
-                    <div className="flex justify-end">
-                      <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
-                        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-600 to-red-600" />
-                        <div className="pl-3">
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <div style={{
+                        width: "100%",
+                        border: "1px solid var(--pb-line)",
+                        borderRadius: 18,
+                        padding: 12,
+                        background: "#fbfbfe",
+                        position: "relative",
+                        overflow: "hidden"
+                      }}>
+                        <div style={{
+                          position: "absolute",
+                          left: 0, top: 0, bottom: 0,
+                          width: 8,
+                          background: "linear-gradient(180deg, var(--pb-blue2), var(--pb-red))"
+                        }} />
+                        <div style={{ paddingLeft: 10 }}>
                           <KRow label="Sous-total (HT)" value={formatCurrency(subtotal)} />
                           <KRow label={`TVA (${currentInvoice.tvaRate}%)`} value={formatCurrency(tvaAmt)} />
-                          <div className="h-px bg-slate-200 my-2" />
+                          <div style={{ height: 1, background: "var(--pb-line)", margin: "8px 0" }} />
                           <KRow label="TOTAL TTC" value={formatCurrency(total)} strong />
                         </div>
                       </div>
@@ -590,106 +650,126 @@ export default function MainApp({ onLogout }) {
                 )}
 
                 {isFactOrPro && (
-                  <div className="mt-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
-                    <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-                      Arrêté la présente facture à la somme de :
+                  <div style={{
+                    marginTop: 10,
+                    border: "1px solid var(--pb-line)",
+                    borderRadius: 18,
+                    padding: 12,
+                    background: "#fbfbfe",
+                    position: "relative",
+                    overflow: "hidden"
+                  }}>
+                    <div style={{
+                      position: "absolute",
+                      top: 0, right: 0,
+                      width: 90, height: 90,
+                      background: "rgba(18,59,154,.10)",
+                      borderBottomLeftRadius: 26
+                    }} />
+                    <div style={{ fontSize: 10, fontWeight: 900, color: "#64748b", letterSpacing: 1 }}>
+                      ARRÊTÉ LA PRÉSENTE FACTURE À LA SOMME DE :
                     </div>
-                    <div className="mt-1 text-sm font-bold text-slate-800 pb-clamp-2">
+                    <div className="pb-clamp-2" style={{ marginTop: 4, fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
                       {NumberToLetter(total)}
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
 
-          {/* SIGNATURES GRANDES */}
-          <div className="px-8 pb-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="border-2 border-dashed border-slate-300 rounded-2xl h-28 p-4 flex flex-col justify-between">
-                <div className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
-                  Cachet & Signature Gérant
+          {/* FOOTER + SIGNATURES (toujours en bas) */}
+          <div className="pb-doc-footer" style={{ padding: "10px 22px 16px 22px" }}>
+            {/* Signatures GRANDES */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div style={{
+                border: "2px dashed #cbd5e1",
+                borderRadius: 18,
+                height: 120,
+                padding: 12,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between"
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 900, color: "#475569", letterSpacing: 1 }}>
+                  CACHET & SIGNATURE GÉRANT
                 </div>
-                <div className="text-[10px] text-slate-400">Tampon / Signature ici</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800 }}>Tampon / Signature ici</div>
               </div>
 
-              <div className="border-2 border-dashed border-slate-300 rounded-2xl h-28 p-4 flex flex-col justify-between">
-                <div className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
-                  Signature Client
+              <div style={{
+                border: "2px dashed #cbd5e1",
+                borderRadius: 18,
+                height: 120,
+                padding: 12,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between"
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 900, color: "#475569", letterSpacing: 1 }}>
+                  SIGNATURE CLIENT
                 </div>
-                <div className="text-[10px] text-slate-400">Signature ici</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800 }}>Signature ici</div>
+              </div>
+            </div>
+
+            {/* Footer fiscal/bancaire (tout en bas) */}
+            <div style={{ borderTop: "1px solid var(--pb-line)", paddingTop: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, fontSize: 11, color: "#64748b" }}>
+                <FootCard title="Banque">
+                  <div>BANQUE: <b style={{ color: "#0f172a" }}>{companyConfig.bankName}</b></div>
+                  <div>RIB: <span style={{ fontFamily: "ui-monospace, monospace", color: "#0f172a", fontWeight: 900 }}>{companyConfig.bankRib}</span></div>
+                </FootCard>
+
+                <FootCard title="Fiscal">
+                  <div>RC: <b style={{ color: "#0f172a" }}>{companyConfig.rc}</b></div>
+                  <div>NIF: <b style={{ color: "#0f172a" }}>{companyConfig.nif}</b></div>
+                  <div>NIS: <b style={{ color: "#0f172a" }}>{companyConfig.nis}</b></div>
+                </FootCard>
+
+                <FootCard title="Société">
+                  <div className="pb-clamp-2" style={{ color: "#0f172a", fontWeight: 900 }}>{companyConfig.footerText}</div>
+                  <div style={{ color: "#94a3b8", fontWeight: 900 }}>Pneuboat • Oran</div>
+                </FootCard>
               </div>
             </div>
           </div>
 
-          {/* FOOTER tout en bas */}
-          <div className="relative mt-auto border-t border-slate-200 px-8 py-5">
-            <div className="grid grid-cols-3 gap-4 text-[11px] text-slate-500">
-              <div className="border border-slate-200 rounded-2xl p-3">
-                <div className="font-extrabold text-slate-700 mb-1">Banque</div>
-                <div>BANQUE: <span className="font-semibold text-slate-800">{companyConfig.bankName}</span></div>
-                <div>RIB: <span className="font-mono text-slate-800">{companyConfig.bankRib}</span></div>
-              </div>
-
-              <div className="border border-slate-200 rounded-2xl p-3">
-                <div className="font-extrabold text-slate-700 mb-1">Fiscal</div>
-                <div>RC: <span className="font-semibold text-slate-800">{companyConfig.rc}</span></div>
-                <div>NIF: <span className="font-semibold text-slate-800">{companyConfig.nif}</span></div>
-                <div>NIS: <span className="font-semibold text-slate-800">{companyConfig.nis}</span></div>
-              </div>
-
-              <div className="border border-slate-200 rounded-2xl p-3">
-                <div className="font-extrabold text-slate-700 mb-1">Société</div>
-                <div className="font-semibold text-slate-800 pb-clamp-2">{companyConfig.footerText}</div>
-                <div className="text-slate-400 pb-clamp-1">Pneuboat • Oran</div>
-              </div>
-            </div>
-          </div>
         </div>
-
-        {/* Styles A4 + anti-débordement */}
-        <style>{`
-          .pb-ribbon{
-            position:absolute; left:0; top:0; bottom:0; width:12mm;
-            background: linear-gradient(180deg, #1e3a8a, #dc2626);
-          }
-          .pb-doc-fixed{
-            border-radius: 18px;
-          }
-          .pb-doc-body{
-            overflow: hidden;
-          }
-          .pb-clamp-1{ display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
-          .pb-clamp-2{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-          .pb-clamp-3{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-          @media print{
-            body{ background:#fff !important; }
-            .print-hidden{ display:none !important; }
-            .pb-doc-fixed{ border-radius:0 !important; border:none !important; }
-            .pb-doc{ box-shadow:none !important; }
-            @page{ size:A4; margin:0; }
-            *{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          }
-        `}</style>
       </div>
     );
   };
 
-  /* ------------------ UI SECTIONS ------------------ */
+  /* ------------------ UI ------------------ */
   const renderHome = () => (
     <div className="pb-container">
-      <div className="pb-card p-6">
-        <h2 className="text-2xl font-extrabold tracking-tight">
-          Station <span className="text-red-600">•</span> Documents
-        </h2>
-        <p className="pb-muted mt-1">Créer rapidement un document.</p>
+      <div className="pb-card" style={{ padding: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: -0.4 }}>
+              Station <span style={{ color: "var(--pb-red)" }}>•</span> Documents
+            </div>
+            <div className="pb-muted" style={{ marginTop: 2, fontWeight: 700 }}>
+              Créer rapidement un document (dossier = 3 pages).
+            </div>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, marginTop: 14 }}>
           <ActionCard title="Dossier complet" icon={<FolderOpen size={18} />} primary onClick={() => startNew("dossier")} />
           <ActionCard title="Facture" icon={<FileText size={18} />} onClick={() => startNew("facture")} />
           <ActionCard title="Proforma" icon={<ClipboardList size={18} />} onClick={() => startNew("proforma")} />
           <ActionCard title="Bon de livraison" icon={<PackageCheck size={18} />} onClick={() => startNew("livraison")} />
           <ActionCard title="Attestation" icon={<Anchor size={18} />} onClick={() => startNew("attestation")} />
+        </div>
+
+        <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button className="pb-btn pb-btn-primary" onClick={() => setView("history")}>
+            <History size={16} /> Voir archives
+          </button>
+          <button className="pb-btn pb-btn-ghost" onClick={() => setView("settings")}>
+            <Settings size={16} /> Configuration
+          </button>
         </div>
       </div>
     </div>
@@ -698,70 +778,53 @@ export default function MainApp({ onLogout }) {
   const renderEdit = () => {
     if (!currentInvoice) return null;
 
+    const modelId = companyConfig.boatModels.find((m) => m.name === currentInvoice.boatDetails.model)?.id || "";
+
     return (
       <div className="pb-container">
-        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
-          {/* Form (print hidden) */}
-          <div className="pb-card p-6 print-hidden">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-extrabold tracking-tight">
-                Saisie <span className="text-indigo-600">•</span> {currentInvoice.type}
-              </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 14, alignItems: "start" }}>
+          {/* Form */}
+          <div className="pb-card print-hidden" style={{ padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{ fontSize: 18, fontWeight: 900 }}>
+                Saisie <span style={{ color: "var(--pb-blue2)" }}>•</span> {labelDoc(currentInvoice.type)}
+              </div>
               <button className="pb-btn pb-btn-ghost" onClick={() => setView("history")} title="Fermer">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="mt-5 space-y-4">
+            <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
               <Field label="Client">
-                <input
-                  className="pb-input"
-                  value={currentInvoice.clientName}
-                  onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientName: e.target.value })}
-                />
+                <input className="pb-input" value={currentInvoice.clientName} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientName: e.target.value })} />
               </Field>
 
               <Field label="Adresse">
-                <textarea
-                  className="pb-input"
-                  rows={3}
-                  value={currentInvoice.clientAddress}
-                  onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientAddress: e.target.value })}
-                />
+                <textarea className="pb-input" rows={3} value={currentInvoice.clientAddress} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientAddress: e.target.value })} />
               </Field>
 
               <Field label="ID / Passeport">
-                <input
-                  className="pb-input font-mono"
-                  value={currentInvoice.clientIdNumber}
-                  onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientIdNumber: e.target.value })}
-                />
+                <input className="pb-input" value={currentInvoice.clientIdNumber} onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientIdNumber: e.target.value })} />
               </Field>
 
-              <div className="pb-card-soft p-4">
-                <div className="text-sm font-extrabold text-slate-800">
-                  Configuration <span className="text-red-600">•</span> Unité
+              <div className="pb-card-soft" style={{ padding: 12 }}>
+                <div style={{ fontWeight: 900 }}>
+                  Unité <span style={{ color: "var(--pb-red)" }}>•</span>
                 </div>
 
-                <div className="mt-3 space-y-3">
+                <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
                   <Field label="Modèle naval">
-                    <select
-                      className="pb-input"
-                      value={companyConfig.boatModels.find((m) => m.name === currentInvoice.boatDetails.model)?.id || ""}
-                      onChange={(e) => selectModel(e.target.value)}
-                    >
+                    <select className="pb-input" value={modelId} onChange={(e) => selectModel(e.target.value)}>
                       <option value="">— Sélection —</option>
                       {companyConfig.boatModels.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} • {m.length}
-                        </option>
+                        <option key={m.id} value={m.id}>{m.name} • {m.length}</option>
                       ))}
                     </select>
                   </Field>
 
                   <Field label="Numéro de série">
                     <input
-                      className="pb-input font-mono"
+                      className="pb-input"
                       value={currentInvoice.boatDetails.serialNumber}
                       onChange={(e) =>
                         setCurrentInvoice({
@@ -797,23 +860,23 @@ export default function MainApp({ onLogout }) {
                 </div>
               </div>
 
-              {/* PAIEMENT */}
-              <div className="pb-card-soft p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-extrabold text-slate-800">
-                    Paiement <span className="text-red-600">•</span>
+              {/* Paiement */}
+              <div className="pb-card-soft" style={{ padding: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <div style={{ fontWeight: 900 }}>
+                    Paiement <span style={{ color: "var(--pb-red)" }}>•</span>
                   </div>
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, color: "#475569", fontSize: 12 }}>
                     <input
                       type="checkbox"
                       checked={!!currentInvoice.showPayment}
                       onChange={(e) => setCurrentInvoice({ ...currentInvoice, showPayment: e.target.checked })}
                     />
-                    Afficher sur facture
+                    Afficher sur document
                   </label>
                 </div>
 
-                <div className="mt-3 space-y-3">
+                <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
                   <Field label="Mode de paiement">
                     <select
                       className="pb-input"
@@ -835,7 +898,7 @@ export default function MainApp({ onLogout }) {
                   {currentInvoice.paymentMethod === "cheque" && (
                     <Field label="Numéro de chèque">
                       <input
-                        className="pb-input font-mono"
+                        className="pb-input"
                         value={currentInvoice.clientChequeNumber}
                         onChange={(e) => setCurrentInvoice({ ...currentInvoice, clientChequeNumber: e.target.value })}
                         placeholder="000000"
@@ -844,44 +907,46 @@ export default function MainApp({ onLogout }) {
                   )}
                 </div>
               </div>
-            </div>
 
-            <div className="mt-5 flex gap-3">
-              <button onClick={saveInvoice} disabled={busy} className="pb-btn pb-btn-primary flex-1 py-3">
-                <Save size={16} /> {busy ? "En cours..." : "Archiver"}
-              </button>
-              <button onClick={handlePrint} className="pb-btn pb-btn-ghost py-3">
-                <Printer size={16} /> Imprimer
-              </button>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={saveInvoice} disabled={busy} className="pb-btn pb-btn-primary" style={{ flex: 1, padding: "12px 12px" }}>
+                  <Save size={16} /> {busy ? "En cours..." : "Archiver"}
+                </button>
+                <button onClick={handlePrint} className="pb-btn pb-btn-ghost" style={{ padding: "12px 12px" }}>
+                  <Printer size={16} /> Imprimer
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Preview printable */}
-          <div className="pb-card p-4 bg-white min-w-0">
-            <div className="flex justify-center">
-              <div className="w-full overflow-auto">
-                <div className="flex justify-center origin-top scale-[0.92] xl:scale-100">
-                  <div id="printable-area">
-                    {currentInvoice.type === "dossier" ? (
-                      <div className="space-y-10">
-                        <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
-                        <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
-                        <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
-                      </div>
-                    ) : (
-                      <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
-                    )}
-                  </div>
-                </div>
+          {/* Preview */}
+          <div className="pb-card" style={{ padding: 10, minWidth: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: 6 }}>
+              <div style={{ fontWeight: 900 }}>
+                Aperçu A4 <span style={{ color: "var(--pb-red)" }}>•</span>
+              </div>
+              <div className="pb-muted" style={{ fontWeight: 800, fontSize: 12 }}>
+                1 doc = 1 page
               </div>
             </div>
 
-            <style>{`
-              @media print {
-                #printable-area { transform: none !important; }
-              }
-            `}</style>
+            <div style={{ overflow: "auto", padding: 6 }}>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <div id="printable-area">
+                  {currentInvoice.type === "dossier" ? (
+                    <div>
+                      <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
+                      <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
+                      <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
+                    </div>
+                  ) : (
+                    <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
     );
@@ -890,49 +955,49 @@ export default function MainApp({ onLogout }) {
   const filteredHistory = useMemo(() => {
     const q = (searchTerm || "").toLowerCase().trim();
     if (!q) return invoiceHistory;
-    return invoiceHistory.filter((i) => (i.clientName || "").toLowerCase().includes(q) || (i.number || "").toLowerCase().includes(q));
+    return invoiceHistory.filter((i) =>
+      (i.clientName || "").toLowerCase().includes(q) || (i.number || "").toLowerCase().includes(q)
+    );
   }, [invoiceHistory, searchTerm]);
 
   const renderHistory = () => (
     <div className="pb-container">
-      <div className="pb-card p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="pb-card" style={{ padding: 18 }}>
+        <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight">Archives</h2>
-            <p className="pb-muted mt-1">Documents enregistrés sur la base de données.</p>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>Archives</div>
+            <div className="pb-muted" style={{ fontWeight: 800 }}>Documents enregistrés (Supabase).</div>
           </div>
 
-          <div className="flex gap-2 items-center">
-            <div className="relative w-full md:w-[420px]">
-              <Search size={16} className="absolute left-3 top-3 text-slate-400" />
-              <input className="pb-input pl-9" placeholder="Rechercher (client, numéro…)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ position: "relative", width: 380, maxWidth: "70vw" }}>
+              <Search size={16} style={{ position: "absolute", left: 10, top: 11, color: "#94a3b8" }} />
+              <input className="pb-input" style={{ paddingLeft: 34 }} placeholder="Rechercher (client, numéro…)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
-            <button className="pb-btn pb-btn-ghost" onClick={loadHistory} disabled={busy}>
-              ↻
-            </button>
+            <button className="pb-btn pb-btn-ghost" onClick={loadHistory} disabled={busy} title="Rafraîchir">↻</button>
           </div>
         </div>
 
-        <div className="mt-5 border border-slate-200 rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+        <div style={{ marginTop: 12, border: "1px solid var(--pb-line)", borderRadius: 18, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead style={{ background: "#fbfbfe", color: "#64748b" }}>
               <tr>
-                <th className="text-left p-3 font-extrabold">Date</th>
-                <th className="text-left p-3 font-extrabold">Référence</th>
-                <th className="text-left p-3 font-extrabold">Client</th>
-                <th className="text-right p-3 font-extrabold">Total</th>
-                <th className="text-right p-3 font-extrabold">Actions</th>
+                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Date</th>
+                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Référence</th>
+                <th style={{ textAlign: "left", padding: 12, fontWeight: 900 }}>Client</th>
+                <th style={{ textAlign: "right", padding: 12, fontWeight: 900 }}>Total</th>
+                <th style={{ textAlign: "right", padding: 12, fontWeight: 900 }}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {filteredHistory.map((inv) => (
-                <tr key={inv.db_id} className="hover:bg-slate-50">
-                  <td className="p-3 text-slate-600">{inv.date}</td>
-                  <td className="p-3 font-mono text-slate-900">{inv.number}</td>
-                  <td className="p-3 font-semibold text-slate-900">{inv.clientName}</td>
-                  <td className="p-3 text-right font-extrabold">{formatCurrency(calculateTotal(inv.items, inv.tvaRate))}</td>
-                  <td className="p-3">
-                    <div className="flex justify-end gap-2">
+                <tr key={inv.db_id} style={{ borderTop: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: 12, color: "#475569", fontWeight: 800 }}>{inv.date}</td>
+                  <td style={{ padding: 12, fontFamily: "ui-monospace, monospace", fontWeight: 900 }}>{inv.number}</td>
+                  <td style={{ padding: 12, fontWeight: 900 }}>{inv.clientName}</td>
+                  <td style={{ padding: 12, textAlign: "right", fontWeight: 900 }}>{formatCurrency(calculateTotal(inv.items, inv.tvaRate))}</td>
+                  <td style={{ padding: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                       <button className="pb-btn pb-btn-ghost" onClick={() => { setCurrentInvoice(inv); setView("edit"); }}>
                         Ouvrir
                       </button>
@@ -946,7 +1011,7 @@ export default function MainApp({ onLogout }) {
 
               {!filteredHistory.length && (
                 <tr>
-                  <td colSpan={5} className="p-6 text-center text-slate-500">
+                  <td colSpan={5} style={{ padding: 18, textAlign: "center", color: "#64748b", fontWeight: 900 }}>
                     {busy ? "Chargement..." : "Aucun document."}
                   </td>
                 </tr>
@@ -955,42 +1020,47 @@ export default function MainApp({ onLogout }) {
           </table>
         </div>
 
-        {busy && <div className="mt-3 text-sm text-slate-500">Chargement…</div>}
+        {busy && <div style={{ marginTop: 10 }} className="pb-muted">Chargement…</div>}
       </div>
     </div>
   );
 
   const renderDatabase = () => (
     <div className="pb-container">
-      <div className="pb-card p-6">
+      <div className="pb-card" style={{ padding: 18 }}>
         <div>
-          <h2 className="text-2xl font-extrabold tracking-tight">Plans</h2>
-          <p className="pb-muted mt-1">Uploader et imprimer les documents techniques par modèle.</p>
+          <div style={{ fontSize: 22, fontWeight: 900 }}>Plans</div>
+          <div className="pb-muted" style={{ fontWeight: 800 }}>Uploader et imprimer les documents techniques par modèle.</div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginTop: 12 }}>
           {companyConfig.boatModels.map((m) => (
-            <div key={m.id} className="pb-card p-5">
-              <div>
-                <div className="text-lg font-extrabold text-slate-900">
-                  {m.name} <span className="text-red-600">•</span>
-                </div>
-                <div className="text-sm pb-muted">{m.type} • {m.length}</div>
+            <div key={m.id} className="pb-card" style={{ padding: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 900 }}>
+                {m.name} <span style={{ color: "var(--pb-red)" }}>•</span>
+              </div>
+              <div className="pb-muted" style={{ fontWeight: 800, fontSize: 12 }}>
+                {m.type} • {m.length}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mt-4">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
                 {["fiche", "jauge", "plan", "approbation"].map((doc) => (
                   <label
                     key={doc}
-                    className={`cursor-pointer border rounded-2xl p-3 text-center text-sm font-bold transition ${
-                      modelDocs[m.id]?.[doc]
-                        ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
+                    style={{
+                      cursor: "pointer",
+                      border: "1px solid var(--pb-line)",
+                      borderRadius: 16,
+                      padding: 10,
+                      background: modelDocs[m.id]?.[doc] ? "rgba(18,59,154,.08)" : "#fff",
+                      fontWeight: 900,
+                      fontSize: 12,
+                      textAlign: "center",
+                    }}
                   >
-                    <div className="flex items-center justify-center gap-2">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                       <Upload size={16} />
-                      <span className="capitalize">{doc}</span>
+                      <span style={{ textTransform: "capitalize" }}>{doc}</span>
                     </div>
                     <input type="file" className="hidden" accept="image/*" onChange={(e) => handleDocUpload(e, m.id, doc)} />
                   </label>
@@ -998,10 +1068,12 @@ export default function MainApp({ onLogout }) {
               </div>
 
               <button
-                className="pb-btn pb-btn-primary w-full mt-4 py-3"
+                className="pb-btn pb-btn-primary"
+                style={{ width: "100%", marginTop: 10, padding: "12px 12px" }}
                 onClick={() => {
                   if (!modelDocs[m.id]) return alert("Plans manquants.");
-                  rememberPrintModel(m.id);
+                  setPrintModelId(m.id);
+                  setView("print_tech_view");
                 }}
               >
                 Voir dossier
@@ -1013,37 +1085,28 @@ export default function MainApp({ onLogout }) {
     </div>
   );
 
-  const rememberPrintModel = (id) => {
-    setPrintModelId(id);
-    setView("print_tech_view");
-  };
-
   const renderPrintTechView = () => (
     <div className="pb-container">
-      <div className="pb-card p-6 print-hidden">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="pb-card print-hidden" style={{ padding: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <div>
-            <div className="text-sm pb-muted">Unité</div>
-            <div className="text-xl font-extrabold">
+            <div className="pb-muted" style={{ fontWeight: 900 }}>Unité</div>
+            <div style={{ fontSize: 20, fontWeight: 900 }}>
               {companyConfig.boatModels.find((x) => x.id === printModelId)?.name}
             </div>
           </div>
-          <div className="flex gap-2">
-            <button className="pb-btn pb-btn-ghost" onClick={() => setView("database")}>
-              ← Retour
-            </button>
-            <button className="pb-btn pb-btn-primary" onClick={handlePrint}>
-              <Printer size={16} /> Imprimer
-            </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="pb-btn pb-btn-ghost" onClick={() => setView("database")}>← Retour</button>
+            <button className="pb-btn pb-btn-primary" onClick={handlePrint}><Printer size={16} /> Imprimer</button>
           </div>
         </div>
       </div>
 
-      <div className="mt-4 space-y-6">
+      <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
         {["fiche", "jauge", "plan", "approbation"].map((doc) => (
           modelDocs[printModelId]?.[doc] && (
-            <div key={doc} className="pb-card p-6 bg-white flex items-center justify-center">
-              <img src={modelDocs[printModelId][doc]} alt={doc} className="max-w-full max-h-[80vh] object-contain" />
+            <div key={doc} className="pb-card" style={{ padding: 18, background: "#fff", display: "flex", justifyContent: "center" }}>
+              <img src={modelDocs[printModelId][doc]} alt={doc} style={{ maxWidth: "100%", maxHeight: "80vh", objectFit: "contain" }} />
             </div>
           )
         ))}
@@ -1053,25 +1116,23 @@ export default function MainApp({ onLogout }) {
 
   const renderSettings = () => (
     <div className="pb-container">
-      <div className="pb-card p-6">
-        <div className="flex items-center justify-between">
+      <div className="pb-card" style={{ padding: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight">Configuration</h2>
-            <p className="pb-muted mt-1">Modifier les infos société + modèles.</p>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>Configuration</div>
+            <div className="pb-muted" style={{ fontWeight: 800 }}>Logo, banque, modèles.</div>
           </div>
-          <button className="pb-btn pb-btn-ghost" onClick={() => setView("list")}>
-            Fermer
-          </button>
+          <button className="pb-btn pb-btn-ghost" onClick={() => setView("list")}>Fermer</button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <div className="pb-card-soft p-5">
-            <div className="text-sm font-extrabold text-slate-800 mb-3">Logo</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+          <div className="pb-card-soft" style={{ padding: 14 }}>
+            <div style={{ fontWeight: 900, marginBottom: 8 }}>Logo</div>
             <input type="file" onChange={handleLogoUpload} className="pb-input" />
-            <div className="text-xs pb-muted mt-2">Le logo reste sur ton navigateur (localStorage).</div>
+            <div className="pb-muted" style={{ marginTop: 8, fontWeight: 800, fontSize: 12 }}>Le logo reste sur ton navigateur (localStorage).</div>
           </div>
 
-          <div className="pb-card-soft p-5 space-y-3">
+          <div className="pb-card-soft" style={{ padding: 14, display: "grid", gap: 10 }}>
             <Field label="Gérant">
               <input
                 className="pb-input"
@@ -1098,7 +1159,7 @@ export default function MainApp({ onLogout }) {
 
             <Field label="RIB">
               <input
-                className="pb-input font-mono"
+                className="pb-input"
                 value={companyConfig.bankRib}
                 onChange={(e) => {
                   const nc = { ...companyConfig, bankRib: e.target.value };
@@ -1109,50 +1170,126 @@ export default function MainApp({ onLogout }) {
             </Field>
           </div>
         </div>
+
+        <div className="pb-card-soft" style={{ padding: 14, marginTop: 12 }}>
+          <div style={{ fontWeight: 900, marginBottom: 10 }}>Modèles</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {companyConfig.boatModels.map((m, idx) => (
+              <div key={m.id} className="pb-card" style={{ padding: 12 }}>
+                <Field label="Nom">
+                  <input
+                    className="pb-input"
+                    value={m.name}
+                    onChange={(e) => {
+                      const next = [...companyConfig.boatModels];
+                      next[idx] = { ...next[idx], name: e.target.value };
+                      const nc = { ...companyConfig, boatModels: next };
+                      setCompanyConfig(nc);
+                      saveLocal(nc, modelDocs);
+                    }}
+                  />
+                </Field>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 8 }}>
+                  <Field label="Type">
+                    <input
+                      className="pb-input"
+                      value={m.type}
+                      onChange={(e) => {
+                        const next = [...companyConfig.boatModels];
+                        next[idx] = { ...next[idx], type: e.target.value };
+                        const nc = { ...companyConfig, boatModels: next };
+                        setCompanyConfig(nc);
+                        saveLocal(nc, modelDocs);
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Longueur">
+                    <input
+                      className="pb-input"
+                      value={m.length}
+                      onChange={(e) => {
+                        const next = [...companyConfig.boatModels];
+                        next[idx] = { ...next[idx], length: e.target.value };
+                        const nc = { ...companyConfig, boatModels: next };
+                        setCompanyConfig(nc);
+                        saveLocal(nc, modelDocs);
+                      }}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                  <Field label="Homologation">
+                    <input
+                      className="pb-input"
+                      value={m.approvalNumber}
+                      onChange={(e) => {
+                        const next = [...companyConfig.boatModels];
+                        next[idx] = { ...next[idx], approvalNumber: e.target.value };
+                        const nc = { ...companyConfig, boatModels: next };
+                        setCompanyConfig(nc);
+                        saveLocal(nc, modelDocs);
+                      }}
+                    />
+                  </Field>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+            <button className="pb-btn pb-btn-primary" onClick={() => setView("list")}>OK</button>
+          </div>
+        </div>
       </div>
     </div>
   );
 
-  /* ------------------ AUTH SCREEN (SUPABASE) ------------------ */
+  /* ------------------ AUTH ------------------ */
   if (!session) {
     return (
-      <div className="pb-page flex items-center justify-center">
-        <div className="pb-container w-full flex justify-center">
-          <div className="pb-card p-8 w-full max-w-lg">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+      <div className="pb-page" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="pb-container" style={{ display: "flex", justifyContent: "center" }}>
+          <div className="pb-card" style={{ padding: 20, width: "100%", maxWidth: 520 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 14,
+                background: "linear-gradient(135deg, var(--pb-blue2), var(--pb-blue))",
+                color: "#fff", display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
                 <LayoutDashboard size={18} />
               </div>
               <div>
-                <div className="text-xl font-extrabold tracking-tight">
-                  Pneuboat <span className="text-red-600">•</span>
+                <div style={{ fontSize: 18, fontWeight: 900 }}>
+                  Pneuboat <span style={{ color: "var(--pb-red)" }}>•</span>
                 </div>
-                <div className="text-sm pb-muted">Connexion admin (Supabase)</div>
+                <div className="pb-muted" style={{ fontWeight: 800, fontSize: 12 }}>Connexion admin (Supabase)</div>
               </div>
             </div>
 
-            <div className="mt-6 space-y-4">
+            <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
               <Field label="Email">
-                <input className="pb-input" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="youousek@gmail.com" />
+                <input className="pb-input" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" />
               </Field>
               <Field label="Mot de passe">
                 <input className="pb-input" type="password" value={authPass} onChange={(e) => setAuthPass(e.target.value)} placeholder="••••••••" />
               </Field>
 
-              {authMsg && <div className="text-sm text-red-600 font-bold">{authMsg}</div>}
+              {authMsg && <div style={{ color: "var(--pb-red)", fontWeight: 900, fontSize: 13 }}>{authMsg}</div>}
 
-              <button onClick={signIn} className="pb-btn pb-btn-primary w-full py-3">
-                Se connecter (admin)
-              </button>
-
-              <div className="text-xs pb-muted">
-                (Création de compte désactivée — 1 seul compte admin.)
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={signIn} className="pb-btn pb-btn-primary" style={{ flex: 1, padding: "12px 12px" }}>
+                  Se connecter
+                </button>
+                <button onClick={signUp} className="pb-btn pb-btn-ghost" style={{ flex: 1, padding: "12px 12px" }}>
+                  Créer compte
+                </button>
               </div>
 
-              <div className="mt-2">
-                <button onClick={onLogout} className="pb-btn pb-btn-ghost w-full">
-                  ← Retour (verrou)
-                </button>
+              <div className="pb-muted" style={{ fontSize: 12, fontWeight: 800 }}>
+                Si tu as “Email not confirmed”, règle Auth dans Supabase (confirmation email).
               </div>
             </div>
           </div>
@@ -1163,22 +1300,26 @@ export default function MainApp({ onLogout }) {
 
   /* ------------------ MAIN ------------------ */
   return (
-    <div className="pb-page font-sans antialiased">
+    <div className="pb-page">
       <nav className="pb-nav print-hidden">
-        <div className="pb-container flex items-center justify-between">
-          <button onClick={() => setView("list")} className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+        <div className="pb-container">
+          <button onClick={() => setView("list")} style={{ display: "flex", alignItems: "center", gap: 10, border: "none", background: "transparent", cursor: "pointer" }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 14,
+              background: "linear-gradient(135deg, var(--pb-blue2), var(--pb-blue))",
+              color: "#fff", display: "flex", alignItems: "center", justifyContent: "center"
+            }}>
               <LayoutDashboard size={18} />
             </div>
-            <div className="leading-tight text-left">
-              <div className="font-extrabold tracking-tight">
-                Pneuboat <span className="text-red-600">•</span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontWeight: 900 }}>
+                Pneuboat <span style={{ color: "var(--pb-red)" }}>•</span>
               </div>
-              <div className="text-xs pb-muted">Facturation & Documents</div>
+              <div className="pb-muted" style={{ fontWeight: 800, fontSize: 12 }}>Facturation & Documents</div>
             </div>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button onClick={() => setView("list")} className={`pb-tab ${view === "list" ? "pb-tab-active" : ""}`}>
               <Plus size={16} /> Station
             </button>
@@ -1192,10 +1333,10 @@ export default function MainApp({ onLogout }) {
               <Settings size={16} /> Config
             </button>
 
-            <div className="w-px h-7 bg-slate-200 mx-2" />
+            <div style={{ width: 1, height: 26, background: "var(--pb-line)", margin: "0 6px" }} />
 
-            <button onClick={fullLogout} className="pb-btn pb-btn-ghost">
-              Verrouiller
+            <button onClick={signOut} className="pb-btn pb-btn-ghost">
+              Déconnexion
             </button>
           </div>
         </div>
@@ -1211,11 +1352,11 @@ export default function MainApp({ onLogout }) {
   );
 }
 
-/* ------------------ SMALL COMPONENTS ------------------ */
+/* ------------------ COMPONENTS ------------------ */
 function Field({ label, children }) {
   return (
     <div>
-      <div className="text-xs font-extrabold text-slate-600 mb-1">{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 900, color: "#475569", marginBottom: 6 }}>{label}</div>
       {children}
     </div>
   );
@@ -1225,21 +1366,27 @@ function ActionCard({ title, icon, onClick, primary }) {
   return (
     <button
       onClick={onClick}
-      className={`text-left pb-card p-4 hover:bg-slate-50 transition ${
-        primary ? "border-indigo-200 bg-indigo-50 hover:bg-indigo-50" : ""
-      }`}
+      className="pb-card"
+      style={{
+        padding: 12,
+        textAlign: "left",
+        cursor: "pointer",
+        border: primary ? "1px solid rgba(18,59,154,.25)" : "1px solid var(--pb-line)",
+        background: primary ? "rgba(18,59,154,.06)" : "#fff",
+      }}
     >
-      <div className="flex items-center gap-2">
-        <div
-          className={`h-9 w-9 rounded-2xl flex items-center justify-center ${
-            primary ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-700"
-          }`}
-        >
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: 16,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: primary ? "linear-gradient(135deg, var(--pb-blue2), var(--pb-blue))" : "#f1f5f9",
+          color: primary ? "#fff" : "#0f172a"
+        }}>
           {icon}
         </div>
-        <div className="font-extrabold">{title}</div>
+        <div style={{ fontWeight: 900 }}>{title}</div>
       </div>
-      <div className="text-sm pb-muted mt-2">Créer</div>
+      <div className="pb-muted" style={{ marginTop: 8, fontWeight: 800, fontSize: 12 }}>Créer</div>
     </button>
   );
 }
@@ -1247,8 +1394,17 @@ function ActionCard({ title, icon, onClick, primary }) {
 function Info({ label, value, mono, accent }) {
   return (
     <div>
-      <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">{label}</div>
-      <div className={`${mono ? "font-mono" : "font-semibold"} ${accent ? "text-indigo-600 font-extrabold" : "text-slate-900"} mt-1 break-words pb-clamp-2`}>
+      <div style={{ fontSize: 10, fontWeight: 900, color: "#64748b", letterSpacing: 1 }}>{label.toUpperCase()}</div>
+      <div
+        className="pb-clamp-2"
+        style={{
+          marginTop: 4,
+          fontWeight: 900,
+          fontFamily: mono ? "ui-monospace, monospace" : "inherit",
+          color: accent ? "var(--pb-red)" : "#0f172a",
+          fontSize: 12
+        }}
+      >
         {value || "—"}
       </div>
     </div>
@@ -1257,9 +1413,18 @@ function Info({ label, value, mono, accent }) {
 
 function KRow({ label, value, strong }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className={`text-sm ${strong ? "font-extrabold text-slate-900" : "text-slate-600 font-semibold"}`}>{label}</div>
-      <div className={`text-sm ${strong ? "font-extrabold text-slate-900" : "text-slate-800 font-bold"}`}>{value}</div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ fontSize: 12, fontWeight: strong ? 900 : 800, color: strong ? "#0f172a" : "#475569" }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>{value}</div>
+    </div>
+  );
+}
+
+function FootCard({ title, children }) {
+  return (
+    <div style={{ border: "1px solid var(--pb-line)", borderRadius: 16, padding: 10, background: "#fff" }}>
+      <div style={{ fontWeight: 900, color: "#0f172a", marginBottom: 6 }}>{title}</div>
+      <div style={{ display: "grid", gap: 2 }}>{children}</div>
     </div>
   );
 }
