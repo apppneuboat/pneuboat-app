@@ -125,7 +125,8 @@ const calculateTotal = (items, tvaRate, applyTva = true) => {
 };
 
 const formatCurrency = (amount) =>
-  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
+  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) +
+  " DA";
 
 const labelDoc = (t) => {
   if (t === "facture") return "FACTURE";
@@ -243,14 +244,58 @@ export default function MainApp() {
     bankRib: "",
     logo: null,
     favicon: null,
+
+    // ✅ MISE À JOUR : NUMÉROS D’APPROBATION DMMP
     boatModels: [
-      { id: 1, name: "PNB-360", length: "3.60 m", approvalNumber: "N° 689", type: "Semi-rigide" },
-      { id: 2, name: "PNB-420", length: "4.20 m", approvalNumber: "N° 689", type: "Semi-rigide" },
-      { id: 3, name: "PNB-510", length: "5.10 m", approvalNumber: "N° 689", type: "Semi-rigide" },
-      { id: 4, name: "PNB 525 OPEN", length: "5.25 m", approvalNumber: "N° 689", type: "Coque Open" },
-      { id: 5, name: "PNB-550", length: "5.50 m", approvalNumber: "N° 1565", type: "Semi-rigide" },
-      { id: 6, name: "PNB-650", length: "6.50 m", approvalNumber: "N° 689", type: "Semi-rigide" },
-      { id: 7, name: "PNB-700", length: "7.00 m", approvalNumber: "N° 750", type: "Semi-rigide" },
+      {
+        id: 1,
+        name: "PNB-360",
+        length: "3.60 m",
+        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 2,
+        name: "PNB-420",
+        length: "4.20 m",
+        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 3,
+        name: "PNB-510",
+        length: "5.10 m",
+        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 4,
+        name: "PNB 525 OPEN",
+        length: "5.25 m",
+        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Coque Open",
+      },
+      {
+        id: 5,
+        name: "PNB-550",
+        length: "5.50 m",
+        approvalNumber: "N° 1565 du 10/07/2025 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 6,
+        name: "PNB-650",
+        length: "6.50 m",
+        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 7,
+        name: "PNB-700",
+        length: "7.00 m",
+        approvalNumber: "N° 750/145 du 11/03/2019 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
     ],
   });
 
@@ -373,9 +418,15 @@ export default function MainApp() {
   const saveConfigOnline = async (nc) => {
     setCompanyConfig(nc);
     try {
-      const { data: existing } = await supabase.from("app_settings").select("id").limit(1);
+      const { data: existing } = await supabase
+        .from("app_settings")
+        .select("id")
+        .limit(1);
       if (existing && existing.length > 0) {
-        await supabase.from("app_settings").update({ config: nc }).eq("id", existing[0].id);
+        await supabase
+          .from("app_settings")
+          .update({ config: nc })
+          .eq("id", existing[0].id);
       } else {
         await supabase.from("app_settings").insert({ config: nc });
       }
@@ -430,7 +481,7 @@ export default function MainApp() {
       ...inv,
       items,
       boatDetails,
-      clientPhone: inv?.clientPhone ?? "", // ✅ téléphone client
+      clientPhone: inv?.clientPhone ?? "",
       applyTva: inv?.applyTva ?? true,
       tvaRate: inv?.tvaRate ?? 19,
       showPayment: inv?.showPayment ?? true,
@@ -446,7 +497,11 @@ export default function MainApp() {
 
     try {
       const normalized = normalizeInvoice(currentInvoice);
-      const total = calculateTotal(normalized.items, normalized.tvaRate, normalized.applyTva);
+      const total = calculateTotal(
+        normalized.items,
+        normalized.tvaRate,
+        normalized.applyTva
+      );
 
       const payload = {
         doc_number: normalized.number,
@@ -537,7 +592,13 @@ export default function MainApp() {
     });
 
     const n =
-      type === "facture" ? nf : type === "proforma" ? np : type === "livraison" ? nbl : na;
+      type === "facture"
+        ? nf
+        : type === "proforma"
+        ? np
+        : type === "livraison"
+        ? nbl
+        : na;
     const pref =
       type === "facture"
         ? "FAC"
@@ -577,13 +638,13 @@ export default function MainApp() {
           ...prev.boatDetails,
           model: m.name,
           length: m.length,
-          approvalNumber: m.approvalNumber,
+          approvalNumber: m.approvalNumber, // ✅ important pour attestation
           year: prev.boatDetails?.year || "2026",
         },
         items: [
           {
             ...firstItem,
-            description: `Bateau ${m.type} ${m.name}`,
+            description: `${m.name}`, // ✅ demandé: juste le nom du modèle
           },
           ...prev.items.slice(1),
         ],
@@ -631,7 +692,10 @@ export default function MainApp() {
     try {
       const b64 = await toBase64(file);
       setModelDocs((prev) => {
-        const next = { ...prev, [modelId]: { ...(prev[modelId] || {}), [docKey]: b64 } };
+        const next = {
+          ...prev,
+          [modelId]: { ...(prev[modelId] || {}), [docKey]: b64 },
+        };
         rememberLocal("pb_model_docs", next);
         return next;
       });
@@ -693,27 +757,6 @@ export default function MainApp() {
     });
   };
 
-  const printPdf = (pdfData) => {
-    if (!pdfData) return;
-    const w = window.open();
-    if (!w) {
-      alert("Pop-up bloquée. Autorise les pop-ups puis réessaye.");
-      return;
-    }
-    w.document.write(`
-      <html>
-        <head><title>Impression PDF</title></head>
-        <body style="margin:0">
-          <embed src="${pdfData}" type="application/pdf" style="width:100vw;height:100vh" />
-          <script>
-            setTimeout(() => { window.focus(); window.print(); }, 400);
-          </script>
-        </body>
-      </html>
-    `);
-    w.document.close();
-  };
-
   /* ------------------ HISTORY FILTER ------------------ */
   const filteredHistory = useMemo(() => {
     const q = (searchTerm || "").trim().toLowerCase();
@@ -731,12 +774,15 @@ export default function MainApp() {
     if (!currentInvoice) return null;
     const inv = normalizeInvoice(currentInvoice);
 
+    const isProforma = subType === "proforma";
+
     const subtotal = calculateSubtotal(inv.items);
     const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
     const totalWords = NumberToLetter(total);
 
     const showTotals = subType !== "livraison" && subType !== "attestation";
-    const showPayBlock = showTotals && !!inv.showPayment;
+    // ✅ demandé: proforma = PAS de bloc paiement
+    const showPayBlock = showTotals && !!inv.showPayment && !isProforma;
 
     return (
       <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none">
@@ -842,25 +888,58 @@ export default function MainApp() {
                   <b>{inv.clientName || ".........."}</b>.
                 </p>
 
+                {/* ✅ GARANTIE 1 AN */}
+                <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-4">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                    Garantie
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-700 leading-relaxed">
+                    Garantie de <b>12 mois</b> contre tout <b>décollage</b> et/ou tout{" "}
+                    <b>défaut de fabrication provenant d’usine</b>.
+                    <span className="text-slate-500">
+                      {" "}
+                      (Hors mauvaise utilisation, chocs, modifications, réparation non
+                      autorisée, entretien non conforme.)
+                    </span>
+                  </p>
+                </div>
+
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
                     Détails du Bateau
                   </div>
+
+                  {/* ✅ Ajout du N° d’approbation DMMP */}
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Modèle
+                      </div>
                       <div className="font-black">{inv.boatDetails.model || "—"}</div>
                     </div>
+
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
-                      <div className="font-black text-blue-700 font-mono">{inv.boatDetails.serialNumber || "—"}</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        N° de série
+                      </div>
+                      <div className="font-black text-blue-700 font-mono">
+                        {inv.boatDetails.serialNumber || "—"}
+                      </div>
                     </div>
+
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
-                      <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        N° d’approbation (DMMP)
+                      </div>
+                      <div className="font-black text-slate-900">
+                        {inv.boatDetails.approvalNumber || "—"}
+                      </div>
                     </div>
+
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Année de construction</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Année
+                      </div>
                       <div className="font-black">{inv.boatDetails.year || "—"}</div>
                     </div>
                   </div>
@@ -952,10 +1031,18 @@ export default function MainApp() {
                   Arrêté la présente facture à la somme de :
                 </div>
                 <div className="mt-1 text-[12px] font-black text-slate-900">{totalWords}</div>
+
+                {/* ✅ demandé : Proforma valable 2 mois */}
+                {isProforma && (
+                  <div className="mt-3 text-[10px] font-black uppercase tracking-widest text-red-600">
+                    Devis valable 2 mois à compter de la date d’émission.
+                  </div>
+                )}
               </div>
             </>
           )}
 
+          {/* ✅ Proforma : on enlève totalement le bloc paiement */}
           {showPayBlock && (
             <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
               <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -1261,10 +1348,9 @@ export default function MainApp() {
           </div>
         )}
 
-        {/* EDIT — ✅ Nouveau design: barre horizontale en haut + aperçu géant en bas */}
+        {/* EDIT */}
         {view === "edit" && currentInvoice && (
           <div className="space-y-4 animate-in slide-in-from-right duration-300">
-            {/* BARRE EDITION (haut) */}
             <div className="no-print bg-white rounded-[1.5rem] shadow-sm border border-slate-100 p-3 md:p-4">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
@@ -1298,9 +1384,7 @@ export default function MainApp() {
                 </div>
               </div>
 
-              {/* FORM HORIZONTAL */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                {/* Client */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <div className="grid grid-cols-1 gap-2">
                     <InputGroup label="Client" compact>
@@ -1337,7 +1421,6 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                {/* Modèle / Bateau */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
                   <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                     <CheckCircle size={12} /> Bateau
@@ -1416,10 +1499,8 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                {/* TVA / Paiement / Zoom */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-white p-3">
                   <div className="grid grid-cols-1 gap-3">
-                    {/* TVA */}
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
@@ -1451,7 +1532,6 @@ export default function MainApp() {
                       </div>
                     </div>
 
-                    {/* Paiement */}
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Paiement</div>
@@ -1492,7 +1572,6 @@ export default function MainApp() {
                       </div>
                     </div>
 
-                    {/* Zoom */}
                     <div className="rounded-2xl border border-slate-100 bg-white p-3">
                       <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
                         Zoom aperçu
@@ -1514,7 +1593,6 @@ export default function MainApp() {
                 </div>
               </div>
 
-              {/* Adresse (compact en bas de la barre) */}
               <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div className="md:col-span-12">
                   <InputGroup label="Adresse" compact>
@@ -1530,7 +1608,6 @@ export default function MainApp() {
               </div>
             </div>
 
-            {/* APERÇU (bas) — très grand */}
             <div className="bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[82vh] md:h-[calc(100vh-18rem)] shadow-inner border-4 border-white">
               <div className="min-w-[980px] flex justify-center">
                 <div
