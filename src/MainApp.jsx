@@ -235,12 +235,13 @@ export default function MainApp() {
     managerName: "Sekkal Gherbi Youcef",
     address: "Hai el Badr Oran",
     email: "info@pneuboat.net",
+    website: "www.pneuboat.net", // ✅ site
     phone: "0563269639",
     nextInvoiceNumber: 1,
     nextProformaNumber: 1,
     nextDeliveryNumber: 1,
     nextAttestationNumber: 1,
-    nextOrderNumber: 1, // ✅ Bon de commande
+    nextOrderNumber: 1,
     rc: "",
     nif: "",
     nis: "",
@@ -301,7 +302,7 @@ export default function MainApp() {
     ],
   });
 
-  /* ------------------ PRINT RULES (évite page blanche + coupe droite) ------------------ */
+  /* ------------------ PRINT RULES ------------------ */
   useEffect(() => {
     const style = document.createElement("style");
     style.setAttribute("data-pb-print", "1");
@@ -532,7 +533,7 @@ export default function MainApp() {
             proforma: "nextProformaNumber",
             livraison: "nextDeliveryNumber",
             attestation: "nextAttestationNumber",
-            commande: "nextOrderNumber", // ✅
+            commande: "nextOrderNumber",
           };
           const k = keyMap[dt];
           if (k) nc[k] = Number(nc[k] || 1) + 1;
@@ -656,13 +657,13 @@ export default function MainApp() {
           ...prev.boatDetails,
           model: m.name,
           length: m.length,
-          approvalNumber: m.approvalNumber, // ✅ numéro d’approbation auto
+          approvalNumber: m.approvalNumber,
           year: prev.boatDetails?.year || "2026",
         },
         items: [
           {
             ...firstItem,
-            description: `${m.name}`, // ✅ juste le nom du modèle
+            description: `${m.name}`, // ✅ juste le modèle
           },
           ...prev.items.slice(1),
         ],
@@ -802,9 +803,10 @@ export default function MainApp() {
 
     const approvalShown = inv.boatDetails?.approvalNumber || "—";
 
+    const showBoatBlockOnInvoice = subType === "facture" || subType === "proforma"; // ✅ remettre N° série sur facture/proforma
+
     return (
       <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none">
-        {/* Bande couleur haut */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-700 via-blue-500 to-red-600" />
         <div className="absolute -right-24 -top-24 w-64 h-64 rounded-full bg-blue-50" />
         <div className="absolute -left-24 -bottom-24 w-64 h-64 rounded-full bg-red-50" />
@@ -823,6 +825,7 @@ export default function MainApp() {
                 <p>{companyConfig.address}</p>
                 <p>Tél: {companyConfig.phone}</p>
                 <p className="text-slate-400">{companyConfig.email}</p>
+                <p className="text-slate-400">{companyConfig.website || "www.pneuboat.net"}</p>
               </div>
             </div>
 
@@ -867,7 +870,6 @@ export default function MainApp() {
             </div>
           </div>
 
-          {/* ✅ Ajouts sur BON DE LIVRAISON */}
           {subType === "livraison" && (
             <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -910,7 +912,6 @@ export default function MainApp() {
                   <b>{inv.clientName || ".........."}</b>.
                 </p>
 
-                {/* ✅ Garantie 1 an */}
                 <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-4">
                   <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">
                     Garantie
@@ -922,7 +923,6 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                {/* ✅ Détails bateau + APPROBATION */}
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
                     Détails du Bateau
@@ -941,7 +941,6 @@ export default function MainApp() {
                       </div>
                     </div>
 
-                    {/* ✅ Numéro d’approbation */}
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
                       <div className="text-[8px] text-slate-400 uppercase tracking-widest">
                         Numéro d’approbation (DMMP)
@@ -1024,48 +1023,75 @@ export default function MainApp() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl overflow-hidden border border-slate-200">
-                <table className="w-full text-[11px]">
-                  <thead>
-                    <tr className="text-left text-slate-700 font-black uppercase bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
-                      <th className="py-2.5 px-3">Désignation</th>
-                      <th className="py-2.5 px-3 text-center w-16">Qté</th>
-                      {subType !== "livraison" && (
-                        <>
-                          <th className="py-2.5 px-3 text-right w-24">P.U</th>
-                          <th className="py-2.5 px-3 text-right w-28">Total</th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inv.items.map((it, i) => (
-                      <tr key={it.id || i} className="border-b border-slate-100 last:border-b-0">
-                        <td className="py-2.5 px-3 font-bold">{it.description}</td>
-                        <td className="py-2.5 px-3 text-center font-black">
-                          {Number(it.quantity || 0)}
-                        </td>
+              <div className="space-y-3">
+                {/* ✅ Bloc Détails bateau pour FACTURE/PROFORMA (remet N° série sur facture) */}
+                {showBoatBlockOnInvoice && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                      Détails Bateau
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-[11px]">
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                        <div className="font-black">{inv.boatDetails.model || "—"}</div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                        <div className="font-black text-blue-700 font-mono">
+                          {inv.boatDetails.serialNumber || "—"}
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                        <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-2xl overflow-hidden border border-slate-200">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="text-left text-slate-700 font-black uppercase bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
+                        <th className="py-2.5 px-3">Désignation</th>
+                        <th className="py-2.5 px-3 text-center w-16">Qté</th>
                         {subType !== "livraison" && (
                           <>
-                            <td className="py-2.5 px-3 text-right">
-                              {Number(it.price || 0).toLocaleString("fr-FR")}
-                            </td>
-                            <td className="py-2.5 px-3 text-right font-black text-slate-900">
-                              {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
-                            </td>
+                            <th className="py-2.5 px-3 text-right w-24">P.U</th>
+                            <th className="py-2.5 px-3 text-right w-28">Total</th>
                           </>
                         )}
                       </tr>
-                    ))}
-                    {inv.items.length === 0 && (
-                      <tr>
-                        <td className="p-6 text-center text-slate-400 font-black" colSpan={4}>
-                          Aucun article
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {inv.items.map((it, i) => (
+                        <tr key={it.id || i} className="border-b border-slate-100 last:border-b-0">
+                          <td className="py-2.5 px-3 font-bold">{it.description}</td>
+                          <td className="py-2.5 px-3 text-center font-black">
+                            {Number(it.quantity || 0)}
+                          </td>
+                          {subType !== "livraison" && (
+                            <>
+                              <td className="py-2.5 px-3 text-right">
+                                {Number(it.price || 0).toLocaleString("fr-FR")}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-black text-slate-900">
+                                {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                      {inv.items.length === 0 && (
+                        <tr>
+                          <td className="p-6 text-center text-slate-400 font-black" colSpan={4}>
+                            Aucun article
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -1111,7 +1137,6 @@ export default function MainApp() {
                 </div>
                 <div className="mt-1 text-[12px] font-black text-slate-900">{totalWords}</div>
 
-                {/* ✅ Valable 2 mois pour PROFORMA */}
                 {subType === "proforma" && (
                   <div className="mt-2 text-[10px] font-bold text-slate-500">
                     Devis valable <span className="text-slate-900 font-black">2 mois</span> à compter de la date d’émission.
@@ -1121,7 +1146,6 @@ export default function MainApp() {
             </>
           )}
 
-          {/* ✅ Paiement (pas sur proforma) */}
           {showPayBlock && (
             <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
               <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -1175,6 +1199,8 @@ export default function MainApp() {
               <b>RC:</b> {companyConfig.rc || "—"}
               <br />
               <b>NIF:</b> {companyConfig.nif || "—"}
+              <br />
+              <b>NIS:</b> {companyConfig.nis || "—"}
             </div>
             <div className="text-right uppercase font-black text-slate-900">{companyConfig.name}</div>
           </div>
@@ -1431,7 +1457,6 @@ export default function MainApp() {
         {/* EDIT */}
         {view === "edit" && currentInvoice && (
           <div className="space-y-4 animate-in slide-in-from-right duration-300">
-            {/* BARRE EDITION (haut) */}
             <div className="no-print bg-white rounded-[1.5rem] shadow-sm border border-slate-100 p-3 md:p-4">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
@@ -1465,9 +1490,7 @@ export default function MainApp() {
                 </div>
               </div>
 
-              {/* FORM HORIZONTAL */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                {/* Client */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <div className="grid grid-cols-1 gap-2">
                     <InputGroup label="Client" compact>
@@ -1504,7 +1527,6 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                {/* Modèle / Bateau */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
                   <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                     <CheckCircle size={12} /> Bateau
@@ -1583,10 +1605,8 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                {/* TVA / Paiement / Zoom */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-white p-3">
                   <div className="grid grid-cols-1 gap-3">
-                    {/* TVA */}
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
@@ -1618,7 +1638,6 @@ export default function MainApp() {
                       </div>
                     </div>
 
-                    {/* Paiement */}
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Paiement</div>
@@ -1659,7 +1678,6 @@ export default function MainApp() {
                       </div>
                     </div>
 
-                    {/* Zoom */}
                     <div className="rounded-2xl border border-slate-100 bg-white p-3">
                       <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
                         Zoom aperçu
@@ -1681,7 +1699,6 @@ export default function MainApp() {
                 </div>
               </div>
 
-              {/* Adresse */}
               <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div className="md:col-span-12">
                   <InputGroup label="Adresse" compact>
@@ -1696,7 +1713,6 @@ export default function MainApp() {
                 </div>
               </div>
 
-              {/* ✅ Bon de commande : champs */}
               {currentInvoice.type === "commande" && (
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
                   <div className="md:col-span-8 rounded-2xl border border-slate-100 bg-white p-3">
@@ -1783,7 +1799,6 @@ export default function MainApp() {
               )}
             </div>
 
-            {/* APERÇU (bas) */}
             <div className="bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[82vh] md:h-[calc(100vh-18rem)] shadow-inner border-4 border-white">
               <div className="min-w-[980px] flex justify-center">
                 <div
