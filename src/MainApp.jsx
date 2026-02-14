@@ -1,3 +1,4 @@
+// MainApp.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Plus,
@@ -59,6 +60,7 @@ const NumberToLetter = (nombre) => {
     "quatre-vingt",
     "quatre-vingt-dix",
   ];
+
   const conv99 = (n) => {
     if (n < 20) return unites[n];
     let d = Math.floor(n / 10);
@@ -72,6 +74,7 @@ const NumberToLetter = (nombre) => {
     else if (u > 0) res += "-" + unites[u];
     return res;
   };
+
   const conv999 = (n) => {
     let c = Math.floor(n / 100);
     let r = n % 100;
@@ -125,14 +128,14 @@ const calculateTotal = (items, tvaRate, applyTva = true) => {
 };
 
 const formatCurrency = (amount) =>
-  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) +
-  " DA";
+  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
 
 const labelDoc = (t) => {
   if (t === "facture") return "FACTURE";
   if (t === "proforma") return "FACTURE PROFORMA";
   if (t === "livraison") return "BON DE LIVRAISON";
   if (t === "attestation") return "ATTESTATION DE CONSTRUCTION";
+  if (t === "commande") return "BON DE COMMANDE";
   if (t === "dossier") return "DOSSIER COMPLET";
   return String(t || "").toUpperCase();
 };
@@ -237,6 +240,7 @@ export default function MainApp() {
     nextProformaNumber: 1,
     nextDeliveryNumber: 1,
     nextAttestationNumber: 1,
+    nextOrderNumber: 1, // ✅ Bon de commande
     rc: "",
     nif: "",
     nis: "",
@@ -244,62 +248,60 @@ export default function MainApp() {
     bankRib: "",
     logo: null,
     favicon: null,
-
-    // ✅ MISE À JOUR : NUMÉROS D’APPROBATION DMMP
     boatModels: [
       {
         id: 1,
         name: "PNB-360",
         length: "3.60 m",
-        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
         type: "Semi-rigide",
       },
       {
         id: 2,
         name: "PNB-420",
         length: "4.20 m",
-        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
         type: "Semi-rigide",
       },
       {
         id: 3,
         name: "PNB-510",
         length: "5.10 m",
-        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
         type: "Semi-rigide",
       },
       {
         id: 4,
         name: "PNB 525 OPEN",
         length: "5.25 m",
-        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
         type: "Coque Open",
       },
       {
         id: 5,
         name: "PNB-550",
         length: "5.50 m",
-        approvalNumber: "N° 1565 du 10/07/2025 délivrée par DMMP",
+        approvalNumber: "Numéro 1565 du 10/07/2025 délivrée par DMMP",
         type: "Semi-rigide",
       },
       {
         id: 6,
         name: "PNB-650",
         length: "6.50 m",
-        approvalNumber: "N° 689 DU 15/04/2021 délivrée par DMMP",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
         type: "Semi-rigide",
       },
       {
         id: 7,
         name: "PNB-700",
         length: "7.00 m",
-        approvalNumber: "N° 750/145 du 11/03/2019 délivrée par DMMP",
+        approvalNumber: "Numéro 750/145 du 11/03/2019 délivrée par DMMP",
         type: "Semi-rigide",
       },
     ],
   });
 
-  /* ------------------ PRINT RULES (évite page blanche) ------------------ */
+  /* ------------------ PRINT RULES (évite page blanche + coupe droite) ------------------ */
   useEffect(() => {
     const style = document.createElement("style");
     style.setAttribute("data-pb-print", "1");
@@ -309,6 +311,8 @@ export default function MainApp() {
         .page-break { page-break-after: always; break-after: page; }
         .page-break-last { page-break-after: auto; break-after: auto; }
         body { background: white !important; }
+        html, body { width: 210mm; }
+        @page { size: A4; margin: 0; }
       }
     `;
     document.head.appendChild(style);
@@ -418,15 +422,9 @@ export default function MainApp() {
   const saveConfigOnline = async (nc) => {
     setCompanyConfig(nc);
     try {
-      const { data: existing } = await supabase
-        .from("app_settings")
-        .select("id")
-        .limit(1);
+      const { data: existing } = await supabase.from("app_settings").select("id").limit(1);
       if (existing && existing.length > 0) {
-        await supabase
-          .from("app_settings")
-          .update({ config: nc })
-          .eq("id", existing[0].id);
+        await supabase.from("app_settings").update({ config: nc }).eq("id", existing[0].id);
       } else {
         await supabase.from("app_settings").insert({ config: nc });
       }
@@ -477,10 +475,20 @@ export default function MainApp() {
         notes: "Certifié construit à neuf.",
       };
 
+    const orderDetails =
+      inv?.orderDetails || {
+        modelWanted: "",
+        colors: "",
+        options: "",
+        accessories: "",
+        amountPaid: 0,
+      };
+
     return {
       ...inv,
       items,
       boatDetails,
+      orderDetails,
       clientPhone: inv?.clientPhone ?? "",
       applyTva: inv?.applyTva ?? true,
       tvaRate: inv?.tvaRate ?? 19,
@@ -497,11 +505,7 @@ export default function MainApp() {
 
     try {
       const normalized = normalizeInvoice(currentInvoice);
-      const total = calculateTotal(
-        normalized.items,
-        normalized.tvaRate,
-        normalized.applyTva
-      );
+      const total = calculateTotal(normalized.items, normalized.tvaRate, normalized.applyTva);
 
       const payload = {
         doc_number: normalized.number,
@@ -528,6 +532,7 @@ export default function MainApp() {
             proforma: "nextProformaNumber",
             livraison: "nextDeliveryNumber",
             attestation: "nextAttestationNumber",
+            commande: "nextOrderNumber", // ✅
           };
           const k = keyMap[dt];
           if (k) nc[k] = Number(nc[k] || 1) + 1;
@@ -567,6 +572,7 @@ export default function MainApp() {
       nextAttestationNumber: na,
       nextDeliveryNumber: nbl,
       nextProformaNumber: np,
+      nextOrderNumber: noc,
     } = companyConfig;
 
     let newDoc = normalizeInvoice({
@@ -584,6 +590,13 @@ export default function MainApp() {
         year: String(year),
         notes: "Certifié construit à neuf.",
       },
+      orderDetails: {
+        modelWanted: "",
+        colors: "",
+        options: "",
+        accessories: "",
+        amountPaid: 0,
+      },
       applyTva: true,
       tvaRate: 19,
       showPayment: true,
@@ -598,7 +611,10 @@ export default function MainApp() {
         ? np
         : type === "livraison"
         ? nbl
+        : type === "commande"
+        ? noc
         : na;
+
     const pref =
       type === "facture"
         ? "FAC"
@@ -606,6 +622,8 @@ export default function MainApp() {
         ? "PRO"
         : type === "livraison"
         ? "BL"
+        : type === "commande"
+        ? "BC"
         : "ATT";
 
     newDoc.number =
@@ -638,13 +656,13 @@ export default function MainApp() {
           ...prev.boatDetails,
           model: m.name,
           length: m.length,
-          approvalNumber: m.approvalNumber, // ✅ important pour attestation
+          approvalNumber: m.approvalNumber, // ✅ numéro d’approbation auto
           year: prev.boatDetails?.year || "2026",
         },
         items: [
           {
             ...firstItem,
-            description: `${m.name}`, // ✅ demandé: juste le nom du modèle
+            description: `${m.name}`, // ✅ juste le nom du modèle
           },
           ...prev.items.slice(1),
         ],
@@ -692,10 +710,7 @@ export default function MainApp() {
     try {
       const b64 = await toBase64(file);
       setModelDocs((prev) => {
-        const next = {
-          ...prev,
-          [modelId]: { ...(prev[modelId] || {}), [docKey]: b64 },
-        };
+        const next = { ...prev, [modelId]: { ...(prev[modelId] || {}), [docKey]: b64 } };
         rememberLocal("pb_model_docs", next);
         return next;
       });
@@ -774,22 +789,25 @@ export default function MainApp() {
     if (!currentInvoice) return null;
     const inv = normalizeInvoice(currentInvoice);
 
-    const isProforma = subType === "proforma";
+    const isCommande = subType === "commande";
 
     const subtotal = calculateSubtotal(inv.items);
     const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
     const totalWords = NumberToLetter(total);
 
-    const showTotals = subType !== "livraison" && subType !== "attestation";
-    // ✅ demandé: proforma = PAS de bloc paiement
-    const showPayBlock = showTotals && !!inv.showPayment && !isProforma;
+    const showTotals =
+      subType !== "livraison" && subType !== "attestation" && subType !== "commande";
+    const showPayBlock =
+      showTotals && !!inv.showPayment && subType !== "proforma"; // ✅ proforma = pas paiement
+
+    const approvalShown = inv.boatDetails?.approvalNumber || "—";
 
     return (
       <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none">
         {/* Bande couleur haut */}
-        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500" />
+        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-700 via-blue-500 to-red-600" />
         <div className="absolute -right-24 -top-24 w-64 h-64 rounded-full bg-blue-50" />
-        <div className="absolute -left-24 -bottom-24 w-64 h-64 rounded-full bg-cyan-50" />
+        <div className="absolute -left-24 -bottom-24 w-64 h-64 rounded-full bg-red-50" />
 
         <div className="relative">
           <div className="flex justify-between items-start border-b-2 border-slate-100 pb-4 mb-4">
@@ -824,7 +842,7 @@ export default function MainApp() {
           </div>
 
           <div className="mb-5 bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600" />
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600" />
             <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">
               Client
             </h3>
@@ -849,7 +867,7 @@ export default function MainApp() {
             </div>
           </div>
 
-          {/* ✅ Ajouts demandé sur BON DE LIVRAISON */}
+          {/* ✅ Ajouts sur BON DE LIVRAISON */}
           {subType === "livraison" && (
             <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -861,13 +879,17 @@ export default function MainApp() {
                   <div className="font-black">{inv.boatDetails.model || "—"}</div>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                    N° de série
+                  </div>
                   <div className="font-black font-mono text-blue-700">
                     {inv.boatDetails.serialNumber || "—"}
                   </div>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">Téléphone client</div>
+                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                    Téléphone client
+                  </div>
                   <div className="font-black">{inv.clientPhone || "—"}</div>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -888,36 +910,28 @@ export default function MainApp() {
                   <b>{inv.clientName || ".........."}</b>.
                 </p>
 
-                {/* ✅ GARANTIE 1 AN */}
+                {/* ✅ Garantie 1 an */}
                 <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-4">
-                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">
                     Garantie
                   </div>
-                  <p className="text-[10px] font-bold text-slate-700 leading-relaxed">
-                    Garantie de <b>12 mois</b> contre tout <b>décollage</b> et/ou tout{" "}
-                    <b>défaut de fabrication provenant d’usine</b>.
-                    <span className="text-slate-500">
-                      {" "}
-                      (Hors mauvaise utilisation, chocs, modifications, réparation non
-                      autorisée, entretien non conforme.)
-                    </span>
-                  </p>
+                  <div className="text-[11px] font-bold text-slate-700">
+                    Garantie <span className="text-slate-900 font-black">1 an</span> sur tout
+                    décollement ou problème provenant d’usine (défaut de fabrication),
+                    sous réserve d’une utilisation normale.
+                  </div>
                 </div>
 
+                {/* ✅ Détails bateau + APPROBATION */}
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
                     Détails du Bateau
                   </div>
-
-                  {/* ✅ Ajout du N° d’approbation DMMP */}
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Modèle
-                      </div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
                       <div className="font-black">{inv.boatDetails.model || "—"}</div>
                     </div>
-
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                       <div className="text-[8px] text-slate-400 uppercase tracking-widest">
                         N° de série
@@ -927,22 +941,86 @@ export default function MainApp() {
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    {/* ✅ Numéro d’approbation */}
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
                       <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        N° d’approbation (DMMP)
+                        Numéro d’approbation (DMMP)
                       </div>
-                      <div className="font-black text-slate-900">
-                        {inv.boatDetails.approvalNumber || "—"}
-                      </div>
+                      <div className="font-black text-slate-900">{approvalShown}</div>
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                      <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                       <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Année
+                        Année de construction
                       </div>
                       <div className="font-black">{inv.boatDetails.year || "—"}</div>
                     </div>
                   </div>
+                </div>
+              </div>
+            ) : isCommande ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                    Bon de commande
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-[11px]">
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle voulu</div>
+                      <div className="font-black">
+                        {inv.orderDetails?.modelWanted || inv.boatDetails?.model || "—"}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Couleurs</div>
+                      <div className="font-bold">{inv.orderDetails?.colors || "—"}</div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Options</div>
+                      <div className="font-bold">{inv.orderDetails?.options || "—"}</div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Accessoires</div>
+                      <div className="font-bold">{inv.orderDetails?.accessories || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                    Règlement
+                  </div>
+
+                  {(() => {
+                    const totalCmd = Number(inv.items?.[0]?.price || 0);
+                    const paid = Number(inv.orderDetails?.amountPaid || 0);
+                    const rest = Math.max(totalCmd - paid, 0);
+
+                    return (
+                      <div className="grid grid-cols-3 gap-3 text-[11px]">
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">Total</div>
+                          <div className="font-black text-blue-700">{formatCurrency(totalCmd)}</div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">Total versé</div>
+                          <div className="font-black">{formatCurrency(paid)}</div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">Restant</div>
+                          <div className="font-black text-red-600">{formatCurrency(rest)}</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             ) : (
@@ -1007,7 +1085,6 @@ export default function MainApp() {
                       <span>{formatCurrency(subtotal)}</span>
                     </div>
 
-                    {/* ✅ TVA DISPARAIT COMPLETEMENT si désactivée */}
                     {inv.applyTva && (
                       <div className="flex justify-between text-slate-500 font-bold">
                         <span>TVA</span>
@@ -1028,21 +1105,23 @@ export default function MainApp() {
                   Total en lettres
                 </div>
                 <div className="text-[11px] font-bold text-slate-800">
-                  Arrêté la présente facture à la somme de :
+                  {subType === "proforma"
+                    ? "Arrêté le présent devis à la somme de :"
+                    : "Arrêté la présente facture à la somme de :"}
                 </div>
                 <div className="mt-1 text-[12px] font-black text-slate-900">{totalWords}</div>
 
-                {/* ✅ demandé : Proforma valable 2 mois */}
-                {isProforma && (
-                  <div className="mt-3 text-[10px] font-black uppercase tracking-widest text-red-600">
-                    Devis valable 2 mois à compter de la date d’émission.
+                {/* ✅ Valable 2 mois pour PROFORMA */}
+                {subType === "proforma" && (
+                  <div className="mt-2 text-[10px] font-bold text-slate-500">
+                    Devis valable <span className="text-slate-900 font-black">2 mois</span> à compter de la date d’émission.
                   </div>
                 )}
               </div>
             </>
           )}
 
-          {/* ✅ Proforma : on enlève totalement le bloc paiement */}
+          {/* ✅ Paiement (pas sur proforma) */}
           {showPayBlock && (
             <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
               <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -1209,9 +1288,10 @@ export default function MainApp() {
                   color: "bg-blue-600",
                 },
                 { title: "Facture Client", icon: <FileText />, action: () => startNew("facture"), desc: "Document de vente simple" },
-                { title: "Facture Proforma", icon: <ClipboardList />, action: () => startNew("proforma"), desc: "Devis / Facture proforma" },
+                { title: "Facture Proforma", icon: <ClipboardList />, action: () => startNew("proforma"), desc: "Devis / Proforma (2 mois)" },
+                { title: "Bon de Commande", icon: <ClipboardList />, action: () => startNew("commande"), desc: "Modèle + options + acompte" },
                 { title: "Bon de Livraison", icon: <PackageCheck />, action: () => startNew("livraison"), desc: "Preuve de livraison" },
-                { title: "Attestation", icon: <Anchor />, action: () => startNew("attestation"), desc: "Attestation de construction" },
+                { title: "Attestation", icon: <Anchor />, action: () => startNew("attestation"), desc: "Construction + garantie" },
               ].map((card, i) => (
                 <div
                   key={i}
@@ -1351,6 +1431,7 @@ export default function MainApp() {
         {/* EDIT */}
         {view === "edit" && currentInvoice && (
           <div className="space-y-4 animate-in slide-in-from-right duration-300">
+            {/* BARRE EDITION (haut) */}
             <div className="no-print bg-white rounded-[1.5rem] shadow-sm border border-slate-100 p-3 md:p-4">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
@@ -1384,7 +1465,9 @@ export default function MainApp() {
                 </div>
               </div>
 
+              {/* FORM HORIZONTAL */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                {/* Client */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <div className="grid grid-cols-1 gap-2">
                     <InputGroup label="Client" compact>
@@ -1421,6 +1504,7 @@ export default function MainApp() {
                   </div>
                 </div>
 
+                {/* Modèle / Bateau */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
                   <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                     <CheckCircle size={12} /> Bateau
@@ -1499,8 +1583,10 @@ export default function MainApp() {
                   </div>
                 </div>
 
+                {/* TVA / Paiement / Zoom */}
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-white p-3">
                   <div className="grid grid-cols-1 gap-3">
+                    {/* TVA */}
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
@@ -1532,6 +1618,7 @@ export default function MainApp() {
                       </div>
                     </div>
 
+                    {/* Paiement */}
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Paiement</div>
@@ -1572,6 +1659,7 @@ export default function MainApp() {
                       </div>
                     </div>
 
+                    {/* Zoom */}
                     <div className="rounded-2xl border border-slate-100 bg-white p-3">
                       <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
                         Zoom aperçu
@@ -1593,6 +1681,7 @@ export default function MainApp() {
                 </div>
               </div>
 
+              {/* Adresse */}
               <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div className="md:col-span-12">
                   <InputGroup label="Adresse" compact>
@@ -1606,8 +1695,95 @@ export default function MainApp() {
                   </InputGroup>
                 </div>
               </div>
+
+              {/* ✅ Bon de commande : champs */}
+              {currentInvoice.type === "commande" && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
+                  <div className="md:col-span-8 rounded-2xl border border-slate-100 bg-white p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <InputGroup label="Modèle voulu" compact>
+                        <Input
+                          value={currentInvoice.orderDetails?.modelWanted || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return { ...inv, orderDetails: { ...inv.orderDetails, modelWanted: e.target.value } };
+                            })
+                          }
+                          placeholder="Ex: PNB-550"
+                        />
+                      </InputGroup>
+
+                      <InputGroup label="Couleurs" compact>
+                        <Input
+                          value={currentInvoice.orderDetails?.colors || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return { ...inv, orderDetails: { ...inv.orderDetails, colors: e.target.value } };
+                            })
+                          }
+                          placeholder="Ex: Bleu / Blanc"
+                        />
+                      </InputGroup>
+
+                      <div className="md:col-span-2">
+                        <InputGroup label="Options" compact>
+                          <Input
+                            value={currentInvoice.orderDetails?.options || ""}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                return { ...inv, orderDetails: { ...inv.orderDetails, options: e.target.value } };
+                              })
+                            }
+                            placeholder="Ex: Console, banquette..."
+                          />
+                        </InputGroup>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <InputGroup label="Accessoires" compact>
+                          <Input
+                            value={currentInvoice.orderDetails?.accessories || ""}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                return { ...inv, orderDetails: { ...inv.orderDetails, accessories: e.target.value } };
+                              })
+                            }
+                            placeholder="Ex: Pompe, gilets..."
+                          />
+                        </InputGroup>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                    <InputGroup label="Total versé (DA)" compact>
+                      <Input
+                        type="number"
+                        value={Number(currentInvoice.orderDetails?.amountPaid || 0)}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            return {
+                              ...inv,
+                              orderDetails: { ...inv.orderDetails, amountPaid: parseFloat(e.target.value) || 0 },
+                            };
+                          })
+                        }
+                      />
+                    </InputGroup>
+                    <div className="text-[10px] font-bold text-slate-500">
+                      Total = prix (en haut) • Restant = Total - Versé
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* APERÇU (bas) */}
             <div className="bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[82vh] md:h-[calc(100vh-18rem)] shadow-inner border-4 border-white">
               <div className="min-w-[980px] flex justify-center">
                 <div
@@ -1652,7 +1828,7 @@ export default function MainApp() {
                 <Search className="absolute left-4 top-3.5 text-slate-500" size={18} />
                 <input
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-800 border-none rounded-2xl text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  placeholder="Nom ou N° de facture..."
+                  placeholder="Nom ou N° de doc..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -1731,6 +1907,7 @@ export default function MainApp() {
                     <div>
                       <h3 className="font-black text-lg uppercase tracking-tight text-slate-800">{m.name}</h3>
                       <p className="text-[9px] font-bold text-blue-500 uppercase tracking-[0.2em]">{m.type}</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1">{m.approvalNumber}</p>
                     </div>
                     <span className="px-4 py-1.5 bg-slate-50 rounded-full text-[10px] font-black text-slate-500">
                       {m.length}
