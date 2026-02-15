@@ -128,7 +128,8 @@ const calculateTotal = (items, tvaRate, applyTva = true) => {
 };
 
 const formatCurrency = (amount) =>
-  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) + " DA";
+  Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) +
+  " DA";
 
 const labelDoc = (t) => {
   if (t === "facture") return "FACTURE";
@@ -145,6 +146,51 @@ const paymentLabel = (pm) => {
   if (pm === "virement") return "Virement bancaire";
   if (pm === "espece") return "Espèce";
   return "—";
+};
+
+/* ------------------ ✅ NOUVEAU: Désignation + TVA inversée ------------------ */
+const designationFromModel = (modelName) => {
+  const m = String(modelName || "").trim();
+
+  // Exception demandée
+  if (/pnb\s*[- ]?\s*525/i.test(m)) {
+    return "Bateau rigide open PNB-525";
+  }
+
+  // Tous les autres PNB-xxx => "Semi rigide PNB-xxx"
+  const match = m.match(/pnb\s*[- ]?\s*(\d{3})/i);
+  if (match) {
+    const code = `PNB-${match[1]}`;
+    return `Semi rigide ${code}`;
+  }
+
+  // fallback si non PNB
+  return m || "—";
+};
+
+const priceHtFromTtc = (ttc, tvaRate, applyTva = true) => {
+  const T = Number(ttc || 0);
+  const r = applyTva ? Number(tvaRate || 0) : 0;
+  const denom = 1 + r / 100;
+  if (!denom) return T;
+  return T / denom;
+};
+
+const priceTtcFromHt = (ht, tvaRate, applyTva = true) => {
+  const H = Number(ht || 0);
+  const r = applyTva ? Number(tvaRate || 0) : 0;
+  return H * (1 + r / 100);
+};
+
+const recomputeItemsHtFromTtc = (items, tvaRate, applyTva = true) => {
+  const arr = Array.isArray(items) ? items : [];
+  return arr.map((it) => {
+    const hasTtc =
+      it && it.priceTtc !== undefined && it.priceTtc !== null && it.priceTtc !== "";
+    if (!hasTtc) return it;
+    const ht = priceHtFromTtc(it.priceTtc, tvaRate, applyTva);
+    return { ...it, price: ht };
+  });
 };
 
 /* ------------------ UI COMPONENTS ------------------ */
@@ -423,9 +469,15 @@ export default function MainApp() {
   const saveConfigOnline = async (nc) => {
     setCompanyConfig(nc);
     try {
-      const { data: existing } = await supabase.from("app_settings").select("id").limit(1);
+      const { data: existing } = await supabase
+        .from("app_settings")
+        .select("id")
+        .limit(1);
       if (existing && existing.length > 0) {
-        await supabase.from("app_settings").update({ config: nc }).eq("id", existing[0].id);
+        await supabase
+          .from("app_settings")
+          .update({ config: nc })
+          .eq("id", existing[0].id);
       } else {
         await supabase.from("app_settings").insert({ config: nc });
       }
@@ -463,8 +515,21 @@ export default function MainApp() {
   const normalizeInvoice = (inv) => {
     const items =
       Array.isArray(inv?.items) && inv.items.length
-        ? inv.items
-        : [{ id: Date.now(), description: "", quantity: 1, price: 0 }];
+        ? inv.items.map((it) => ({
+            ...it,
+            quantity: it?.quantity ?? 1,
+            price: Number(it?.price || 0), // HT (calcul interne)
+            priceTtc: it?.priceTtc ?? null, // TTC (saisie utilisateur)
+          }))
+        : [
+            {
+              id: Date.now(),
+              description: "",
+              quantity: 1,
+              price: 0,
+              priceTtc: null,
+            },
+          ];
 
     const boatDetails =
       inv?.boatDetails || {
@@ -506,7 +571,11 @@ export default function MainApp() {
 
     try {
       const normalized = normalizeInvoice(currentInvoice);
-      const total = calculateTotal(normalized.items, normalized.tvaRate, normalized.applyTva);
+      const total = calculateTotal(
+        normalized.items,
+        normalized.tvaRate,
+        normalized.applyTva
+      );
 
       const payload = {
         doc_number: normalized.number,
@@ -582,7 +651,15 @@ export default function MainApp() {
       clientAddress: "",
       clientIdNumber: "",
       clientPhone: "",
-      items: [{ id: Date.now(), description: "", quantity: 1, price: 0 }],
+      items: [
+        {
+          id: Date.now(),
+          description: "",
+          quantity: 1,
+          price: 0,
+          priceTtc: null,
+        },
+      ],
       boatDetails: {
         model: "",
         serialNumber: "",
@@ -649,7 +726,13 @@ export default function MainApp() {
     setCurrentInvoice((p) => {
       const prev = normalizeInvoice(p || {});
       const firstItem =
-        prev.items?.[0] || { id: Date.now(), description: "", quantity: 1, price: 0 };
+        prev.items?.[0] || {
+          id: Date.now(),
+          description: "",
+          quantity: 1,
+          price: 0,
+          priceTtc: null,
+        };
 
       return {
         ...prev,
@@ -663,7 +746,7 @@ export default function MainApp() {
         items: [
           {
             ...firstItem,
-            description: `${m.name}`, // ✅ juste le modèle
+            description: designationFromModel(m.name), // ✅ Désignation
           },
           ...prev.items.slice(1),
         ],
@@ -711,7 +794,10 @@ export default function MainApp() {
     try {
       const b64 = await toBase64(file);
       setModelDocs((prev) => {
-        const next = { ...prev, [modelId]: { ...(prev[modelId] || {}), [docKey]: b64 } };
+        const next = {
+          ...prev,
+          [modelId]: { ...(prev[modelId] || {}), [docKey]: b64 },
+        };
         rememberLocal("pb_model_docs", next);
         return next;
       });
@@ -738,7 +824,10 @@ export default function MainApp() {
   const addPdfToLibrary = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
       alert("Merci de choisir un fichier PDF.");
       return;
     }
@@ -792,8 +881,8 @@ export default function MainApp() {
 
     const isCommande = subType === "commande";
 
-    const subtotal = calculateSubtotal(inv.items);
-    const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
+    const subtotal = calculateSubtotal(inv.items); // HT
+    const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva); // TTC
     const totalWords = NumberToLetter(total);
 
     const showTotals =
@@ -803,7 +892,7 @@ export default function MainApp() {
 
     const approvalShown = inv.boatDetails?.approvalNumber || "—";
 
-    const showBoatBlockOnInvoice = subType === "facture" || subType === "proforma"; // ✅ remettre N° série sur facture/proforma
+    const showBoatBlockOnInvoice = subType === "facture" || subType === "proforma";
 
     return (
       <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none">
@@ -815,7 +904,11 @@ export default function MainApp() {
           <div className="flex justify-between items-start border-b-2 border-slate-100 pb-4 mb-4">
             <div>
               {companyConfig.logo ? (
-                <img src={companyConfig.logo} alt="logo" className="h-12 object-contain mb-2" />
+                <img
+                  src={companyConfig.logo}
+                  alt="logo"
+                  className="h-12 object-contain mb-2"
+                />
               ) : (
                 <h1 className="text-xl font-black uppercase tracking-tight">
                   Pneuboat <span className="text-blue-700">SARL</span>
@@ -825,7 +918,9 @@ export default function MainApp() {
                 <p>{companyConfig.address}</p>
                 <p>Tél: {companyConfig.phone}</p>
                 <p className="text-slate-400">{companyConfig.email}</p>
-                <p className="text-slate-400">{companyConfig.website || "www.pneuboat.net"}</p>
+                <p className="text-slate-400">
+                  {companyConfig.website || "www.pneuboat.net"}
+                </p>
               </div>
             </div>
 
@@ -836,7 +931,9 @@ export default function MainApp() {
               </span>
 
               <div className="mt-3">
-                <div className="font-mono text-base font-black text-slate-900">{docNumber}</div>
+                <div className="font-mono text-base font-black text-slate-900">
+                  {docNumber}
+                </div>
                 <div className="text-[10px] font-semibold text-slate-400">
                   Le {new Date(inv.date).toLocaleDateString("fr-FR")}
                 </div>
@@ -877,7 +974,9 @@ export default function MainApp() {
               </div>
               <div className="grid grid-cols-2 gap-3 text-[11px]">
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                    Modèle
+                  </div>
                   <div className="font-black">{inv.boatDetails.model || "—"}</div>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -895,7 +994,9 @@ export default function MainApp() {
                   <div className="font-black">{inv.clientPhone || "—"}</div>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                    Longueur
+                  </div>
                   <div className="font-black">{inv.boatDetails.length || "—"}</div>
                 </div>
               </div>
@@ -917,9 +1018,9 @@ export default function MainApp() {
                     Garantie
                   </div>
                   <div className="text-[11px] font-bold text-slate-700">
-                    Garantie <span className="text-slate-900 font-black">1 an</span> sur tout
-                    décollement ou problème provenant d’usine (défaut de fabrication),
-                    sous réserve d’une utilisation normale.
+                    Garantie <span className="text-slate-900 font-black">1 an</span>{" "}
+                    sur tout décollement ou problème provenant d’usine (défaut de
+                    fabrication), sous réserve d’une utilisation normale.
                   </div>
                 </div>
 
@@ -929,7 +1030,9 @@ export default function MainApp() {
                   </div>
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Modèle
+                      </div>
                       <div className="font-black">{inv.boatDetails.model || "—"}</div>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -949,7 +1052,9 @@ export default function MainApp() {
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Longueur
+                      </div>
                       <div className="font-black">{inv.boatDetails.length || "—"}</div>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -970,25 +1075,37 @@ export default function MainApp() {
 
                   <div className="grid grid-cols-2 gap-3 text-[11px]">
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle voulu</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Modèle voulu
+                      </div>
                       <div className="font-black">
-                        {inv.orderDetails?.modelWanted || inv.boatDetails?.model || "—"}
+                        {inv.orderDetails?.modelWanted ||
+                          inv.boatDetails?.model ||
+                          "—"}
                       </div>
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Couleurs</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Couleurs
+                      </div>
                       <div className="font-bold">{inv.orderDetails?.colors || "—"}</div>
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Options</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Options
+                      </div>
                       <div className="font-bold">{inv.orderDetails?.options || "—"}</div>
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">Accessoires</div>
-                      <div className="font-bold">{inv.orderDetails?.accessories || "—"}</div>
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Accessoires
+                      </div>
+                      <div className="font-bold">
+                        {inv.orderDetails?.accessories || "—"}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1006,16 +1123,26 @@ export default function MainApp() {
                     return (
                       <div className="grid grid-cols-3 gap-3 text-[11px]">
                         <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">Total</div>
-                          <div className="font-black text-blue-700">{formatCurrency(totalCmd)}</div>
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                            Total
+                          </div>
+                          <div className="font-black text-blue-700">
+                            {formatCurrency(totalCmd)}
+                          </div>
                         </div>
                         <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">Total versé</div>
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                            Total versé
+                          </div>
                           <div className="font-black">{formatCurrency(paid)}</div>
                         </div>
                         <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">Restant</div>
-                          <div className="font-black text-red-600">{formatCurrency(rest)}</div>
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                            Restant
+                          </div>
+                          <div className="font-black text-red-600">
+                            {formatCurrency(rest)}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1024,7 +1151,6 @@ export default function MainApp() {
               </div>
             ) : (
               <div className="space-y-3">
-                {/* ✅ Bloc Détails bateau pour FACTURE/PROFORMA (remet N° série sur facture) */}
                 {showBoatBlockOnInvoice && (
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -1032,17 +1158,23 @@ export default function MainApp() {
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-[11px]">
                       <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                          Modèle
+                        </div>
                         <div className="font-black">{inv.boatDetails.model || "—"}</div>
                       </div>
                       <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                          N° de série
+                        </div>
                         <div className="font-black text-blue-700 font-mono">
                           {inv.boatDetails.serialNumber || "—"}
                         </div>
                       </div>
                       <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                          Longueur
+                        </div>
                         <div className="font-black">{inv.boatDetails.length || "—"}</div>
                       </div>
                     </div>
@@ -1065,7 +1197,10 @@ export default function MainApp() {
                     </thead>
                     <tbody>
                       {inv.items.map((it, i) => (
-                        <tr key={it.id || i} className="border-b border-slate-100 last:border-b-0">
+                        <tr
+                          key={it.id || i}
+                          className="border-b border-slate-100 last:border-b-0"
+                        >
                           <td className="py-2.5 px-3 font-bold">{it.description}</td>
                           <td className="py-2.5 px-3 text-center font-black">
                             {Number(it.quantity || 0)}
@@ -1076,7 +1211,9 @@ export default function MainApp() {
                                 {Number(it.price || 0).toLocaleString("fr-FR")}
                               </td>
                               <td className="py-2.5 px-3 text-right font-black text-slate-900">
-                                {(Number(it.quantity || 0) * Number(it.price || 0)).toLocaleString("fr-FR")}
+                                {(
+                                  Number(it.quantity || 0) * Number(it.price || 0)
+                                ).toLocaleString("fr-FR")}
                               </td>
                             </>
                           )}
@@ -1119,7 +1256,9 @@ export default function MainApp() {
                     )}
 
                     <div className="pt-2 border-t flex justify-between font-black text-[13px]">
-                      <span className="text-slate-900">{inv.applyTva ? "TOTAL TTC" : "TOTAL"}</span>
+                      <span className="text-slate-900">
+                        {inv.applyTva ? "TOTAL TTC" : "TOTAL"}
+                      </span>
                       <span className="text-blue-700">{formatCurrency(total)}</span>
                     </div>
                   </div>
@@ -1139,7 +1278,8 @@ export default function MainApp() {
 
                 {subType === "proforma" && (
                   <div className="mt-2 text-[10px] font-bold text-slate-500">
-                    Devis valable <span className="text-slate-900 font-black">2 mois</span> à compter de la date d’émission.
+                    Devis valable <span className="text-slate-900 font-black">2 mois</span>{" "}
+                    à compter de la date d’émission.
                   </div>
                 )}
               </div>
@@ -1154,11 +1294,13 @@ export default function MainApp() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-[12px] font-black text-slate-900">
-                    Mode : <span className="text-blue-700">{paymentLabel(inv.paymentMethod)}</span>
+                    Mode :{" "}
+                    <span className="text-blue-700">{paymentLabel(inv.paymentMethod)}</span>
                   </div>
                   {inv.paymentMethod === "cheque" && inv.clientChequeNumber ? (
                     <div className="text-[10px] text-slate-600 font-bold mt-1">
-                      N° Chèque : <span className="font-mono">{inv.clientChequeNumber}</span>
+                      N° Chèque :{" "}
+                      <span className="font-mono">{inv.clientChequeNumber}</span>
                     </div>
                   ) : (
                     <div className="text-[10px] text-slate-600 font-bold mt-1">
@@ -1202,7 +1344,9 @@ export default function MainApp() {
               <br />
               <b>NIS:</b> {companyConfig.nis || "—"}
             </div>
-            <div className="text-right uppercase font-black text-slate-900">{companyConfig.name}</div>
+            <div className="text-right uppercase font-black text-slate-900">
+              {companyConfig.name}
+            </div>
           </div>
         </div>
       </div>
@@ -1217,7 +1361,9 @@ export default function MainApp() {
           <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-500/50">
             <Anchor size={40} />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 mb-2 uppercase">Pneuboat</h1>
+          <h1 className="text-2xl font-black text-slate-900 mb-2 uppercase">
+            Pneuboat
+          </h1>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">
             Accès Gestionnaire
           </p>
@@ -1313,11 +1459,36 @@ export default function MainApp() {
                   desc: "Facture + Attestation + BL",
                   color: "bg-blue-600",
                 },
-                { title: "Facture Client", icon: <FileText />, action: () => startNew("facture"), desc: "Document de vente simple" },
-                { title: "Facture Proforma", icon: <ClipboardList />, action: () => startNew("proforma"), desc: "Devis / Proforma (2 mois)" },
-                { title: "Bon de Commande", icon: <ClipboardList />, action: () => startNew("commande"), desc: "Modèle + options + acompte" },
-                { title: "Bon de Livraison", icon: <PackageCheck />, action: () => startNew("livraison"), desc: "Preuve de livraison" },
-                { title: "Attestation", icon: <Anchor />, action: () => startNew("attestation"), desc: "Construction + garantie" },
+                {
+                  title: "Facture Client",
+                  icon: <FileText />,
+                  action: () => startNew("facture"),
+                  desc: "Document de vente simple",
+                },
+                {
+                  title: "Facture Proforma",
+                  icon: <ClipboardList />,
+                  action: () => startNew("proforma"),
+                  desc: "Devis / Proforma (2 mois)",
+                },
+                {
+                  title: "Bon de Commande",
+                  icon: <ClipboardList />,
+                  action: () => startNew("commande"),
+                  desc: "Modèle + options + acompte",
+                },
+                {
+                  title: "Bon de Livraison",
+                  icon: <PackageCheck />,
+                  action: () => startNew("livraison"),
+                  desc: "Preuve de livraison",
+                },
+                {
+                  title: "Attestation",
+                  icon: <Anchor />,
+                  action: () => startNew("attestation"),
+                  desc: "Construction + garantie",
+                },
               ].map((card, i) => (
                 <div
                   key={i}
@@ -1474,10 +1645,18 @@ export default function MainApp() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button variant="secondary" onClick={() => changeView("list")} className="!py-2 !px-3 !rounded-xl">
+                  <Button
+                    variant="secondary"
+                    onClick={() => changeView("list")}
+                    className="!py-2 !px-3 !rounded-xl"
+                  >
                     <X size={16} /> Fermer
                   </Button>
-                  <Button onClick={saveInvoiceToCloud} disabled={busy} className="!py-2 !px-4 !rounded-xl">
+                  <Button
+                    onClick={saveInvoiceToCloud}
+                    disabled={busy}
+                    className="!py-2 !px-4 !rounded-xl"
+                  >
                     <Save size={16} /> {busy ? "Envoi..." : "Sauvegarder"}
                   </Button>
                   <Button
@@ -1497,7 +1676,10 @@ export default function MainApp() {
                       <Input
                         value={currentInvoice.clientName || ""}
                         onChange={(e) =>
-                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientName: e.target.value }))
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            clientName: e.target.value,
+                          }))
                         }
                         placeholder="Nom complet"
                       />
@@ -1508,7 +1690,10 @@ export default function MainApp() {
                         <Input
                           value={currentInvoice.clientPhone || ""}
                           onChange={(e) =>
-                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientPhone: e.target.value }))
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientPhone: e.target.value,
+                            }))
                           }
                           placeholder="0550..."
                         />
@@ -1518,7 +1703,10 @@ export default function MainApp() {
                         <Input
                           value={currentInvoice.clientIdNumber || ""}
                           onChange={(e) =>
-                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientIdNumber: e.target.value }))
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientIdNumber: e.target.value,
+                            }))
                           }
                           placeholder="Optionnel"
                         />
@@ -1535,7 +1723,9 @@ export default function MainApp() {
                   <select
                     className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black outline-none"
                     value={
-                      companyConfig.boatModels.find((m) => m.name === currentInvoice?.boatDetails?.model)?.id || ""
+                      companyConfig.boatModels.find(
+                        (m) => m.name === currentInvoice?.boatDetails?.model
+                      )?.id || ""
                     }
                     onChange={(e) => selectModel(e.target.value)}
                   >
@@ -1556,7 +1746,10 @@ export default function MainApp() {
                           const inv = normalizeInvoice(p);
                           return {
                             ...inv,
-                            boatDetails: { ...inv.boatDetails, serialNumber: String(e.target.value || "").toUpperCase() },
+                            boatDetails: {
+                              ...inv.boatDetails,
+                              serialNumber: String(e.target.value || "").toUpperCase(),
+                            },
                           };
                         })
                       }
@@ -1568,7 +1761,10 @@ export default function MainApp() {
                       onChange={(e) =>
                         setCurrentInvoice((p) => {
                           const inv = normalizeInvoice(p);
-                          return { ...inv, boatDetails: { ...inv.boatDetails, year: e.target.value } };
+                          return {
+                            ...inv,
+                            boatDetails: { ...inv.boatDetails, year: e.target.value },
+                          };
                         })
                       }
                       placeholder="Année"
@@ -1582,25 +1778,51 @@ export default function MainApp() {
                       onChange={(e) =>
                         setCurrentInvoice((p) => {
                           const inv = normalizeInvoice(p);
-                          return { ...inv, boatDetails: { ...inv.boatDetails, length: e.target.value } };
+                          return {
+                            ...inv,
+                            boatDetails: { ...inv.boatDetails, length: e.target.value },
+                          };
                         })
                       }
                       placeholder="Longueur"
                     />
+
+                    {/* ✅ Prix TTC saisi => HT calculé automatiquement */}
                     <input
                       className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       type="number"
-                      value={Number(currentInvoice?.items?.[0]?.price || 0)}
+                      value={(() => {
+                        const inv = normalizeInvoice(currentInvoice);
+                        const it0 = inv.items?.[0] || {};
+                        const shownTtc =
+                          it0.priceTtc !== null && it0.priceTtc !== undefined
+                            ? Number(it0.priceTtc || 0)
+                            : Number(
+                                priceTtcFromHt(it0.price || 0, inv.tvaRate, inv.applyTva) || 0
+                              );
+                        return shownTtc;
+                      })()}
                       onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
+                        const ttc = parseFloat(e.target.value) || 0;
                         setCurrentInvoice((p) => {
                           const inv = normalizeInvoice(p);
                           const ni = [...inv.items];
-                          ni[0] = { ...ni[0], price: val };
+                          const it0 =
+                            ni[0] || {
+                              id: Date.now(),
+                              description: "",
+                              quantity: 1,
+                              price: 0,
+                              priceTtc: null,
+                            };
+
+                          const ht = priceHtFromTtc(ttc, inv.tvaRate, inv.applyTva);
+
+                          ni[0] = { ...it0, priceTtc: ttc, price: ht };
                           return { ...inv, items: ni };
                         });
                       }}
-                      placeholder="Prix"
+                      placeholder="Prix TTC"
                     />
                   </div>
                 </div>
@@ -1617,7 +1839,16 @@ export default function MainApp() {
                             type="checkbox"
                             checked={!!currentInvoice.applyTva}
                             onChange={(e) =>
-                              setCurrentInvoice((p) => ({ ...normalizeInvoice(p), applyTva: e.target.checked }))
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                const nextApply = e.target.checked;
+                                const items2 = recomputeItemsHtFromTtc(
+                                  inv.items,
+                                  inv.tvaRate,
+                                  nextApply
+                                );
+                                return { ...inv, applyTva: nextApply, items: items2 };
+                              })
                             }
                           />
                           Appliquer
@@ -1629,24 +1860,40 @@ export default function MainApp() {
                         disabled={!currentInvoice.applyTva}
                         value={Number(currentInvoice.tvaRate || 0)}
                         onChange={(e) =>
-                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), tvaRate: parseFloat(e.target.value) || 0 }))
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            const nextRate = parseFloat(e.target.value) || 0;
+                            const items2 = recomputeItemsHtFromTtc(
+                              inv.items,
+                              nextRate,
+                              inv.applyTva
+                            );
+                            return { ...inv, tvaRate: nextRate, items: items2 };
+                          })
                         }
                         placeholder="TVA %"
                       />
                       <div className="mt-1 text-[10px] font-bold text-slate-500">
-                        {currentInvoice.applyTva ? `TVA: ${Number(currentInvoice.tvaRate || 0)}%` : "TVA désactivée"}
+                        {currentInvoice.applyTva
+                          ? `TVA: ${Number(currentInvoice.tvaRate || 0)}%`
+                          : "TVA désactivée"}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Paiement</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          Paiement
+                        </div>
                         <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                           <input
                             type="checkbox"
                             checked={!!currentInvoice.showPayment}
                             onChange={(e) =>
-                              setCurrentInvoice((p) => ({ ...normalizeInvoice(p), showPayment: e.target.checked }))
+                              setCurrentInvoice((p) => ({
+                                ...normalizeInvoice(p),
+                                showPayment: e.target.checked,
+                              }))
                             }
                           />
                           Afficher
@@ -1656,7 +1903,10 @@ export default function MainApp() {
                         className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
                         value={currentInvoice.paymentMethod || "virement"}
                         onChange={(e) =>
-                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), paymentMethod: e.target.value }))
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            paymentMethod: e.target.value,
+                          }))
                         }
                       >
                         <option value="cheque">Chèque</option>
@@ -1669,12 +1919,18 @@ export default function MainApp() {
                           placeholder="N° de chèque (optionnel)"
                           value={currentInvoice.clientChequeNumber || ""}
                           onChange={(e) =>
-                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientChequeNumber: e.target.value }))
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientChequeNumber: e.target.value,
+                            }))
                           }
                         />
                       )}
                       <div className="mt-1 text-[10px] font-bold text-slate-500">
-                        Mode: <span className="text-slate-900 font-black">{paymentLabel(currentInvoice.paymentMethod)}</span>
+                        Mode:{" "}
+                        <span className="text-slate-900 font-black">
+                          {paymentLabel(currentInvoice.paymentMethod)}
+                        </span>
                       </div>
                     </div>
 
@@ -1705,7 +1961,10 @@ export default function MainApp() {
                     <Input
                       value={currentInvoice.clientAddress || ""}
                       onChange={(e) =>
-                        setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientAddress: e.target.value }))
+                        setCurrentInvoice((p) => ({
+                          ...normalizeInvoice(p),
+                          clientAddress: e.target.value,
+                        }))
                       }
                       placeholder="Adresse du client"
                     />
@@ -1723,7 +1982,13 @@ export default function MainApp() {
                           onChange={(e) =>
                             setCurrentInvoice((p) => {
                               const inv = normalizeInvoice(p);
-                              return { ...inv, orderDetails: { ...inv.orderDetails, modelWanted: e.target.value } };
+                              return {
+                                ...inv,
+                                orderDetails: {
+                                  ...inv.orderDetails,
+                                  modelWanted: e.target.value,
+                                },
+                              };
                             })
                           }
                           placeholder="Ex: PNB-550"
@@ -1736,7 +2001,10 @@ export default function MainApp() {
                           onChange={(e) =>
                             setCurrentInvoice((p) => {
                               const inv = normalizeInvoice(p);
-                              return { ...inv, orderDetails: { ...inv.orderDetails, colors: e.target.value } };
+                              return {
+                                ...inv,
+                                orderDetails: { ...inv.orderDetails, colors: e.target.value },
+                              };
                             })
                           }
                           placeholder="Ex: Bleu / Blanc"
@@ -1750,7 +2018,10 @@ export default function MainApp() {
                             onChange={(e) =>
                               setCurrentInvoice((p) => {
                                 const inv = normalizeInvoice(p);
-                                return { ...inv, orderDetails: { ...inv.orderDetails, options: e.target.value } };
+                                return {
+                                  ...inv,
+                                  orderDetails: { ...inv.orderDetails, options: e.target.value },
+                                };
                               })
                             }
                             placeholder="Ex: Console, banquette..."
@@ -1765,7 +2036,13 @@ export default function MainApp() {
                             onChange={(e) =>
                               setCurrentInvoice((p) => {
                                 const inv = normalizeInvoice(p);
-                                return { ...inv, orderDetails: { ...inv.orderDetails, accessories: e.target.value } };
+                                return {
+                                  ...inv,
+                                  orderDetails: {
+                                    ...inv.orderDetails,
+                                    accessories: e.target.value,
+                                  },
+                                };
                               })
                             }
                             placeholder="Ex: Pompe, gilets..."
@@ -1785,7 +2062,10 @@ export default function MainApp() {
                             const inv = normalizeInvoice(p);
                             return {
                               ...inv,
-                              orderDetails: { ...inv.orderDetails, amountPaid: parseFloat(e.target.value) || 0 },
+                              orderDetails: {
+                                ...inv.orderDetails,
+                                amountPaid: parseFloat(e.target.value) || 0,
+                              },
                             };
                           })
                         }
@@ -1804,7 +2084,10 @@ export default function MainApp() {
                 <div
                   id="printable-area"
                   className="origin-top"
-                  style={{ transform: `scale(${previewZoom})`, transformOrigin: "top center" }}
+                  style={{
+                    transform: `scale(${previewZoom})`,
+                    transformOrigin: "top center",
+                  }}
                 >
                   {currentInvoice.type === "dossier" ? (
                     <div>
@@ -1812,10 +2095,16 @@ export default function MainApp() {
                         <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
                       </div>
                       <div className="page-break">
-                        <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
+                        <RenderDoc
+                          subType="attestation"
+                          docNumber={currentInvoice.attestationNumber}
+                        />
                       </div>
                       <div className="page-break-last">
-                        <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
+                        <RenderDoc
+                          subType="livraison"
+                          docNumber={currentInvoice.deliveryNumber}
+                        />
                       </div>
                     </div>
                   ) : (
@@ -1854,14 +2143,19 @@ export default function MainApp() {
               <table className="w-full text-left text-sm">
                 <tbody className="divide-y divide-slate-50">
                   {(filteredHistory || []).map((inv) => (
-                    <tr key={inv.db_id || inv.number} className="hover:bg-blue-50/50 transition-all group">
+                    <tr
+                      key={inv.db_id || inv.number}
+                      className="hover:bg-blue-50/50 transition-all group"
+                    >
                       <td className="p-5 md:p-7">
                         <div className="font-black text-slate-800 uppercase tracking-tight">
                           {inv.client_name || inv.clientName || "—"}
                         </div>
                         <div className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">
                           {inv.doc_number || inv.number} •{" "}
-                          {inv.created_at ? new Date(inv.created_at).toLocaleDateString("fr-FR") : ""}
+                          {inv.created_at
+                            ? new Date(inv.created_at).toLocaleDateString("fr-FR")
+                            : ""}
                         </div>
                       </td>
                       <td className="p-5 md:p-7 text-right font-black text-blue-900">
@@ -1892,7 +2186,10 @@ export default function MainApp() {
 
                   {(!filteredHistory || filteredHistory.length === 0) && (
                     <tr>
-                      <td colSpan={3} className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em]">
+                      <td
+                        colSpan={3}
+                        className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em]"
+                      >
                         Aucune donnée trouvée
                       </td>
                     </tr>
@@ -1911,18 +2208,28 @@ export default function MainApp() {
                 <Database className="text-blue-600" /> Plans & Dossiers Techniques
               </h2>
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                Ajoute des PDFs/images (FICHE/JAUGE/PLAN/APPROBATION) puis imprime “Dossier”
+                Ajoute des PDFs/images (FICHE/JAUGE/PLAN/APPROBATION) puis imprime
+                “Dossier”
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {companyConfig.boatModels.map((m) => (
-                <div key={m.id} className="bg-white rounded-[2rem] p-6 border-2 border-white shadow-sm space-y-5">
+                <div
+                  key={m.id}
+                  className="bg-white rounded-[2rem] p-6 border-2 border-white shadow-sm space-y-5"
+                >
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="font-black text-lg uppercase tracking-tight text-slate-800">{m.name}</h3>
-                      <p className="text-[9px] font-bold text-blue-500 uppercase tracking-[0.2em]">{m.type}</p>
-                      <p className="text-[10px] font-bold text-slate-400 mt-1">{m.approvalNumber}</p>
+                      <h3 className="font-black text-lg uppercase tracking-tight text-slate-800">
+                        {m.name}
+                      </h3>
+                      <p className="text-[9px] font-bold text-blue-500 uppercase tracking-[0.2em]">
+                        {m.type}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1">
+                        {m.approvalNumber}
+                      </p>
                     </div>
                     <span className="px-4 py-1.5 bg-slate-50 rounded-full text-[10px] font-black text-slate-500">
                       {m.length}
@@ -2030,46 +2337,76 @@ export default function MainApp() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                 <InputGroup label="Société">
-                  <Input value={companyConfig.name} onChange={(e) => saveConfigOnline({ ...companyConfig, name: e.target.value })} />
+                  <Input
+                    value={companyConfig.name}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, name: e.target.value })}
+                  />
                 </InputGroup>
 
                 <InputGroup label="Gérant">
-                  <Input value={companyConfig.managerName} onChange={(e) => saveConfigOnline({ ...companyConfig, managerName: e.target.value })} />
+                  <Input
+                    value={companyConfig.managerName}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, managerName: e.target.value })}
+                  />
                 </InputGroup>
 
                 <div className="md:col-span-2">
                   <InputGroup label="Adresse">
-                    <Input value={companyConfig.address} onChange={(e) => saveConfigOnline({ ...companyConfig, address: e.target.value })} />
+                    <Input
+                      value={companyConfig.address}
+                      onChange={(e) => saveConfigOnline({ ...companyConfig, address: e.target.value })}
+                    />
                   </InputGroup>
                 </div>
 
                 <InputGroup label="Email">
-                  <Input value={companyConfig.email} onChange={(e) => saveConfigOnline({ ...companyConfig, email: e.target.value })} />
+                  <Input
+                    value={companyConfig.email}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, email: e.target.value })}
+                  />
                 </InputGroup>
 
                 <InputGroup label="Téléphone">
-                  <Input value={companyConfig.phone} onChange={(e) => saveConfigOnline({ ...companyConfig, phone: e.target.value })} />
+                  <Input
+                    value={companyConfig.phone}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, phone: e.target.value })}
+                  />
                 </InputGroup>
 
                 <InputGroup label="RC">
-                  <Input value={companyConfig.rc} onChange={(e) => saveConfigOnline({ ...companyConfig, rc: e.target.value })} />
+                  <Input
+                    value={companyConfig.rc}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, rc: e.target.value })}
+                  />
                 </InputGroup>
 
                 <InputGroup label="NIF">
-                  <Input value={companyConfig.nif} onChange={(e) => saveConfigOnline({ ...companyConfig, nif: e.target.value })} />
+                  <Input
+                    value={companyConfig.nif}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nif: e.target.value })}
+                  />
                 </InputGroup>
 
                 <InputGroup label="NIS">
-                  <Input value={companyConfig.nis} onChange={(e) => saveConfigOnline({ ...companyConfig, nis: e.target.value })} />
+                  <Input
+                    value={companyConfig.nis}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nis: e.target.value })}
+                  />
                 </InputGroup>
 
                 <InputGroup label="Banque">
-                  <Input value={companyConfig.bankName} onChange={(e) => saveConfigOnline({ ...companyConfig, bankName: e.target.value })} />
+                  <Input
+                    value={companyConfig.bankName}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, bankName: e.target.value })}
+                  />
                 </InputGroup>
 
                 <div className="md:col-span-2">
                   <InputGroup label="RIB">
-                    <Input value={companyConfig.bankRib} onChange={(e) => saveConfigOnline({ ...companyConfig, bankRib: e.target.value })} />
+                    <Input
+                      value={companyConfig.bankRib}
+                      onChange={(e) => saveConfigOnline({ ...companyConfig, bankRib: e.target.value })}
+                    />
                   </InputGroup>
                 </div>
               </div>
@@ -2081,11 +2418,18 @@ export default function MainApp() {
         {view === "print_tech_view" && (
           <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-2xl p-6 md:p-10 border border-slate-100">
             <div className="flex justify-between items-center mb-8 no-print">
-              <Button variant="secondary" onClick={() => changeView("database")} className="!px-6 rounded-2xl uppercase text-[10px] tracking-widest">
+              <Button
+                variant="secondary"
+                onClick={() => changeView("database")}
+                className="!px-6 rounded-2xl uppercase text-[10px] tracking-widest"
+              >
                 <X size={16} /> Fermer
               </Button>
 
-              <Button onClick={() => setTimeout(() => window.print(), 100)} className="!px-8 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200">
+              <Button
+                onClick={() => setTimeout(() => window.print(), 100)}
+                className="!px-8 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200"
+              >
                 <Printer size={16} /> Tout Imprimer
               </Button>
             </div>
@@ -2097,7 +2441,10 @@ export default function MainApp() {
                 const pdf = isPdfLike(fileData);
 
                 return (
-                  <div key={doc} className="page-break-last flex flex-col items-center justify-center min-h-[90vh]">
+                  <div
+                    key={doc}
+                    className="page-break-last flex flex-col items-center justify-center min-h-[90vh]"
+                  >
                     {pdf ? (
                       <embed src={fileData} type="application/pdf" className="w-full h-[290mm]" />
                     ) : (
