@@ -21,6 +21,7 @@ import {
   CheckCircle,
   Percent,
   Phone,
+  Calendar, // ✅ Ajouté pour l'icône calendrier si besoin
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -148,7 +149,55 @@ const paymentLabel = (pm) => {
   return "—";
 };
 
-/* ------------------ ✅ NOUVEAU: Désignation + TVA inversée ------------------ */
+/* ------------------ ✅ NOUVEAU: TARIFS ACCESSOIRES 2026 ------------------ */
+const TARIFS_ACCESSOIRES_2026 = [
+  { name: "Crémaillère hydraulique (Max 90cv)", price: 125000 },
+  { name: "Volant (selon modèle)", price: 30000 },
+  { name: "Câble vitesse et accélérateur", price: 7500 },
+  { name: "Gaine moteur avec passe-coque", price: 4800 },
+  { name: "Gaine seule (m)", price: 3000 },
+  { name: "Soufflet", price: 1600 },
+  { name: "Support moteur protection", price: 2800 },
+  { name: "Réservoir 70 L", price: 73000 },
+  { name: "Accessoires réservoir", price: 27000 },
+  { name: "Séparateur d'eau", price: 14800 },
+  { name: "Flotteur et jauge", price: 13000 },
+  { name: "Tableau interrupteur (6 boutons + USB)", price: 12500 },
+  { name: "Boîte à fusibles", price: 7800 },
+  { name: "Coupe-courant", price: 6800 },
+  { name: "Bac batterie", price: 4800 },
+  { name: "Cosses batterie", price: 2500 },
+  { name: "Câble marin (m)", price: 450 },
+  { name: "Bouton poussoir Klaxon", price: 3500 },
+  { name: "Poste Radio", price: 43000 },
+  { name: "Baffles étanches (paire)", price: 16000 },
+  { name: "Projecteur LED", price: 15000 },
+  { name: "Feu de poupe", price: 6800 },
+  { name: "Feu de navigation", price: 5800 },
+  { name: "Lumière d'ambiance", price: 14000 },
+  { name: "Lumière Console", price: 2500 },
+  { name: "Boussole", price: 12500 },
+  { name: "Klaxon", price: 8500 },
+  { name: "Pompe de cale", price: 7500 },
+  { name: "Roll Bar Inox", price: 78000 },
+  { name: "Bimini (Taud de soleil)", price: 38000 },
+  { name: "Table (Ronde/Ovale avec support)", price: 45000 },
+  { name: "Échelle (3 marches)", price: 23500 },
+  { name: "Trappe carrée", price: 15000 },
+  { name: "Main courante Inox", price: 4800 },
+  { name: "Support téléphone", price: 2800 },
+  { name: "Gilet de sauvetage", price: 3800 },
+  { name: "Couronne avec support", price: 15000 },
+  { name: "Extincteur (1 kg)", price: 2000 },
+  { name: "Boîte à pharmacie", price: 1000 },
+  { name: "Rames (la paire)", price: 6000 },
+  { name: "Poulie Inox", price: 4500 },
+  { name: "Remorque (Châssis renforcé)", price: 200000 },
+  { name: "Montage électricité", price: 40000 },
+  { name: "Montage moteur", price: 30000 }
+];
+
+/* ------------------ Désignation + TVA inversée ------------------ */
 const designationFromModel = (modelName) => {
   const m = String(modelName || "").trim();
 
@@ -267,6 +316,7 @@ export default function MainApp() {
   const [invoiceHistory, setInvoiceHistory] = useState([]);
   const [currentInvoice, setCurrentInvoice] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [historyTab, setHistoryTab] = useState("all"); // ✅ NOUVEAU: Onglets d'archives
   const [printModelId, setPrintModelId] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -864,15 +914,18 @@ export default function MainApp() {
 
   /* ------------------ HISTORY FILTER ------------------ */
   const filteredHistory = useMemo(() => {
+    let list = invoiceHistory || [];
+    if (historyTab !== "all") {
+      list = list.filter((inv) => inv.type === historyTab);
+    }
     const q = (searchTerm || "").trim().toLowerCase();
-    const list = invoiceHistory || [];
     if (!q) return list;
     return list.filter((inv) => {
       const name = String(inv.client_name || inv.clientName || "").toLowerCase();
       const num = String(inv.doc_number || inv.number || "").toLowerCase();
       return name.includes(q) || num.includes(q);
     });
-  }, [invoiceHistory, searchTerm]);
+  }, [invoiceHistory, searchTerm, historyTab]);
 
   /* ------------------ RENDU DOCUMENT ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
@@ -1672,6 +1725,20 @@ export default function MainApp() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <div className="grid grid-cols-1 gap-2">
+                    {/* NOUVEAU: Date modifiable */}
+                    <InputGroup label="Date du document" compact>
+                      <Input
+                        type="date"
+                        value={currentInvoice.date || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            date: e.target.value,
+                          }))
+                        }
+                      />
+                    </InputGroup>
+
                     <InputGroup label="Client" compact>
                       <Input
                         value={currentInvoice.clientName || ""}
@@ -2050,6 +2117,41 @@ export default function MainApp() {
                         </InputGroup>
                       </div>
                     </div>
+
+                    {/* NOUVEAU: Liste Accessoires Cliquables */}
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
+                        Catalogue Accessoires Pneuboat 2026
+                      </div>
+                      <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-100 shadow-inner">
+                        {TARIFS_ACCESSOIRES_2026.map(acc => (
+                          <button
+                            key={acc.name}
+                            type="button"
+                            onClick={() => {
+                              setCurrentInvoice(p => {
+                                const inv = normalizeInvoice(p);
+                                return {
+                                  ...inv,
+                                  items: [
+                                    ...inv.items,
+                                    { id: Date.now() + Math.random(), description: acc.name, quantity: 1, price: acc.price, priceTtc: null }
+                                  ]
+                                };
+                              });
+                            }}
+                            className="px-2 py-1.5 bg-white border border-blue-200 rounded-lg text-[10px] font-bold text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all text-left shadow-sm"
+                          >
+                            <span className="block truncate max-w-[150px]">+ {acc.name}</span>
+                            <span className="text-blue-500 font-black block">{formatCurrency(acc.price)}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+                        Cliquez pour ajouter. Modifiez les quantités et prix dans le tableau en bas.
+                      </div>
+                    </div>
+
                   </div>
 
                   <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
@@ -2071,7 +2173,7 @@ export default function MainApp() {
                         }
                       />
                     </InputGroup>
-                    <div className="text-[10px] font-bold text-slate-500">
+                    <div className="text-[10px] font-bold text-slate-500 mt-2">
                       Total = prix (en haut) • Restant = Total - Versé
                     </div>
                   </div>
@@ -2137,6 +2239,29 @@ export default function MainApp() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+            </div>
+            
+            {/* NOUVEAU: Onglets de filtrage */}
+            <div className="bg-slate-800 px-6 md:px-8 py-3 flex flex-wrap gap-2 border-t border-slate-700">
+              {[
+                { id: "all", label: "Tout" },
+                { id: "facture", label: "Factures" },
+                { id: "proforma", label: "Proformas" },
+                { id: "commande", label: "Commandes" },
+                { id: "livraison", label: "Livraisons" },
+                { id: "attestation", label: "Attestations" },
+                { id: "dossier", label: "Dossiers" }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setHistoryTab(t.id)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    historyTab === t.id ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
             <div className="overflow-x-auto">
@@ -2460,3 +2585,4 @@ export default function MainApp() {
     </div>
   );
 }
+```</Input>
