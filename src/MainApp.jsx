@@ -22,8 +22,6 @@ import {
   Percent,
   Phone,
   Calendar,
-  QrCode,
-  Download
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -202,14 +200,17 @@ const TARIFS_ACCESSOIRES_2026 = [
 /* ------------------ Désignation + TVA inversée ------------------ */
 const designationFromModel = (modelName) => {
   const m = String(modelName || "").trim();
+
   if (/pnb\s*[- ]?\s*525/i.test(m)) {
     return "Bateau rigide open PNB-525";
   }
+
   const match = m.match(/pnb\s*[- ]?\s*(\d{3})/i);
   if (match) {
     const code = `PNB-${match[1]}`;
     return `Semi rigide ${code}`;
   }
+
   return m || "—";
 };
 
@@ -248,13 +249,13 @@ const Button = ({
   type = "button",
 }) => {
   const base =
-    "inline-flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all duration-200 text-sm focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50";
+    "inline-flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-200 text-sm shadow-sm active:scale-95 disabled:opacity-50";
   const styles = {
     primary:
-      "bg-slate-900 text-white border border-slate-900 hover:bg-slate-800 focus:ring-slate-900",
-    secondary: "bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 focus:ring-slate-200",
-    danger: "bg-red-600 text-white border border-red-600 hover:bg-red-700 focus:ring-red-500",
-    ghost: "text-slate-500 hover:text-slate-800 hover:bg-slate-100",
+      "bg-gradient-to-r from-blue-600 to-blue-800 text-white border border-blue-900",
+    secondary: "bg-white text-blue-900 border border-blue-200",
+    danger: "bg-red-500 text-white",
+    ghost: "text-slate-500 hover:bg-slate-100",
   };
   return (
     <button
@@ -269,8 +270,8 @@ const Button = ({
 };
 
 const InputGroup = ({ label, children, compact }) => (
-  <div className={`${compact ? "mb-0" : "mb-4"}`}>
-    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+  <div className={`${compact ? "mb-0" : "mb-3"}`}>
+    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">
       {label}
     </label>
     {children}
@@ -280,7 +281,7 @@ const InputGroup = ({ label, children, compact }) => (
 const Input = (props) => (
   <input
     {...props}
-    className={`w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition-all ${props.className || ""}`}
+    className={`w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all font-semibold ${props.className || ""}`}
   />
 );
 
@@ -307,11 +308,6 @@ export default function MainApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [authError, setAuthError] = useState("");
-
-  // ✅ ÉTATS POUR LE PORTAIL PUBLIC
-  const [isPublicView, setIsPublicView] = useState(false);
-  const [publicLoading, setPublicLoading] = useState(true);
-  const [publicError, setPublicError] = useState("");
 
   const [view, setView] = useState("list");
   const [invoiceHistory, setInvoiceHistory] = useState([]);
@@ -347,13 +343,55 @@ export default function MainApp() {
     logo: null,
     favicon: null,
     boatModels: [
-      { id: 1, name: "PNB-360", length: "3.60 m", approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP", type: "Semi-rigide" },
-      { id: 2, name: "PNB-420", length: "4.20 m", approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP", type: "Semi-rigide" },
-      { id: 3, name: "PNB-510", length: "5.10 m", approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP", type: "Semi-rigide" },
-      { id: 4, name: "PNB 525 OPEN", length: "5.25 m", approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP", type: "Coque Open" },
-      { id: 5, name: "PNB-550", length: "5.50 m", approvalNumber: "Numéro 1565 du 10/07/2025 délivrée par DMMP", type: "Semi-rigide" },
-      { id: 6, name: "PNB-650", length: "6.50 m", approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP", type: "Semi-rigide" },
-      { id: 7, name: "PNB-700", length: "7.00 m", approvalNumber: "Numéro 750/145 du 11/03/2019 délivrée par DMMP", type: "Semi-rigide" },
+      {
+        id: 1,
+        name: "PNB-360",
+        length: "3.60 m",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 2,
+        name: "PNB-420",
+        length: "4.20 m",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 3,
+        name: "PNB-510",
+        length: "5.10 m",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 4,
+        name: "PNB 525 OPEN",
+        length: "5.25 m",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Coque Open",
+      },
+      {
+        id: 5,
+        name: "PNB-550",
+        length: "5.50 m",
+        approvalNumber: "Numéro 1565 du 10/07/2025 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 6,
+        name: "PNB-650",
+        length: "6.50 m",
+        approvalNumber: "Numéro 689 DU 15/04/2021 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
+      {
+        id: 7,
+        name: "PNB-700",
+        length: "7.00 m",
+        approvalNumber: "Numéro 750/145 du 11/03/2019 délivrée par DMMP",
+        type: "Semi-rigide",
+      },
     ],
   });
 
@@ -392,39 +430,32 @@ export default function MainApp() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  /* ------------------ CHARGEMENT INITIAL (PORTAIL CLIENT OU ADMIN) ------------------ */
+  /* ------------------ CHARGEMENT LOCAL ------------------ */
   useEffect(() => {
-    // Vérifier si c'est un lien de partage client
-    const path = window.location.pathname;
-    
-    if (path.startsWith("/doc/")) {
-      // ✅ C'EST UN CLIENT QUI SCANNE LE QR CODE
-      setIsPublicView(true);
-      const docNum = decodeURIComponent(path.split("/doc/")[1]);
-      loadPublicDoc(docNum);
-    } else {
-      // ✅ C'EST TOI, LE GÉRANT
-      const storedAuth = localStorage.getItem("pb_is_authenticated");
-      if (storedAuth === "true") {
-        setIsAuthenticated(true);
-        setTimeout(() => loadOnlineData(), 250);
-      }
-      
-      const savedDocs = localStorage.getItem("pb_model_docs");
-      if (savedDocs) {
-        try { setModelDocs(JSON.parse(savedDocs)); } catch {}
-      }
-  
-      const savedPdf = localStorage.getItem("pb_pdf_library");
-      if (savedPdf) {
-        try { setPdfLibrary(JSON.parse(savedPdf)); } catch {}
-      }
-  
+    const storedAuth = localStorage.getItem("pb_is_authenticated");
+    if (storedAuth === "true") {
+      setIsAuthenticated(true);
+      setTimeout(() => loadOnlineData(), 250);
+    }
+
+    const savedDocs = localStorage.getItem("pb_model_docs");
+    if (savedDocs) {
       try {
-        if (window.innerWidth >= 1024) setPreviewZoom(1.18);
-        else setPreviewZoom(0.8);
+        setModelDocs(JSON.parse(savedDocs));
       } catch {}
     }
+
+    const savedPdf = localStorage.getItem("pb_pdf_library");
+    if (savedPdf) {
+      try {
+        setPdfLibrary(JSON.parse(savedPdf));
+      } catch {}
+    }
+
+    try {
+      if (window.innerWidth >= 1024) setPreviewZoom(1.18);
+      else setPreviewZoom(0.8);
+    } catch {}
   }, []);
 
   const rememberLocal = (key, value) => {
@@ -450,28 +481,7 @@ export default function MainApp() {
     } catch {}
   }, [companyConfig?.favicon]);
 
-  /* ------------------ SUPABASE (CHARGEMENT PUBLIC CLIENT) ------------------ */
-  const loadPublicDoc = async (num) => {
-    try {
-      // Charger les infos de la société pour l'en-tête du document
-      const { data: configData } = await supabase.from("app_settings").select("config").limit(1).maybeSingle();
-      if (configData?.config) setCompanyConfig((prev) => ({ ...prev, ...configData.config }));
-
-      // Chercher le document spécifique
-      const { data: invData } = await supabase.from("invoices").select("*").eq("doc_number", num).limit(1).maybeSingle();
-      
-      if (invData?.data) {
-        setCurrentInvoice(invData.data);
-      } else {
-        setPublicError("Document introuvable, supprimé ou lien expiré.");
-      }
-    } catch(e) {
-      setPublicError("Erreur de connexion au serveur.");
-    }
-    setPublicLoading(false);
-  };
-
-  /* ------------------ SUPABASE (CHARGEMENT ADMIN) ------------------ */
+  /* ------------------ SUPABASE ------------------ */
   const loadOnlineData = async () => {
     setBusy(true);
     try {
@@ -914,7 +924,7 @@ export default function MainApp() {
     });
   }, [invoiceHistory, searchTerm, historyTab]);
 
-  /* ------------------ RENDU DOCUMENT (Facture Classique Inchangée + Ajout QR Code) ------------------ */
+  /* ------------------ RENDU DOCUMENT ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
     const inv = normalizeInvoice(currentInvoice);
@@ -931,15 +941,11 @@ export default function MainApp() {
       showTotals && !!inv.showPayment && subType !== "proforma";
 
     const approvalShown = inv.boatDetails?.approvalNumber || "—";
+
     const showBoatBlockOnInvoice = subType === "facture" || subType === "proforma";
 
-    // ✅ NOUVEAU: Génération dynamique du lien QR Code
-    const baseUrl = String(companyConfig.website || "pneuboat.net").replace(/^https?:\/\//, '');
-    const qrData = encodeURIComponent(`https://${baseUrl}/doc/${docNumber}`);
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${qrData}`;
-
     return (
-      <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow border border-slate-200 text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none print:border-none">
+      <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none">
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-700 via-blue-500 to-red-600" />
         <div className="absolute -right-24 -top-24 w-64 h-64 rounded-full bg-blue-50" />
         <div className="absolute -left-24 -bottom-24 w-64 h-64 rounded-full bg-red-50" />
@@ -968,24 +974,19 @@ export default function MainApp() {
               </div>
             </div>
 
-            <div className="flex gap-4 items-start">
-              <div className="text-right">
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase border border-slate-900">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  {labelDoc(subType)}
-                </span>
-                <div className="mt-3">
-                  <div className="font-mono text-base font-black text-slate-900">
-                    {docNumber}
-                  </div>
-                  <div className="text-[10px] font-semibold text-slate-400">
-                    Le {new Date(inv.date).toLocaleDateString("fr-FR")}
-                  </div>
+            <div className="text-right">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase border border-slate-900">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                {labelDoc(subType)}
+              </span>
+
+              <div className="mt-3">
+                <div className="font-mono text-base font-black text-slate-900">
+                  {docNumber}
                 </div>
-              </div>
-              {/* ✅ NOUVEAU: Affichage du QR Code sur la facture */}
-              <div className="flex flex-col items-center justify-center p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
-                <img src={qrUrl} alt="QR Code" className="w-16 h-16 object-contain" />
+                <div className="text-[10px] font-semibold text-slate-400">
+                  Le {new Date(inv.date).toLocaleDateString("fr-FR")}
+                </div>
               </div>
             </div>
           </div>
@@ -1299,6 +1300,7 @@ export default function MainApp() {
 
                     {inv.applyTva && (
                       <div className="flex justify-between text-slate-500 font-bold">
+                        {/* ✅ NOUVEAU: Montant exact de la TVA */}
                         <span>TVA ({Number(inv.tvaRate || 0)}%)</span>
                         <span>{formatCurrency(subtotal * (Number(inv.tvaRate || 0) / 100))}</span>
                       </div>
@@ -1402,91 +1404,33 @@ export default function MainApp() {
     );
   };
 
-  /* ------------------ VUE PUBLIQUE (CLIENT) ------------------ */
-  if (isPublicView) {
-    if (publicLoading) {
-      return (
-        <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
-          <Anchor size={48} className="text-slate-300 animate-pulse mb-4" />
-          <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest">Recherche du document...</p>
-        </div>
-      );
-    }
-
-    if (publicError || !currentInvoice) {
-      return (
-        <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-xl shadow-sm text-center max-w-sm border border-slate-200">
-            <X size={48} className="text-red-400 mx-auto mb-4" />
-            <h2 className="text-lg font-bold text-slate-800 mb-2">Erreur</h2>
-            <p className="text-sm text-slate-500">{publicError}</p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="min-h-screen bg-slate-100 py-10 px-4 flex flex-col items-center font-sans">
-        <div className="w-full max-w-[210mm] flex justify-between items-center mb-6 no-print">
-          <div className="flex items-center gap-2 text-slate-500 font-semibold text-sm">
-            <Anchor size={18} /> Portail Client
-          </div>
-          <Button 
-            onClick={() => window.print()}
-            className="!bg-blue-600 !text-white !border-blue-600 hover:!bg-blue-700 shadow-md"
-          >
-            <Download size={16} /> Imprimer / Sauvegarder en PDF
-          </Button>
-        </div>
-        
-        <div className="shadow-2xl overflow-hidden rounded-md print:shadow-none print:rounded-none">
-          {currentInvoice.type === "dossier" ? (
-            <div>
-              <div className="page-break">
-                <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
-              </div>
-              <div className="page-break">
-                <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
-              </div>
-              <div className="page-break-last">
-                <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
-              </div>
-            </div>
-          ) : (
-            <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  /* ------------------ LOGIN ADMIN ------------------ */
+  /* ------------------ LOGIN ------------------ */
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 w-full max-w-sm text-center">
-          <div className="w-16 h-16 bg-slate-900 rounded-lg mx-auto flex items-center justify-center text-white mb-6">
-            <Anchor size={32} />
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm text-center">
+          <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-500/50">
+            <Anchor size={40} />
           </div>
-          <h1 className="text-xl font-bold text-slate-900 mb-1 uppercase tracking-wide">
+          <h1 className="text-2xl font-black text-slate-900 mb-2 uppercase">
             Pneuboat
           </h1>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-8">
-            Espace Gestionnaire
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">
+            Accès Gestionnaire
           </p>
 
           <input
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-md text-center text-lg font-medium mb-4 focus:border-slate-800 outline-none transition-all"
+            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center text-lg font-bold mb-4 focus:border-blue-500 outline-none transition-all"
             type="password"
             value={passwordInput}
             onChange={(e) => setPasswordInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleLogin()}
             placeholder="••••••••"
           />
-          {authError && <p className="text-red-600 text-xs font-semibold mb-4">{authError}</p>}
+          {authError && <p className="text-red-500 text-xs font-bold mb-4">{authError}</p>}
           <Button
             onClick={handleLogin}
-            className="w-full justify-center py-3 rounded-md text-sm uppercase tracking-wide"
+            className="w-full justify-center py-5 rounded-2xl text-md uppercase tracking-wider shadow-xl shadow-blue-100"
           >
             Déverrouiller
           </Button>
@@ -1495,125 +1439,125 @@ export default function MainApp() {
     );
   }
 
-  /* ------------------ APP ADMIN ------------------ */
+  /* ------------------ APP ------------------ */
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24 md:pb-0 md:pl-56">
-      {/* MENU NAVIGATION CLASSY */}
-      <nav className="fixed bottom-0 left-0 w-full md:w-56 md:h-screen bg-slate-900 text-white z-50 no-print flex md:flex-col border-r border-slate-800 shadow-xl md:shadow-none">
-        <div className="hidden md:flex flex-col items-center justify-center py-10 border-b border-slate-800">
-          <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center mb-3">
-            <Anchor className="text-slate-200" size={24} />
+    <div className="min-h-screen bg-[#F8FAFC] font-sans pb-24 md:pb-0 md:pl-64">
+      {/* MENU NAVIGATION */}
+      <nav className="fixed bottom-0 left-0 w-full md:w-64 md:h-screen bg-slate-900 text-white z-50 no-print flex md:flex-col shadow-2xl md:shadow-none">
+        <div className="hidden md:block p-8 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <Anchor className="text-blue-500" />
+            <span className="text-xl font-black uppercase">Pneuboat</span>
           </div>
-          <span className="text-sm font-bold uppercase tracking-widest text-slate-200">Pneuboat</span>
         </div>
 
         <div className="flex md:flex-col flex-1 justify-around md:justify-start p-2 md:p-4 gap-1 md:gap-2">
           {[
-            { id: "list", icon: <Plus size={18} />, label: "Nouveau" },
-            { id: "history", icon: <History size={18} />, label: "Archives" },
-            { id: "database", icon: <Database size={18} />, label: "Plans techniques" },
-            { id: "settings", icon: <Settings size={18} />, label: "Configuration" },
+            { id: "list", icon: <Plus />, label: "Nouveau" },
+            { id: "history", icon: <History />, label: "Archives" },
+            { id: "database", icon: <Database />, label: "Plans" },
+            { id: "settings", icon: <Settings />, label: "Config" },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => changeView(tab.id)}
-              className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-3 py-2 md:px-4 md:py-3 rounded-md transition-all ${
+              className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-3 py-2 md:px-4 md:py-3 rounded-xl transition-all ${
                 view === tab.id || (tab.id === "database" && view === "print_tech_view")
-                  ? "bg-slate-800 text-white font-semibold"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "text-slate-500 hover:text-white"
               }`}
             >
-              <span className="md:w-5 flex justify-center">{tab.icon}</span>
-              <span className="text-[10px] md:text-sm">{tab.label}</span>
+              <span className="md:w-5">{tab.icon}</span>
+              <span className="text-[10px] md:text-sm font-bold">{tab.label}</span>
             </button>
           ))}
 
           <button
             onClick={handleLogout}
-            className="flex flex-col md:flex-row items-center gap-1 md:gap-3 px-3 py-2 md:px-4 md:py-3 text-slate-500 hover:text-red-400 font-medium md:mt-auto transition-all"
+            className="flex flex-col md:flex-row items-center gap-1 md:gap-3 px-3 py-2 md:px-4 md:py-3 text-red-400 md:mt-auto md:border-t md:border-slate-800"
           >
-            <span className="md:w-5 flex justify-center"><LogOut size={18} /></span>
-            <span className="text-[10px] md:text-sm">Déconnexion</span>
+            <LogOut size={20} />
+            <span className="text-[10px] md:text-sm font-bold">Sortir</span>
           </button>
         </div>
       </nav>
 
-      <main className="p-4 md:p-8 max-w-6xl mx-auto">
+      <main className="p-4 md:p-10 max-w-7xl mx-auto">
         {/* LIST */}
         {view === "list" && (
           <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="bg-white border border-slate-200 rounded-lg p-6 md:p-10 shadow-sm flex justify-between items-center relative overflow-hidden">
+            <div className="bg-slate-900 rounded-[2rem] p-8 md:p-12 text-white shadow-2xl flex justify-between items-center overflow-hidden relative">
               <div className="relative z-10">
-                <h2 className="text-xl md:text-2xl font-semibold text-slate-900 mb-1 tracking-tight">
-                  Tableau de bord
+                <h2 className="text-2xl md:text-4xl font-black mb-2 uppercase tracking-tight">
+                  Espace Gestion
                 </h2>
-                <p className="text-slate-500 text-xs md:text-sm font-medium">
-                  Chantier Naval Sarl Pneuboat
+                <p className="text-blue-400 text-xs md:text-sm font-bold uppercase tracking-[0.3em]">
+                  Chantier Naval Pneuboat
                 </p>
               </div>
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100">
-                <Anchor size={28} className="text-slate-300" />
-              </div>
+              <Anchor
+                size={120}
+                className="text-slate-800 absolute -right-8 -bottom-8 md:static md:opacity-10 opacity-20"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
                 {
                   title: "Dossier Complet",
-                  icon: <FolderOpen size={20} />,
+                  icon: <FolderOpen className="text-white" />,
                   action: () => startNew("dossier"),
                   desc: "Facture + Attestation + BL",
-                  bg: "bg-slate-900 text-white border-transparent",
+                  color: "bg-blue-600",
                 },
                 {
                   title: "Facture Client",
-                  icon: <FileText size={20} />,
+                  icon: <FileText />,
                   action: () => startNew("facture"),
-                  desc: "Document de vente classique",
-                  bg: "bg-white border-slate-200 text-slate-800",
+                  desc: "Document de vente simple",
                 },
                 {
                   title: "Facture Proforma",
-                  icon: <ClipboardList size={20} />,
+                  icon: <ClipboardList />,
                   action: () => startNew("proforma"),
-                  desc: "Devis valable 2 mois",
-                  bg: "bg-white border-slate-200 text-slate-800",
+                  desc: "Devis / Proforma (2 mois)",
                 },
                 {
                   title: "Bon de Commande",
-                  icon: <ClipboardList size={20} />,
+                  icon: <ClipboardList />,
                   action: () => startNew("commande"),
-                  desc: "Acompte et détails options",
-                  bg: "bg-white border-slate-200 text-slate-800",
+                  desc: "Modèle + options + acompte",
                 },
                 {
                   title: "Bon de Livraison",
-                  icon: <PackageCheck size={20} />,
+                  icon: <PackageCheck />,
                   action: () => startNew("livraison"),
-                  desc: "Preuve de remise du bateau",
-                  bg: "bg-white border-slate-200 text-slate-800",
+                  desc: "Preuve de livraison",
                 },
                 {
                   title: "Attestation",
-                  icon: <CheckCircle size={20} />,
+                  icon: <Anchor />,
                   action: () => startNew("attestation"),
-                  desc: "Certificat de construction",
-                  bg: "bg-white border-slate-200 text-slate-800",
+                  desc: "Construction + garantie",
                 },
               ].map((card, i) => (
                 <div
                   key={i}
                   onClick={card.action}
-                  className={`p-5 rounded-lg border shadow-sm cursor-pointer hover:border-slate-400 transition-all flex items-center gap-4 ${card.bg}`}
+                  className="p-6 rounded-3xl border-2 border-white shadow-sm bg-white cursor-pointer hover:border-blue-200 transition-all flex items-center gap-5 active:scale-95"
                 >
-                  <div className={`w-10 h-10 rounded-md flex items-center justify-center ${card.bg.includes('bg-slate-900') ? 'bg-slate-800' : 'bg-slate-50 border border-slate-100 text-slate-600'}`}>
+                  <div
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${
+                      card.color || "bg-slate-50 text-blue-600"
+                    }`}
+                  >
                     {card.icon}
                   </div>
                   <div>
-                    <div className="font-semibold tracking-tight text-sm mb-0.5">
+                    <div className="font-black text-slate-800 uppercase tracking-tight leading-none mb-1 text-sm">
                       {card.title}
                     </div>
-                    <div className={`text-[10px] font-medium ${card.bg.includes('bg-slate-900') ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                       {card.desc}
                     </div>
                   </div>
@@ -1622,20 +1566,20 @@ export default function MainApp() {
             </div>
 
             {/* BIBLIOTHÈQUE PDF */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 md:p-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
-                  <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                    <FileText size={18} className="text-slate-400" /> Documents libres
+                  <h3 className="text-lg font-black uppercase tracking-tight text-slate-800 flex items-center gap-2">
+                    <FileText className="text-blue-600" /> Bibliothèque PDF (Impression)
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Ajoutez vos propres PDFs pour impression rapide
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Ajoute tes PDFs ici, puis imprime quand tu veux
                   </p>
                 </div>
 
                 <label className="cursor-pointer">
-                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm bg-white border border-slate-300 text-slate-700 shadow-sm hover:bg-slate-50">
-                    <Upload size={16} /> Importer un PDF
+                  <span className="inline-flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm bg-blue-600 text-white shadow-sm">
+                    <Upload size={18} /> Ajouter PDF
                   </span>
                   <input
                     type="file"
@@ -1646,30 +1590,30 @@ export default function MainApp() {
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1 bg-slate-50/50 rounded-lg p-2 border border-slate-200 max-h-[340px] overflow-auto">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1 bg-slate-50 rounded-2xl p-3 border border-slate-100 max-h-[340px] overflow-auto">
                   {(pdfLibrary || []).length === 0 ? (
-                    <div className="p-6 text-center text-slate-400 text-xs font-medium">
-                      Aucun document
+                    <div className="p-6 text-center text-slate-400 text-xs font-black uppercase tracking-widest">
+                      Aucun PDF ajouté
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {(pdfLibrary || []).map((p) => (
                         <div
                           key={p.id}
-                          className={`p-3 rounded-md border cursor-pointer transition-all ${
-                            pdfSelected?.id === p.id ? "bg-white border-slate-400 shadow-sm" : "bg-white/50 border-slate-200 hover:border-slate-300"
+                          className={`p-3 rounded-xl border cursor-pointer ${
+                            pdfSelected?.id === p.id ? "bg-white border-blue-200" : "bg-white/50 border-transparent"
                           }`}
                           onClick={() => setPdfSelected(p)}
                         >
-                          <div className="font-semibold text-slate-800 text-sm truncate">{p.name}</div>
-                          <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                          <div className="font-black text-slate-800 text-sm truncate">{p.name}</div>
+                          <div className="text-[10px] text-slate-400 font-bold">
                             {new Date(p.createdAt).toLocaleString("fr-FR")}
                           </div>
-                          <div className="mt-3 flex gap-2">
+                          <div className="mt-2 flex gap-2">
                             <Button
                               variant="secondary"
-                              className="!px-2 !py-1.5 !text-xs"
+                              className="!px-3 !py-2 !rounded-lg"
                               onClick={(ev) => {
                                 ev.stopPropagation();
                                 setPdfSelected(p);
@@ -1678,8 +1622,7 @@ export default function MainApp() {
                               Aperçu
                             </Button>
                             <Button
-                              variant="secondary"
-                              className="!px-2 !py-1.5 !text-xs"
+                              className="!px-3 !py-2 !rounded-lg"
                               onClick={(ev) => {
                                 ev.stopPropagation();
                                 const w = window.open();
@@ -1694,17 +1637,17 @@ export default function MainApp() {
                                 w.document.close();
                               }}
                             >
-                              <Printer size={14} />
+                              <Printer size={16} /> Imprimer
                             </Button>
                             <Button
                               variant="ghost"
-                              className="!px-2 !py-1.5 !text-xs text-red-500 hover:text-red-700"
+                              className="!px-3 !py-2 !rounded-lg text-red-500"
                               onClick={(ev) => {
                                 ev.stopPropagation();
-                                if (window.confirm("Supprimer ce document ?")) removePdf(p.id);
+                                if (window.confirm("Supprimer ce PDF ?")) removePdf(p.id);
                               }}
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={16} />
                             </Button>
                           </div>
                         </div>
@@ -1713,21 +1656,20 @@ export default function MainApp() {
                   )}
                 </div>
 
-                <div className="md:col-span-2 bg-slate-100/50 rounded-lg border border-slate-200 overflow-hidden min-h-[340px]">
+                <div className="md:col-span-2 bg-white rounded-2xl border border-slate-100 overflow-hidden min-h-[340px]">
                   {pdfSelected?.data ? (
                     <embed src={pdfSelected.data} type="application/pdf" className="w-full h-[420px]" />
                   ) : (
-                    <div className="h-full p-10 text-center text-slate-400 font-medium text-sm flex items-center justify-center">
-                      Sélectionnez un document pour visualiser
+                    <div className="h-full p-10 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center">
+                      Sélectionne un PDF pour l’aperçu
                     </div>
                   )}
                 </div>
               </div>
 
               {busy && (
-                <div className="mt-4 text-xs font-semibold text-slate-500 flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
-                  Traitement en cours...
+                <div className="mt-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Traitement...
                 </div>
               )}
             </div>
@@ -1737,74 +1679,98 @@ export default function MainApp() {
         {/* EDIT */}
         {view === "edit" && currentInvoice && (
           <div className="space-y-4 animate-in slide-in-from-right duration-300">
-            <div className="no-print bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200">
-                    <FileText size={20} />
+            <div className="no-print bg-white rounded-[1.5rem] shadow-sm border border-slate-100 p-3 md:p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+                    <FileText size={18} />
                   </div>
                   <div>
-                    <div className="font-semibold text-slate-900 text-sm">
-                      Édition de document
+                    <div className="font-black uppercase text-slate-800 text-sm tracking-tight">
+                      Édition
                     </div>
-                    <div className="text-xs text-slate-500">
-                      Remplissez les champs, l'aperçu se met à jour en bas
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      Remplis en haut • aperçu en bas
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                  <Button variant="ghost" onClick={() => changeView("list")} className="!px-3">
-                    Annuler
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => changeView("list")}
+                    className="!py-2 !px-3 !rounded-xl"
+                  >
+                    <X size={16} /> Fermer
                   </Button>
-                  <Button onClick={saveInvoiceToCloud} disabled={busy} className="!px-4">
-                    <Save size={16} /> {busy ? "Enregistrement..." : "Enregistrer"}
+                  <Button
+                    onClick={saveInvoiceToCloud}
+                    disabled={busy}
+                    className="!py-2 !px-4 !rounded-xl"
+                  >
+                    <Save size={16} /> {busy ? "Envoi..." : "Sauvegarder"}
                   </Button>
-                  <Button variant="secondary" onClick={() => setTimeout(() => window.print(), 100)} className="!px-4">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setTimeout(() => window.print(), 100)}
+                    className="!py-2 !px-4 !rounded-xl border-2 border-blue-50"
+                  >
                     <Printer size={16} /> Imprimer
                   </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                <div className="md:col-span-4 rounded-md border border-slate-200 p-4 bg-slate-50/50">
-                  <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    Informations Client
-                  </h4>
-                  <div className="space-y-3">
-                    <InputGroup label="Date" compact>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="grid grid-cols-1 gap-2">
+                    <InputGroup label="Date du document" compact>
                       <Input
                         type="date"
                         value={currentInvoice.date || ""}
                         onChange={(e) =>
-                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), date: e.target.value }))
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            date: e.target.value,
+                          }))
                         }
                       />
                     </InputGroup>
-                    <InputGroup label="Nom Complet" compact>
+
+                    <InputGroup label="Client" compact>
                       <Input
                         value={currentInvoice.clientName || ""}
                         onChange={(e) =>
-                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientName: e.target.value }))
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            clientName: e.target.value,
+                          }))
                         }
-                        placeholder="Ex: Entreprise XYZ ou Nom Prénom"
+                        placeholder="Nom complet"
                       />
                     </InputGroup>
-                    <div className="grid grid-cols-2 gap-3">
+
+                    <div className="grid grid-cols-2 gap-2">
                       <InputGroup label="Téléphone" compact>
                         <Input
                           value={currentInvoice.clientPhone || ""}
                           onChange={(e) =>
-                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientPhone: e.target.value }))
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientPhone: e.target.value,
+                            }))
                           }
-                          placeholder="05..."
+                          placeholder="0550..."
                         />
                       </InputGroup>
-                      <InputGroup label="ID / Passeport" compact>
+
+                      <InputGroup label="ID / Passport" compact>
                         <Input
                           value={currentInvoice.clientIdNumber || ""}
                           onChange={(e) =>
-                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientIdNumber: e.target.value }))
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientIdNumber: e.target.value,
+                            }))
                           }
                           placeholder="Optionnel"
                         />
@@ -1813,12 +1779,13 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                <div className="md:col-span-4 rounded-md border border-slate-900 p-4 bg-slate-900 text-white">
-                  <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Anchor size={14} /> Bateau Principal
-                  </h4>
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
+                  <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <CheckCircle size={12} /> Bateau principal
+                  </div>
+
                   <select
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm text-white focus:outline-none focus:border-slate-500 mb-3"
+                    className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black outline-none"
                     value={
                       companyConfig.boatModels.find(
                         (m) => m.name === currentInvoice?.boatDetails?.model
@@ -1826,15 +1793,17 @@ export default function MainApp() {
                     }
                     onChange={(e) => selectModel(e.target.value)}
                   >
-                    <option value="">Sélectionner un modèle...</option>
+                    <option value="">Choisir Modèle</option>
                     {companyConfig.boatModels.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
                     ))}
                   </select>
 
-                  <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="grid grid-cols-2 gap-2 mt-2">
                     <input
-                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       value={currentInvoice?.boatDetails?.serialNumber || ""}
                       onChange={(e) =>
                         setCurrentInvoice((p) => {
@@ -1848,10 +1817,10 @@ export default function MainApp() {
                           };
                         })
                       }
-                      placeholder="N° de Série"
+                      placeholder="N° Série"
                     />
                     <input
-                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       value={currentInvoice?.boatDetails?.year || ""}
                       onChange={(e) =>
                         setCurrentInvoice((p) => {
@@ -1866,9 +1835,9 @@ export default function MainApp() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2 mt-2">
                     <input
-                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       value={currentInvoice?.boatDetails?.length || ""}
                       onChange={(e) =>
                         setCurrentInvoice((p) => {
@@ -1881,23 +1850,38 @@ export default function MainApp() {
                       }
                       placeholder="Longueur"
                     />
+
+                    {/* Prix TTC du premier article (le bateau) */}
                     <input
-                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500"
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       type="number"
                       value={(() => {
                         const inv = normalizeInvoice(currentInvoice);
                         const it0 = inv.items?.[0] || {};
-                        return it0.priceTtc !== null && it0.priceTtc !== undefined
-                          ? Number(it0.priceTtc || 0)
-                          : Number(priceTtcFromHt(it0.price || 0, inv.tvaRate, inv.applyTva) || 0);
+                        const shownTtc =
+                          it0.priceTtc !== null && it0.priceTtc !== undefined
+                            ? Number(it0.priceTtc || 0)
+                            : Number(
+                                priceTtcFromHt(it0.price || 0, inv.tvaRate, inv.applyTva) || 0
+                              );
+                        return shownTtc;
                       })()}
                       onChange={(e) => {
                         const ttc = parseFloat(e.target.value) || 0;
                         setCurrentInvoice((p) => {
                           const inv = normalizeInvoice(p);
                           const ni = [...inv.items];
-                          const it0 = ni[0] || { id: Date.now(), description: "", quantity: 1, price: 0, priceTtc: null };
+                          const it0 =
+                            ni[0] || {
+                              id: Date.now(),
+                              description: "",
+                              quantity: 1,
+                              price: 0,
+                              priceTtc: null,
+                            };
+
                           const ht = priceHtFromTtc(ttc, inv.tvaRate, inv.applyTva);
+
                           ni[0] = { ...it0, priceTtc: ttc, price: ht };
                           return { ...inv, items: ni };
                         });
@@ -1907,140 +1891,182 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                <div className="md:col-span-4 rounded-md border border-slate-200 p-4 bg-white">
-                   <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    Paramètres financiers
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                        <input
-                          type="checkbox"
-                          className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                          checked={!!currentInvoice.applyTva}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => {
-                              const inv = normalizeInvoice(p);
-                              const nextApply = e.target.checked;
-                              const items2 = recomputeItemsHtFromTtc(inv.items, inv.tvaRate, nextApply);
-                              return { ...inv, applyTva: nextApply, items: items2 };
-                            })
-                          }
-                        />
-                        Appliquer TVA
-                      </label>
-                      {currentInvoice.applyTva && (
-                        <div className="w-24">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={Number(currentInvoice.tvaRate || 0)}
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-white p-3">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                          <Percent size={14} /> TVA
+                        </div>
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={!!currentInvoice.applyTva}
                             onChange={(e) =>
                               setCurrentInvoice((p) => {
                                 const inv = normalizeInvoice(p);
-                                const nextRate = parseFloat(e.target.value) || 0;
-                                const items2 = recomputeItemsHtFromTtc(inv.items, nextRate, inv.applyTva);
-                                return { ...inv, tvaRate: nextRate, items: items2 };
+                                const nextApply = e.target.checked;
+                                const items2 = recomputeItemsHtFromTtc(
+                                  inv.items,
+                                  inv.tvaRate,
+                                  nextApply
+                                );
+                                return { ...inv, applyTva: nextApply, items: items2 };
                               })
                             }
-                            placeholder="%"
-                            className="!py-1"
                           />
-                        </div>
-                      )}
+                          Appliquer
+                        </label>
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        disabled={!currentInvoice.applyTva}
+                        value={Number(currentInvoice.tvaRate || 0)}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            const nextRate = parseFloat(e.target.value) || 0;
+                            const items2 = recomputeItemsHtFromTtc(
+                              inv.items,
+                              nextRate,
+                              inv.applyTva
+                            );
+                            return { ...inv, tvaRate: nextRate, items: items2 };
+                          })
+                        }
+                        placeholder="TVA %"
+                      />
+                      <div className="mt-1 text-[10px] font-bold text-slate-500">
+                        {currentInvoice.applyTva
+                          ? `TVA: ${Number(currentInvoice.tvaRate || 0)}%`
+                          : "TVA désactivée"}
+                      </div>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                        <input
-                          type="checkbox"
-                          className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                          checked={!!currentInvoice.showPayment}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), showPayment: e.target.checked }))
-                          }
-                        />
-                        Zone de Paiement
-                      </label>
-                    </div>
-                    {currentInvoice.showPayment && (
-                      <div className="space-y-2">
-                        <select
-                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:border-slate-800"
-                          value={currentInvoice.paymentMethod || "virement"}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => ({ ...normalizeInvoice(p), paymentMethod: e.target.value }))
-                          }
-                        >
-                          <option value="cheque">Chèque</option>
-                          <option value="virement">Virement bancaire</option>
-                          <option value="espece">Espèces</option>
-                        </select>
-                        {currentInvoice.paymentMethod === "cheque" && (
-                          <Input
-                            placeholder="Numéro de chèque"
-                            value={currentInvoice.clientChequeNumber || ""}
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          Paiement
+                        </div>
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={!!currentInvoice.showPayment}
                             onChange={(e) =>
-                              setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientChequeNumber: e.target.value }))
+                              setCurrentInvoice((p) => ({
+                                ...normalizeInvoice(p),
+                                showPayment: e.target.checked,
+                              }))
                             }
                           />
-                        )}
+                          Afficher
+                        </label>
                       </div>
-                    )}
-                    
-                    <div className="pt-3 border-t border-slate-100">
-                      <div className="text-xs text-slate-500 mb-1 font-medium">Zoom Aperçu ({Math.round(previewZoom * 100)}%)</div>
+                      <select
+                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
+                        value={currentInvoice.paymentMethod || "virement"}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            paymentMethod: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="cheque">Chèque</option>
+                        <option value="virement">Virement bancaire</option>
+                        <option value="espece">Espèce</option>
+                      </select>
+                      {currentInvoice.paymentMethod === "cheque" && (
+                        <input
+                          className="w-full mt-2 px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
+                          placeholder="N° de chèque (optionnel)"
+                          value={currentInvoice.clientChequeNumber || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientChequeNumber: e.target.value,
+                            }))
+                          }
+                        />
+                      )}
+                      <div className="mt-1 text-[10px] font-bold text-slate-500">
+                        Mode:{" "}
+                        <span className="text-slate-900 font-black">
+                          {paymentLabel(currentInvoice.paymentMethod)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-100 bg-white p-3">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                        Zoom aperçu
+                      </div>
                       <input
                         type="range"
-                        min="0.6"
-                        max="1.5"
-                        step="0.05"
+                        min="0.7"
+                        max="1.35"
+                        step="0.01"
                         value={previewZoom}
                         onChange={(e) => setPreviewZoom(parseFloat(e.target.value))}
-                        className="w-full accent-slate-900"
+                        className="w-full"
                       />
+                      <div className="text-[10px] font-bold text-slate-500 mt-1">
+                        {Math.round(previewZoom * 100)}%
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4">
-                <InputGroup label="Adresse complète" compact>
-                  <Input
-                    value={currentInvoice.clientAddress || ""}
-                    onChange={(e) =>
-                      setCurrentInvoice((p) => ({ ...normalizeInvoice(p), clientAddress: e.target.value }))
-                    }
-                  />
-                </InputGroup>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div className="md:col-span-12">
+                  <InputGroup label="Adresse" compact>
+                    <Input
+                      value={currentInvoice.clientAddress || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => ({
+                          ...normalizeInvoice(p),
+                          clientAddress: e.target.value,
+                        }))
+                      }
+                      placeholder="Adresse du client"
+                    />
+                  </InputGroup>
+                </div>
               </div>
 
-              {/* LIGNES MANUELLES & CATALOGUE */}
-              <div className="mt-6 border-t border-slate-200 pt-5">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-sm font-semibold text-slate-900">
-                    Lignes de facturation
-                  </h4>
+              {/* ✅ NOUVEAU: GESTION GLOBALE DES ARTICLES (Moteur, Montage, Accessoires...) */}
+              <div className="md:col-span-12 rounded-2xl border border-slate-100 bg-white p-4 mt-3 no-print">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="text-[12px] font-black uppercase tracking-widest text-slate-800">
+                    Lignes du document (Bateau, Moteur, Prestations...)
+                  </div>
                   <Button
-                    variant="secondary"
                     onClick={() => {
                       setCurrentInvoice((p) => {
                         const inv = normalizeInvoice(p);
                         return {
                           ...inv,
-                          items: [...inv.items, { id: Date.now(), description: "", quantity: 1, price: 0, priceTtc: 0 }],
+                          items: [
+                            ...inv.items,
+                            { id: Date.now(), description: "", quantity: 1, price: 0, priceTtc: 0 },
+                          ],
                         };
                       });
                     }}
-                    className="!py-1.5 !px-3 !text-xs"
+                    className="!py-2 !px-3 !rounded-xl !text-xs"
                   >
-                    <Plus size={14} /> Ligne libre
+                    <Plus size={14} /> Ajouter une ligne manuelle
                   </Button>
                 </div>
 
-                <div className="space-y-2 mb-4">
+                <div className="space-y-2">
                   {currentInvoice.items.map((it, i) => (
-                    <div key={it.id || i} className="flex flex-col md:flex-row items-center gap-2 bg-slate-50 p-2 rounded-md border border-slate-200">
+                    <div
+                      key={it.id || i}
+                      className="flex flex-col md:flex-row items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100"
+                    >
                       <div className="w-full md:flex-1">
                         <Input
                           value={it.description}
@@ -2052,10 +2078,11 @@ export default function MainApp() {
                               return { ...inv, items: ni };
                             });
                           }}
-                          placeholder="Désignation"
+                          placeholder="Désignation (Bateau, Moteur...)"
+                          className="!py-2 !text-sm"
                         />
                       </div>
-                      <div className="flex gap-2 w-full md:w-auto items-center">
+                      <div className="flex gap-2 w-full md:w-auto">
                         <div className="w-20">
                           <Input
                             type="number"
@@ -2070,10 +2097,10 @@ export default function MainApp() {
                               });
                             }}
                             placeholder="Qté"
-                            className="text-center"
+                            className="!py-2 !text-center !text-sm"
                           />
                         </div>
-                        <div className="w-32">
+                        <div className="w-32 relative">
                           <Input
                             type="number"
                             step="0.01"
@@ -2092,33 +2119,37 @@ export default function MainApp() {
                                 return { ...inv, items: ni };
                               });
                             }}
-                            placeholder="TTC"
-                            className="text-right"
+                            placeholder="Prix TTC"
+                            className="!py-2 !text-right !text-sm"
                           />
+                          <div className="absolute -top-2 right-2 bg-white px-1 text-[8px] font-bold text-slate-400">
+                            TTC
+                          </div>
                         </div>
-                        <span className="text-xs font-semibold text-slate-400">DA TTC</span>
                         <button
                           onClick={() => {
-                            if (i === 0 && currentInvoice.items.length === 1) return alert("Ligne principale requise.");
+                            if (i === 0 && currentInvoice.items.length === 1)
+                              return alert("Impossible de supprimer la ligne principale.");
                             setCurrentInvoice((p) => {
                               const inv = normalizeInvoice(p);
                               return { ...inv, items: inv.items.filter((_, idx) => idx !== i) };
                             });
                           }}
-                          className="p-2 text-slate-400 hover:text-red-600 ml-1"
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-md p-3">
-                  <div className="text-xs font-semibold text-slate-600 uppercase tracking-widest mb-2">
-                    Catalogue Accessoires & Prestations
+                {/* ✅ NOUVEAU: Catalogue intégré pour tous les documents */}
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
+                    + Ajout rapide : Catalogue Accessoires Pneuboat 2026
                   </div>
-                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-2">
+                  <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-blue-50/50 rounded-xl border border-blue-100 shadow-inner">
                     {TARIFS_ACCESSOIRES_2026.map((acc) => (
                       <button
                         key={acc.name}
@@ -2132,15 +2163,23 @@ export default function MainApp() {
                               ...inv,
                               items: [
                                 ...inv.items,
-                                { id: Date.now() + Math.random(), description: acc.name, quantity: 1, price: ht, priceTtc: ttc },
+                                {
+                                  id: Date.now() + Math.random(),
+                                  description: acc.name,
+                                  quantity: 1,
+                                  price: ht,
+                                  priceTtc: ttc,
+                                },
                               ],
                             };
                           });
                         }}
-                        className="px-2.5 py-1 bg-white border border-slate-200 rounded text-xs font-medium text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all flex items-center justify-between gap-3 shadow-sm"
+                        className="px-2 py-1.5 bg-white border border-blue-200 rounded-lg text-[10px] font-bold text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all text-left shadow-sm"
                       >
-                        <span className="truncate max-w-[160px]">{acc.name}</span>
-                        <span className="opacity-70">{formatCurrency(acc.price)}</span>
+                        <span className="block truncate max-w-[150px]">+ {acc.name}</span>
+                        <span className="text-blue-500 font-black block">
+                          {formatCurrency(acc.price)}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -2148,60 +2187,117 @@ export default function MainApp() {
               </div>
 
               {currentInvoice.type === "commande" && (
-                <div className="mt-5 pt-5 border-t border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-5 no-print">
-                  <div className="md:col-span-8 space-y-4">
-                    <h4 className="text-sm font-semibold text-slate-900">Spécifications Commande</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
+                  <div className="md:col-span-8 rounded-2xl border border-slate-100 bg-white p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       <InputGroup label="Modèle voulu" compact>
                         <Input
                           value={currentInvoice.orderDetails?.modelWanted || ""}
-                          onChange={(e) => setCurrentInvoice((p) => ({ ...normalizeInvoice(p), orderDetails: { ...normalizeInvoice(p).orderDetails, modelWanted: e.target.value } }))}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return {
+                                ...inv,
+                                orderDetails: {
+                                  ...inv.orderDetails,
+                                  modelWanted: e.target.value,
+                                },
+                              };
+                            })
+                          }
+                          placeholder="Ex: PNB-550"
                         />
                       </InputGroup>
+
                       <InputGroup label="Couleurs" compact>
                         <Input
                           value={currentInvoice.orderDetails?.colors || ""}
-                          onChange={(e) => setCurrentInvoice((p) => ({ ...normalizeInvoice(p), orderDetails: { ...normalizeInvoice(p).orderDetails, colors: e.target.value } }))}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return {
+                                ...inv,
+                                orderDetails: { ...inv.orderDetails, colors: e.target.value },
+                              };
+                            })
+                          }
+                          placeholder="Ex: Bleu / Blanc"
                         />
                       </InputGroup>
+
                       <div className="md:col-span-2">
                         <InputGroup label="Options" compact>
                           <Input
                             value={currentInvoice.orderDetails?.options || ""}
-                            onChange={(e) => setCurrentInvoice((p) => ({ ...normalizeInvoice(p), orderDetails: { ...normalizeInvoice(p).orderDetails, options: e.target.value } }))}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                return {
+                                  ...inv,
+                                  orderDetails: { ...inv.orderDetails, options: e.target.value },
+                                };
+                              })
+                            }
+                            placeholder="Ex: Console, banquette..."
                           />
                         </InputGroup>
                       </div>
+
                       <div className="md:col-span-2">
-                        <InputGroup label="Notes (Accessoires)" compact>
+                        <InputGroup label="Accessoires textuels" compact>
                           <Input
                             value={currentInvoice.orderDetails?.accessories || ""}
-                            onChange={(e) => setCurrentInvoice((p) => ({ ...normalizeInvoice(p), orderDetails: { ...normalizeInvoice(p).orderDetails, accessories: e.target.value } }))}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                return {
+                                  ...inv,
+                                  orderDetails: {
+                                    ...inv.orderDetails,
+                                    accessories: e.target.value,
+                                  },
+                                };
+                              })
+                            }
+                            placeholder="Note supplémentaire"
                           />
                         </InputGroup>
                       </div>
                     </div>
                   </div>
-                  <div className="md:col-span-4 bg-slate-50 p-4 rounded-md border border-slate-200">
-                    <h4 className="text-sm font-semibold text-slate-900 mb-4">Acompte</h4>
-                    <InputGroup label="Montant versé (DA)" compact>
+
+                  <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                    <InputGroup label="Total versé (DA)" compact>
                       <Input
                         type="number"
                         value={Number(currentInvoice.orderDetails?.amountPaid || 0)}
-                        onChange={(e) => setCurrentInvoice((p) => ({ ...normalizeInvoice(p), orderDetails: { ...normalizeInvoice(p).orderDetails, amountPaid: parseFloat(e.target.value) || 0 } }))}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            return {
+                              ...inv,
+                              orderDetails: {
+                                ...inv.orderDetails,
+                                amountPaid: parseFloat(e.target.value) || 0,
+                              },
+                            };
+                          })
+                        }
                       />
                     </InputGroup>
+                    <div className="text-[10px] font-bold text-slate-500 mt-2">
+                      Total = prix des lignes • Restant = Total - Versé
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* PREVIEW CONTAINER (Design d'impression inchangé) */}
-            <div className="bg-slate-200 rounded-lg p-2 md:p-6 overflow-auto h-[82vh] md:h-[calc(100vh-14rem)] shadow-inner border border-slate-300">
-              <div className="min-w-[980px] flex justify-center pb-12">
+            <div className="bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[82vh] md:h-[calc(100vh-18rem)] shadow-inner border-4 border-white">
+              <div className="min-w-[980px] flex justify-center">
                 <div
                   id="printable-area"
-                  className="origin-top shadow-xl"
+                  className="origin-top"
                   style={{
                     transform: `scale(${previewZoom})`,
                     transformOrigin: "top center",
@@ -2213,10 +2309,16 @@ export default function MainApp() {
                         <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
                       </div>
                       <div className="page-break">
-                        <RenderDoc subType="attestation" docNumber={currentInvoice.attestationNumber} />
+                        <RenderDoc
+                          subType="attestation"
+                          docNumber={currentInvoice.attestationNumber}
+                        />
                       </div>
                       <div className="page-break-last">
-                        <RenderDoc subType="livraison" docNumber={currentInvoice.deliveryNumber} />
+                        <RenderDoc
+                          subType="livraison"
+                          docNumber={currentInvoice.deliveryNumber}
+                        />
                       </div>
                     </div>
                   ) : (
@@ -2230,28 +2332,28 @@ export default function MainApp() {
 
         {/* HISTORY */}
         {view === "history" && (
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300">
-            <div className="p-6 md:p-8 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
+            <div className="p-6 md:p-8 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                  <History size={20} className="text-slate-500" /> Historique des documents
+                <h2 className="text-xl font-black uppercase flex items-center gap-3 tracking-tighter">
+                  <Cloud className="text-blue-500" /> Archives Cloud
                 </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Synchronisé avec votre base de données en ligne
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+                  Base de données en temps réel
                 </p>
               </div>
-              <div className="relative md:w-72">
-                <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+              <div className="relative md:w-80">
+                <Search className="absolute left-4 top-3.5 text-slate-500" size={18} />
                 <input
-                  className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-md text-sm focus:border-slate-800 focus:ring-1 focus:ring-slate-800 outline-none transition-all"
-                  placeholder="Rechercher (Nom, N°)..."
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800 border-none rounded-2xl text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  placeholder="Nom ou N° de doc..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>
             
-            <div className="bg-white px-6 py-3 flex flex-wrap gap-2 border-b border-slate-100">
+            <div className="bg-slate-800 px-6 md:px-8 py-3 flex flex-wrap gap-2 border-t border-slate-700">
               {[
                 { id: "all", label: "Tout" },
                 { id: "facture", label: "Factures" },
@@ -2264,8 +2366,8 @@ export default function MainApp() {
                 <button
                   key={t.id}
                   onClick={() => setHistoryTab(t.id)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                    historyTab === t.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    historyTab === t.id ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-700'
                   }`}
                 >
                   {t.label}
@@ -2275,29 +2377,27 @@ export default function MainApp() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4">Client & Référence</th>
-                    <th className="px-6 py-4 text-right">Montant</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {(filteredHistory || []).map((inv) => (
-                    <tr key={inv.db_id || inv.number} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-slate-900">
+                    <tr
+                      key={inv.db_id || inv.number}
+                      className="hover:bg-blue-50/50 transition-all group"
+                    >
+                      <td className="p-5 md:p-7">
+                        <div className="font-black text-slate-800 uppercase tracking-tight">
                           {inv.client_name || inv.clientName || "—"}
                         </div>
-                        <div className="text-xs text-slate-500 mt-1">
+                        <div className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">
                           {inv.doc_number || inv.number} •{" "}
-                          {inv.created_at ? new Date(inv.created_at).toLocaleDateString("fr-FR") : ""}
+                          {inv.created_at
+                            ? new Date(inv.created_at).toLocaleDateString("fr-FR")
+                            : ""}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right font-medium text-slate-800">
+                      <td className="p-5 md:p-7 text-right font-black text-blue-900">
                         {formatCurrency(inv.total)}
                       </td>
-                      <td className="px-6 py-4 text-right space-x-2">
+                      <td className="p-5 md:p-7 text-right space-x-2 whitespace-nowrap">
                         <Button
                           variant="secondary"
                           onClick={() => {
@@ -2305,24 +2405,28 @@ export default function MainApp() {
                             setCurrentInvoice(inv2);
                             changeView("edit");
                           }}
-                          className="!px-3 !py-1.5 !text-xs"
+                          className="!p-3 border-2"
                         >
-                          Ouvrir
+                          <FileText size={16} />
                         </Button>
                         <Button
                           variant="ghost"
                           onClick={() => deleteInvoice(inv)}
-                          className="!px-2 !py-1.5 text-slate-400 hover:text-red-600"
+                          className="!p-3 text-red-300 hover:text-red-600 hover:bg-red-50"
                         >
                           <Trash2 size={16} />
                         </Button>
                       </td>
                     </tr>
                   ))}
+
                   {(!filteredHistory || filteredHistory.length === 0) && (
                     <tr>
-                      <td colSpan={3} className="p-12 text-center text-slate-400 font-medium text-sm">
-                        Aucun document trouvé.
+                      <td
+                        colSpan={3}
+                        className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em]"
+                      >
+                        Aucune donnée trouvée
                       </td>
                     </tr>
                   )}
@@ -2335,38 +2439,49 @@ export default function MainApp() {
         {/* DATABASE / PLANS */}
         {view === "database" && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 md:p-8">
-              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <Database size={20} className="text-slate-500" /> Plans & Dossiers Techniques
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
+              <h2 className="text-xl font-black uppercase tracking-tight text-slate-800 flex items-center gap-3">
+                <Database className="text-blue-600" /> Plans & Dossiers Techniques
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Gérez les fiches, jauges, plans et approbations pour impression rapide.
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                Ajoute des PDFs/images (FICHE/JAUGE/PLAN/APPROBATION) puis imprime
+                “Dossier”
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {companyConfig.boatModels.map((m) => (
-                <div key={m.id} className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm">
-                  <div className="flex justify-between items-start mb-4">
+                <div
+                  key={m.id}
+                  className="bg-white rounded-[2rem] p-6 border-2 border-white shadow-sm space-y-5"
+                >
+                  <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="font-semibold text-slate-900">{m.name}</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">{m.approvalNumber}</p>
+                      <h3 className="font-black text-lg uppercase tracking-tight text-slate-800">
+                        {m.name}
+                      </h3>
+                      <p className="text-[9px] font-bold text-blue-500 uppercase tracking-[0.2em]">
+                        {m.type}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1">
+                        {m.approvalNumber}
+                      </p>
                     </div>
-                    <span className="px-2 py-1 bg-slate-100 rounded text-xs font-medium text-slate-600 border border-slate-200">
+                    <span className="px-4 py-1.5 bg-slate-50 rounded-full text-[10px] font-black text-slate-500">
                       {m.length}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="grid grid-cols-2 gap-2">
                     {["fiche", "jauge", "plan", "approbation"].map((doc) => {
                       const exists = !!modelDocs?.[m.id]?.[doc];
                       return (
                         <div key={doc} className="relative">
                           <label
-                            className={`cursor-pointer rounded-md p-3 text-xs font-semibold flex items-center justify-center gap-2 border transition-all ${
+                            className={`cursor-pointer rounded-2xl p-4 text-[9px] font-black flex items-center justify-center gap-3 border-2 transition-all ${
                               exists
-                                ? "bg-slate-50 border-slate-400 text-slate-800"
-                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                                ? "bg-green-50 border-green-200 text-green-700"
+                                : "bg-slate-50 border-slate-50 text-slate-400 hover:border-blue-200 hover:bg-white"
                             }`}
                           >
                             <Upload size={14} /> {doc.toUpperCase()}
@@ -2377,30 +2492,34 @@ export default function MainApp() {
                               onChange={(e) => handleDocUpload(e, m.id, doc)}
                             />
                           </label>
+
                           {exists && (
                             <button
-                              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-slate-300 text-slate-400 hover:text-red-500 hover:border-red-300 flex items-center justify-center shadow-sm"
+                              className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 flex items-center justify-center shadow"
                               onClick={() => {
-                                if (window.confirm(`Supprimer ${doc.toUpperCase()} ?`)) handleRemoveModelDoc(m.id, doc);
+                                if (window.confirm(`Supprimer ${doc.toUpperCase()} ?`)) {
+                                  handleRemoveModelDoc(m.id, doc);
+                                }
                               }}
+                              title="Supprimer"
                             >
-                              <Trash2 size={10} />
+                              <Trash2 size={14} />
                             </button>
                           )}
                         </div>
                       );
                     })}
                   </div>
+
                   <Button
-                    variant="primary"
                     onClick={() => {
                       if (!modelDocs[m.id]) return alert("Aucun document pour ce modèle.");
                       setPrintModelId(m.id);
                       changeView("print_tech_view");
                     }}
-                    className="w-full justify-center"
+                    className="w-full justify-center py-4 rounded-2xl uppercase tracking-widest text-xs"
                   >
-                    Imprimer le dossier technique
+                    Imprimer Dossier
                   </Button>
                 </div>
               ))}
@@ -2411,71 +2530,119 @@ export default function MainApp() {
         {/* SETTINGS */}
         {view === "settings" && (
           <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom duration-400">
-            <div className="bg-white rounded-lg p-6 md:p-8 shadow-sm border border-slate-200">
-              <h2 className="text-lg font-semibold mb-6 flex items-center gap-2 text-slate-900 border-b border-slate-100 pb-4">
-                <Settings size={20} className="text-slate-500" /> Configuration Générale
+            <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-sm border border-slate-100">
+              <h2 className="text-2xl font-black mb-10 flex items-center gap-4 uppercase tracking-tight">
+                <Settings className="text-blue-600" size={28} /> Configuration
               </h2>
 
-              <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-slate-50 rounded-lg border border-slate-100 mb-8">
-                <div className="w-20 h-20 bg-white rounded-md border border-slate-200 shadow-sm flex items-center justify-center overflow-hidden">
+              <div className="flex flex-col md:flex-row items-center gap-8 p-8 bg-slate-50 rounded-[2rem] mb-10">
+                <div className="w-24 h-24 bg-white rounded-[1.5rem] border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
                   {companyConfig.logo ? (
-                    <img src={companyConfig.logo} alt="Logo" className="object-contain w-full h-full p-2" />
+                    <img src={companyConfig.logo} alt="Logo" className="object-contain w-full h-full" />
                   ) : (
-                    <Anchor size={24} className="text-slate-300" />
+                    <Anchor size={32} className="text-slate-200" />
                   )}
                 </div>
-                <div className="flex-1 space-y-3 text-center md:text-left">
-                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
-                    <label className="cursor-pointer bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 transition-colors">
-                      Mettre à jour le logo
-                      <input type="file" onChange={handleLogoUpload} className="hidden" accept="image/*" />
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded border border-slate-200 bg-white flex items-center justify-center overflow-hidden">
-                        {companyConfig.favicon ? <img src={companyConfig.favicon} alt="ico" /> : <span className="text-[8px] text-slate-400">ICO</span>}
-                      </div>
-                      <label className="cursor-pointer bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors">
-                        Favicon
-                        <input type="file" onChange={handleFaviconUpload} className="hidden" accept="image/*" />
-                      </label>
+
+                <div className="text-center md:text-left space-y-3">
+                  <label className="cursor-pointer bg-blue-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black shadow-xl shadow-blue-200 uppercase tracking-widest inline-block">
+                    Changer le logo
+                    <input type="file" onChange={handleLogoUpload} className="hidden" accept="image/*" />
+                  </label>
+
+                  <div className="flex items-center gap-3 justify-center md:justify-start">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+                      {companyConfig.favicon ? (
+                        <img src={companyConfig.favicon} alt="favicon" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-[10px] font-black text-slate-400">ICO</span>
+                      )}
                     </div>
+
+                    <label className="cursor-pointer bg-slate-900 text-white px-5 py-3 rounded-2xl text-[10px] font-black shadow uppercase tracking-widest inline-block">
+                      Ajouter Favicon
+                      <input type="file" onChange={handleFaviconUpload} className="hidden" accept="image/*" />
+                    </label>
                   </div>
+
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                    PNG recommandé (32x32 ou 64x64)
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                 <InputGroup label="Société">
-                  <Input value={companyConfig.name} onChange={(e) => saveConfigOnline({ ...companyConfig, name: e.target.value })} />
+                  <Input
+                    value={companyConfig.name}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, name: e.target.value })}
+                  />
                 </InputGroup>
+
                 <InputGroup label="Gérant">
-                  <Input value={companyConfig.managerName} onChange={(e) => saveConfigOnline({ ...companyConfig, managerName: e.target.value })} />
+                  <Input
+                    value={companyConfig.managerName}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, managerName: e.target.value })}
+                  />
                 </InputGroup>
+
                 <div className="md:col-span-2">
                   <InputGroup label="Adresse">
-                    <Input value={companyConfig.address} onChange={(e) => saveConfigOnline({ ...companyConfig, address: e.target.value })} />
+                    <Input
+                      value={companyConfig.address}
+                      onChange={(e) => saveConfigOnline({ ...companyConfig, address: e.target.value })}
+                    />
                   </InputGroup>
                 </div>
+
                 <InputGroup label="Email">
-                  <Input value={companyConfig.email} onChange={(e) => saveConfigOnline({ ...companyConfig, email: e.target.value })} />
+                  <Input
+                    value={companyConfig.email}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, email: e.target.value })}
+                  />
                 </InputGroup>
+
                 <InputGroup label="Téléphone">
-                  <Input value={companyConfig.phone} onChange={(e) => saveConfigOnline({ ...companyConfig, phone: e.target.value })} />
+                  <Input
+                    value={companyConfig.phone}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, phone: e.target.value })}
+                  />
                 </InputGroup>
+
                 <InputGroup label="RC">
-                  <Input value={companyConfig.rc} onChange={(e) => saveConfigOnline({ ...companyConfig, rc: e.target.value })} />
+                  <Input
+                    value={companyConfig.rc}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, rc: e.target.value })}
+                  />
                 </InputGroup>
+
                 <InputGroup label="NIF">
-                  <Input value={companyConfig.nif} onChange={(e) => saveConfigOnline({ ...companyConfig, nif: e.target.value })} />
+                  <Input
+                    value={companyConfig.nif}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nif: e.target.value })}
+                  />
                 </InputGroup>
+
                 <InputGroup label="NIS">
-                  <Input value={companyConfig.nis} onChange={(e) => saveConfigOnline({ ...companyConfig, nis: e.target.value })} />
+                  <Input
+                    value={companyConfig.nis}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nis: e.target.value })}
+                  />
                 </InputGroup>
+
                 <InputGroup label="Banque">
-                  <Input value={companyConfig.bankName} onChange={(e) => saveConfigOnline({ ...companyConfig, bankName: e.target.value })} />
+                  <Input
+                    value={companyConfig.bankName}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, bankName: e.target.value })}
+                  />
                 </InputGroup>
+
                 <div className="md:col-span-2">
                   <InputGroup label="RIB">
-                    <Input value={companyConfig.bankRib} onChange={(e) => saveConfigOnline({ ...companyConfig, bankRib: e.target.value })} />
+                    <Input
+                      value={companyConfig.bankRib}
+                      onChange={(e) => saveConfigOnline({ ...companyConfig, bankRib: e.target.value })}
+                    />
                   </InputGroup>
                 </div>
               </div>
@@ -2485,22 +2652,35 @@ export default function MainApp() {
 
         {/* PRINT TECH VIEW */}
         {view === "print_tech_view" && (
-          <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-6 md:p-8 border border-slate-200">
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 no-print">
-              <Button variant="secondary" onClick={() => changeView("database")}>
-                <X size={16} /> Retour
+          <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-2xl p-6 md:p-10 border border-slate-100">
+            <div className="flex justify-between items-center mb-8 no-print">
+              <Button
+                variant="secondary"
+                onClick={() => changeView("database")}
+                className="!px-6 rounded-2xl uppercase text-[10px] tracking-widest"
+              >
+                <X size={16} /> Fermer
               </Button>
-              <Button onClick={() => setTimeout(() => window.print(), 100)}>
-                <Printer size={16} /> Lancer l'impression
+
+              <Button
+                onClick={() => setTimeout(() => window.print(), 100)}
+                className="!px-8 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200"
+              >
+                <Printer size={16} /> Tout Imprimer
               </Button>
             </div>
+
             <div className="space-y-10 print-area">
               {["fiche", "jauge", "plan", "approbation"].map((doc) => {
                 const fileData = modelDocs?.[printModelId]?.[doc];
                 if (!fileData) return null;
                 const pdf = isPdfLike(fileData);
+
                 return (
-                  <div key={doc} className="page-break-last flex flex-col items-center justify-center min-h-[90vh]">
+                  <div
+                    key={doc}
+                    className="page-break-last flex flex-col items-center justify-center min-h-[90vh]"
+                  >
                     {pdf ? (
                       <embed src={fileData} type="application/pdf" className="w-full h-[290mm]" />
                     ) : (
