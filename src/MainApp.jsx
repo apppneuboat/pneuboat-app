@@ -21,7 +21,7 @@ import {
   CheckCircle,
   Percent,
   Phone,
-  Calendar, // ✅ Ajouté pour l'icône calendrier si besoin
+  Calendar,
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -149,7 +149,7 @@ const paymentLabel = (pm) => {
   return "—";
 };
 
-/* ------------------ ✅ NOUVEAU: TARIFS ACCESSOIRES 2026 ------------------ */
+/* ------------------ TARIFS ACCESSOIRES 2026 ------------------ */
 const TARIFS_ACCESSOIRES_2026 = [
   { name: "Crémaillère hydraulique (Max 90cv)", price: 125000 },
   { name: "Volant (selon modèle)", price: 30000 },
@@ -201,19 +201,16 @@ const TARIFS_ACCESSOIRES_2026 = [
 const designationFromModel = (modelName) => {
   const m = String(modelName || "").trim();
 
-  // Exception demandée
   if (/pnb\s*[- ]?\s*525/i.test(m)) {
     return "Bateau rigide open PNB-525";
   }
 
-  // Tous les autres PNB-xxx => "Semi rigide PNB-xxx"
   const match = m.match(/pnb\s*[- ]?\s*(\d{3})/i);
   if (match) {
     const code = `PNB-${match[1]}`;
     return `Semi rigide ${code}`;
   }
 
-  // fallback si non PNB
   return m || "—";
 };
 
@@ -284,7 +281,7 @@ const InputGroup = ({ label, children, compact }) => (
 const Input = (props) => (
   <input
     {...props}
-    className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all font-semibold"
+    className={`w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all font-semibold ${props.className || ""}`}
   />
 );
 
@@ -316,7 +313,7 @@ export default function MainApp() {
   const [invoiceHistory, setInvoiceHistory] = useState([]);
   const [currentInvoice, setCurrentInvoice] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [historyTab, setHistoryTab] = useState("all"); // ✅ NOUVEAU: Onglets d'archives
+  const [historyTab, setHistoryTab] = useState("all");
   const [printModelId, setPrintModelId] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -331,7 +328,7 @@ export default function MainApp() {
     managerName: "Sekkal Gherbi Youcef",
     address: "Hai el Badr Oran",
     email: "info@pneuboat.net",
-    website: "www.pneuboat.net", // ✅ site
+    website: "www.pneuboat.net",
     phone: "0563269639",
     nextInvoiceNumber: 1,
     nextProformaNumber: 1,
@@ -568,8 +565,8 @@ export default function MainApp() {
         ? inv.items.map((it) => ({
             ...it,
             quantity: it?.quantity ?? 1,
-            price: Number(it?.price || 0), // HT (calcul interne)
-            priceTtc: it?.priceTtc ?? null, // TTC (saisie utilisateur)
+            price: Number(it?.price || 0),
+            priceTtc: it?.priceTtc ?? null,
           }))
         : [
             {
@@ -796,7 +793,7 @@ export default function MainApp() {
         items: [
           {
             ...firstItem,
-            description: designationFromModel(m.name), // ✅ Désignation
+            description: designationFromModel(m.name),
           },
           ...prev.items.slice(1),
         ],
@@ -941,7 +938,7 @@ export default function MainApp() {
     const showTotals =
       subType !== "livraison" && subType !== "attestation" && subType !== "commande";
     const showPayBlock =
-      showTotals && !!inv.showPayment && subType !== "proforma"; // ✅ proforma = pas paiement
+      showTotals && !!inv.showPayment && subType !== "proforma";
 
     const approvalShown = inv.boatDetails?.approvalNumber || "—";
 
@@ -1169,7 +1166,7 @@ export default function MainApp() {
                   </div>
 
                   {(() => {
-                    const totalCmd = Number(inv.items?.[0]?.price || 0);
+                    const totalCmd = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
                     const paid = Number(inv.orderDetails?.amountPaid || 0);
                     const rest = Math.max(totalCmd - paid, 0);
 
@@ -1303,8 +1300,9 @@ export default function MainApp() {
 
                     {inv.applyTva && (
                       <div className="flex justify-between text-slate-500 font-bold">
-                        <span>TVA</span>
-                        <span>{Number(inv.tvaRate || 0)}%</span>
+                        {/* ✅ NOUVEAU: Montant exact de la TVA */}
+                        <span>TVA ({Number(inv.tvaRate || 0)}%)</span>
+                        <span>{formatCurrency(subtotal * (Number(inv.tvaRate || 0) / 100))}</span>
                       </div>
                     )}
 
@@ -1725,7 +1723,6 @@ export default function MainApp() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <div className="grid grid-cols-1 gap-2">
-                    {/* NOUVEAU: Date modifiable */}
                     <InputGroup label="Date du document" compact>
                       <Input
                         type="date"
@@ -1784,7 +1781,7 @@ export default function MainApp() {
 
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
                   <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <CheckCircle size={12} /> Bateau
+                    <CheckCircle size={12} /> Bateau principal
                   </div>
 
                   <select
@@ -1854,7 +1851,7 @@ export default function MainApp() {
                       placeholder="Longueur"
                     />
 
-                    {/* ✅ Prix TTC saisi => HT calculé automatiquement */}
+                    {/* Prix TTC du premier article (le bateau) */}
                     <input
                       className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       type="number"
@@ -1889,7 +1886,7 @@ export default function MainApp() {
                           return { ...inv, items: ni };
                         });
                       }}
-                      placeholder="Prix TTC"
+                      placeholder="Prix TTC (Bateau)"
                     />
                   </div>
                 </div>
@@ -2039,6 +2036,156 @@ export default function MainApp() {
                 </div>
               </div>
 
+              {/* ✅ NOUVEAU: GESTION GLOBALE DES ARTICLES (Moteur, Montage, Accessoires...) */}
+              <div className="md:col-span-12 rounded-2xl border border-slate-100 bg-white p-4 mt-3 no-print">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="text-[12px] font-black uppercase tracking-widest text-slate-800">
+                    Lignes du document (Bateau, Moteur, Prestations...)
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setCurrentInvoice((p) => {
+                        const inv = normalizeInvoice(p);
+                        return {
+                          ...inv,
+                          items: [
+                            ...inv.items,
+                            { id: Date.now(), description: "", quantity: 1, price: 0, priceTtc: 0 },
+                          ],
+                        };
+                      });
+                    }}
+                    className="!py-2 !px-3 !rounded-xl !text-xs"
+                  >
+                    <Plus size={14} /> Ajouter une ligne manuelle
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {currentInvoice.items.map((it, i) => (
+                    <div
+                      key={it.id || i}
+                      className="flex flex-col md:flex-row items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100"
+                    >
+                      <div className="w-full md:flex-1">
+                        <Input
+                          value={it.description}
+                          onChange={(e) => {
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              const ni = [...inv.items];
+                              ni[i] = { ...ni[i], description: e.target.value };
+                              return { ...inv, items: ni };
+                            });
+                          }}
+                          placeholder="Désignation (Bateau, Moteur...)"
+                          className="!py-2 !text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-2 w-full md:w-auto">
+                        <div className="w-20">
+                          <Input
+                            type="number"
+                            min="1"
+                            value={it.quantity}
+                            onChange={(e) => {
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                const ni = [...inv.items];
+                                ni[i] = { ...ni[i], quantity: parseFloat(e.target.value) || 1 };
+                                return { ...inv, items: ni };
+                              });
+                            }}
+                            placeholder="Qté"
+                            className="!py-2 !text-center !text-sm"
+                          />
+                        </div>
+                        <div className="w-32 relative">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={Number(
+                              it.priceTtc !== null && it.priceTtc !== undefined
+                                ? it.priceTtc
+                                : priceTtcFromHt(it.price, currentInvoice.tvaRate, currentInvoice.applyTva)
+                            )}
+                            onChange={(e) => {
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                const ni = [...inv.items];
+                                const ttc = parseFloat(e.target.value) || 0;
+                                const ht = priceHtFromTtc(ttc, inv.tvaRate, inv.applyTva);
+                                ni[i] = { ...ni[i], priceTtc: ttc, price: ht };
+                                return { ...inv, items: ni };
+                              });
+                            }}
+                            placeholder="Prix TTC"
+                            className="!py-2 !text-right !text-sm"
+                          />
+                          <div className="absolute -top-2 right-2 bg-white px-1 text-[8px] font-bold text-slate-400">
+                            TTC
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (i === 0 && currentInvoice.items.length === 1)
+                              return alert("Impossible de supprimer la ligne principale.");
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return { ...inv, items: inv.items.filter((_, idx) => idx !== i) };
+                            });
+                          }}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ✅ NOUVEAU: Catalogue intégré pour tous les documents */}
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
+                    + Ajout rapide : Catalogue Accessoires Pneuboat 2026
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-blue-50/50 rounded-xl border border-blue-100 shadow-inner">
+                    {TARIFS_ACCESSOIRES_2026.map((acc) => (
+                      <button
+                        key={acc.name}
+                        type="button"
+                        onClick={() => {
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            const ht = acc.price;
+                            const ttc = priceTtcFromHt(ht, inv.tvaRate, inv.applyTva);
+                            return {
+                              ...inv,
+                              items: [
+                                ...inv.items,
+                                {
+                                  id: Date.now() + Math.random(),
+                                  description: acc.name,
+                                  quantity: 1,
+                                  price: ht,
+                                  priceTtc: ttc,
+                                },
+                              ],
+                            };
+                          });
+                        }}
+                        className="px-2 py-1.5 bg-white border border-blue-200 rounded-lg text-[10px] font-bold text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all text-left shadow-sm"
+                      >
+                        <span className="block truncate max-w-[150px]">+ {acc.name}</span>
+                        <span className="text-blue-500 font-black block">
+                          {formatCurrency(acc.price)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {currentInvoice.type === "commande" && (
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
                   <div className="md:col-span-8 rounded-2xl border border-slate-100 bg-white p-3">
@@ -2097,7 +2244,7 @@ export default function MainApp() {
                       </div>
 
                       <div className="md:col-span-2">
-                        <InputGroup label="Accessoires" compact>
+                        <InputGroup label="Accessoires textuels" compact>
                           <Input
                             value={currentInvoice.orderDetails?.accessories || ""}
                             onChange={(e) =>
@@ -2112,46 +2259,11 @@ export default function MainApp() {
                                 };
                               })
                             }
-                            placeholder="Ex: Pompe, gilets..."
+                            placeholder="Note supplémentaire"
                           />
                         </InputGroup>
                       </div>
                     </div>
-
-                    {/* NOUVEAU: Liste Accessoires Cliquables */}
-                    <div className="mt-4 border-t border-slate-100 pt-3">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
-                        Catalogue Accessoires Pneuboat 2026
-                      </div>
-                      <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-100 shadow-inner">
-                        {TARIFS_ACCESSOIRES_2026.map(acc => (
-                          <button
-                            key={acc.name}
-                            type="button"
-                            onClick={() => {
-                              setCurrentInvoice(p => {
-                                const inv = normalizeInvoice(p);
-                                return {
-                                  ...inv,
-                                  items: [
-                                    ...inv.items,
-                                    { id: Date.now() + Math.random(), description: acc.name, quantity: 1, price: acc.price, priceTtc: null }
-                                  ]
-                                };
-                              });
-                            }}
-                            className="px-2 py-1.5 bg-white border border-blue-200 rounded-lg text-[10px] font-bold text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all text-left shadow-sm"
-                          >
-                            <span className="block truncate max-w-[150px]">+ {acc.name}</span>
-                            <span className="text-blue-500 font-black block">{formatCurrency(acc.price)}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-2">
-                        Cliquez pour ajouter. Modifiez les quantités et prix dans le tableau en bas.
-                      </div>
-                    </div>
-
                   </div>
 
                   <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
@@ -2174,7 +2286,7 @@ export default function MainApp() {
                       />
                     </InputGroup>
                     <div className="text-[10px] font-bold text-slate-500 mt-2">
-                      Total = prix (en haut) • Restant = Total - Versé
+                      Total = prix des lignes • Restant = Total - Versé
                     </div>
                   </div>
                 </div>
@@ -2241,7 +2353,6 @@ export default function MainApp() {
               </div>
             </div>
             
-            {/* NOUVEAU: Onglets de filtrage */}
             <div className="bg-slate-800 px-6 md:px-8 py-3 flex flex-wrap gap-2 border-t border-slate-700">
               {[
                 { id: "all", label: "Tout" },
