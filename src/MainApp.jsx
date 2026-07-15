@@ -136,7 +136,7 @@ const labelDoc = (t) => {
   if (t === "facture") return "FACTURE";
   if (t === "proforma") return "FACTURE PROFORMA";
   if (t === "livraison") return "BON DE LIVRAISON";
-  if (t === "attestation") return "ATTESTATION DE CONSTRUCTION";
+  if (t === "attestation") return "ACTE DE CONSTRUCTION";
   if (t === "commande") return "BON DE COMMANDE";
   if (t === "dossier") return "DOSSIER COMPLET";
   return String(t || "").toUpperCase();
