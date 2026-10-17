@@ -21,7 +21,6 @@ import {
   CheckCircle,
   Percent,
   Phone,
-  Calendar,
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -132,11 +131,12 @@ const formatCurrency = (amount) =>
   Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) +
   " DA";
 
-const labelDoc = (t) => {
+const labelDoc = (t, inv) => {
   if (t === "facture") return "FACTURE";
   if (t === "proforma") return "FACTURE PROFORMA";
   if (t === "livraison") return "BON DE LIVRAISON";
-  if (t === "attestation") return "ACTE DE CONSTRUCTION";
+  if (t === "attestation") return `${inv?.attestationTitle || "ATTESTATION"} DE CONSTRUCTION`;
+  if (t === "garantie") return "CERTIFICAT DE GARANTIE";
   if (t === "commande") return "BON DE COMMANDE";
   if (t === "dossier") return "DOSSIER COMPLET";
   return String(t || "").toUpperCase();
@@ -149,55 +149,7 @@ const paymentLabel = (pm) => {
   return "—";
 };
 
-/* ------------------ TARIFS ACCESSOIRES 2026 ------------------ */
-const TARIFS_ACCESSOIRES_2026 = [
-  { name: "Crémaillère hydraulique (Max 90cv)", price: 125000 },
-  { name: "Volant (selon modèle)", price: 30000 },
-  { name: "Câble vitesse et accélérateur", price: 7500 },
-  { name: "Gaine moteur avec passe-coque", price: 4800 },
-  { name: "Gaine seule (m)", price: 3000 },
-  { name: "Soufflet", price: 1600 },
-  { name: "Support moteur protection", price: 2800 },
-  { name: "Réservoir 70 L", price: 73000 },
-  { name: "Accessoires réservoir", price: 27000 },
-  { name: "Séparateur d'eau", price: 14800 },
-  { name: "Flotteur et jauge", price: 13000 },
-  { name: "Tableau interrupteur (6 boutons + USB)", price: 12500 },
-  { name: "Boîte à fusibles", price: 7800 },
-  { name: "Coupe-courant", price: 6800 },
-  { name: "Bac batterie", price: 4800 },
-  { name: "Cosses batterie", price: 2500 },
-  { name: "Câble marin (m)", price: 450 },
-  { name: "Bouton poussoir Klaxon", price: 3500 },
-  { name: "Poste Radio", price: 43000 },
-  { name: "Baffles étanches (paire)", price: 16000 },
-  { name: "Projecteur LED", price: 15000 },
-  { name: "Feu de poupe", price: 6800 },
-  { name: "Feu de navigation", price: 5800 },
-  { name: "Lumière d'ambiance", price: 14000 },
-  { name: "Lumière Console", price: 2500 },
-  { name: "Boussole", price: 12500 },
-  { name: "Klaxon", price: 8500 },
-  { name: "Pompe de cale", price: 7500 },
-  { name: "Roll Bar Inox", price: 78000 },
-  { name: "Bimini (Taud de soleil)", price: 38000 },
-  { name: "Table (Ronde/Ovale avec support)", price: 45000 },
-  { name: "Échelle (3 marches)", price: 23500 },
-  { name: "Trappe carrée", price: 15000 },
-  { name: "Main courante Inox", price: 4800 },
-  { name: "Support téléphone", price: 2800 },
-  { name: "Gilet de sauvetage", price: 3800 },
-  { name: "Couronne avec support", price: 15000 },
-  { name: "Extincteur (1 kg)", price: 2000 },
-  { name: "Boîte à pharmacie", price: 1000 },
-  { name: "Rames (la paire)", price: 6000 },
-  { name: "Poulie Inox", price: 4500 },
-  { name: "Remorque (Châssis renforcé)", price: 200000 },
-  { name: "Montage électricité", price: 40000 },
-  { name: "Montage moteur", price: 30000 }
-];
-
-/* ------------------ Désignation + TVA inversée ------------------ */
+/* ------------------ ✅ NOUVEAU: Désignation + TVA inversée ------------------ */
 const designationFromModel = (modelName) => {
   const m = String(modelName || "").trim();
 
@@ -281,7 +233,7 @@ const InputGroup = ({ label, children, compact }) => (
 const Input = (props) => (
   <input
     {...props}
-    className={`w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all font-semibold ${props.className || ""}`}
+    className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-all font-semibold"
   />
 );
 
@@ -313,7 +265,6 @@ export default function MainApp() {
   const [invoiceHistory, setInvoiceHistory] = useState([]);
   const [currentInvoice, setCurrentInvoice] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [historyTab, setHistoryTab] = useState("all");
   const [printModelId, setPrintModelId] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -335,6 +286,7 @@ export default function MainApp() {
     nextDeliveryNumber: 1,
     nextAttestationNumber: 1,
     nextOrderNumber: 1,
+    nextGarantieNumber: 1,
     rc: "",
     nif: "",
     nis: "",
@@ -609,6 +561,7 @@ export default function MainApp() {
       paymentMethod: inv?.paymentMethod ?? "virement",
       clientChequeNumber: inv?.clientChequeNumber ?? "",
       date: inv?.date || new Date().toISOString().split("T")[0],
+      attestationTitle: inv?.attestationTitle || "ATTESTATION",
     };
   };
 
@@ -650,6 +603,7 @@ export default function MainApp() {
             livraison: "nextDeliveryNumber",
             attestation: "nextAttestationNumber",
             commande: "nextOrderNumber",
+            garantie: "nextGarantieNumber",
           };
           const k = keyMap[dt];
           if (k) nc[k] = Number(nc[k] || 1) + 1;
@@ -685,11 +639,12 @@ export default function MainApp() {
   const startNew = (type) => {
     const year = new Date().getFullYear();
     const {
-      nextInvoiceNumber: nf,
-      nextAttestationNumber: na,
-      nextDeliveryNumber: nbl,
-      nextProformaNumber: np,
-      nextOrderNumber: noc,
+      nextInvoiceNumber: nf = 1,
+      nextAttestationNumber: na = 1,
+      nextDeliveryNumber: nbl = 1,
+      nextProformaNumber: np = 1,
+      nextOrderNumber: noc = 1,
+      nextGarantieNumber: ng = 1,
     } = companyConfig;
 
     let newDoc = normalizeInvoice({
@@ -727,29 +682,17 @@ export default function MainApp() {
       showPayment: true,
       paymentMethod: "virement",
       clientChequeNumber: "",
+      attestationTitle: "ATTESTATION",
     });
 
-    const n =
-      type === "facture"
-        ? nf
-        : type === "proforma"
-        ? np
-        : type === "livraison"
-        ? nbl
-        : type === "commande"
-        ? noc
-        : na;
+    let n = nf;
+    let pref = "FAC";
 
-    const pref =
-      type === "facture"
-        ? "FAC"
-        : type === "proforma"
-        ? "PRO"
-        : type === "livraison"
-        ? "BL"
-        : type === "commande"
-        ? "BC"
-        : "ATT";
+    if (type === "proforma") { n = np; pref = "PRO"; }
+    else if (type === "livraison") { n = nbl; pref = "BL"; }
+    else if (type === "commande") { n = noc; pref = "BC"; }
+    else if (type === "attestation") { n = na; pref = "ATT"; }
+    else if (type === "garantie") { n = ng; pref = "GAR"; }
 
     newDoc.number =
       type === "dossier"
@@ -911,18 +854,15 @@ export default function MainApp() {
 
   /* ------------------ HISTORY FILTER ------------------ */
   const filteredHistory = useMemo(() => {
-    let list = invoiceHistory || [];
-    if (historyTab !== "all") {
-      list = list.filter((inv) => inv.type === historyTab);
-    }
     const q = (searchTerm || "").trim().toLowerCase();
+    const list = invoiceHistory || [];
     if (!q) return list;
     return list.filter((inv) => {
       const name = String(inv.client_name || inv.clientName || "").toLowerCase();
       const num = String(inv.doc_number || inv.number || "").toLowerCase();
       return name.includes(q) || num.includes(q);
     });
-  }, [invoiceHistory, searchTerm, historyTab]);
+  }, [invoiceHistory, searchTerm]);
 
   /* ------------------ RENDU DOCUMENT ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
@@ -931,18 +871,21 @@ export default function MainApp() {
 
     const isCommande = subType === "commande";
 
-    const subtotal = calculateSubtotal(inv.items); // HT
-    const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva); // TTC
+    const subtotal = calculateSubtotal(inv.items);
+    const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
     const totalWords = NumberToLetter(total);
 
     const showTotals =
-      subType !== "livraison" && subType !== "attestation" && subType !== "commande";
+      subType !== "livraison" && subType !== "attestation" && subType !== "commande" && subType !== "garantie";
     const showPayBlock =
       showTotals && !!inv.showPayment && subType !== "proforma";
 
     const approvalShown = inv.boatDetails?.approvalNumber || "—";
-
     const showBoatBlockOnInvoice = subType === "facture" || subType === "proforma";
+
+    // Text depending on title selection
+    const designationText = inv.attestationTitle === "ACTE" ? "le présent acte" : 
+                            inv.attestationTitle === "CERTIFICAT" ? "le présent certificat" : "la présente attestation";
 
     return (
       <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none">
@@ -977,7 +920,7 @@ export default function MainApp() {
             <div className="text-right">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase border border-slate-900">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                {labelDoc(subType)}
+                {labelDoc(subType, inv)}
               </span>
 
               <div className="mt-3">
@@ -1056,9 +999,9 @@ export default function MainApp() {
           <div className="min-h-[175px]">
             {subType === "attestation" ? (
               <div className="space-y-4">
-                <p className="text-justify text-[11px]">
+                <p className="text-justify text-[11px] leading-relaxed">
                   Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
-                  <b>{companyConfig.name}</b>, certifie que le navire a été construit
+                  <b>{companyConfig.name}</b>, certifie par {designationText} que le navire a été construit
                   à neuf dans nos ateliers pour le compte de{" "}
                   <b>{inv.clientName || ".........."}</b>.
                 </p>
@@ -1101,6 +1044,57 @@ export default function MainApp() {
                       <div className="font-black text-slate-900">{approvalShown}</div>
                     </div>
 
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Longueur
+                      </div>
+                      <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Année de construction
+                      </div>
+                      <div className="font-black">{inv.boatDetails.year || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : subType === "garantie" ? (
+              <div className="space-y-4">
+                <p className="text-justify text-[12px] leading-relaxed">
+                  Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
+                  <b>{companyConfig.name}</b>, certifie par la présente que le navire détaillé ci-dessous bénéficie d'une <b>garantie d'une (01) année</b> à compter de la date de livraison, pour le compte de notre client <b>{inv.clientName || ".........."}</b>.
+                </p>
+
+                <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                    Conditions de Garantie
+                  </div>
+                  <div className="text-[11px] font-bold text-slate-700">
+                    Cette garantie couvre exclusivement tout décollement ou problème provenant de l'usine (défaut de
+                    fabrication). Elle reste valable sous réserve d’une utilisation normale du bateau, conforme aux recommandations du constructeur.
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
+                    Détails du Bateau Garanti
+                  </div>
+                  <div className="p-4 grid grid-cols-2 gap-3 bg-white">
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        Modèle
+                      </div>
+                      <div className="font-black">{inv.boatDetails.model || "—"}</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
+                        N° de série
+                      </div>
+                      <div className="font-black text-blue-700 font-mono">
+                        {inv.boatDetails.serialNumber || "—"}
+                      </div>
+                    </div>
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                       <div className="text-[8px] text-slate-400 uppercase tracking-widest">
                         Longueur
@@ -1166,7 +1160,7 @@ export default function MainApp() {
                   </div>
 
                   {(() => {
-                    const totalCmd = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
+                    const totalCmd = Number(inv.items?.[0]?.price || 0);
                     const paid = Number(inv.orderDetails?.amountPaid || 0);
                     const rest = Math.max(totalCmd - paid, 0);
 
@@ -1300,9 +1294,8 @@ export default function MainApp() {
 
                     {inv.applyTva && (
                       <div className="flex justify-between text-slate-500 font-bold">
-                        {/* ✅ NOUVEAU: Montant exact de la TVA */}
-                        <span>TVA ({Number(inv.tvaRate || 0)}%)</span>
-                        <span>{formatCurrency(subtotal * (Number(inv.tvaRate || 0) / 100))}</span>
+                        <span>TVA</span>
+                        <span>{Number(inv.tvaRate || 0)}%</span>
                       </div>
                     )}
 
@@ -1501,13 +1494,13 @@ export default function MainApp() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 {
                   title: "Dossier Complet",
                   icon: <FolderOpen className="text-white" />,
                   action: () => startNew("dossier"),
-                  desc: "Facture + Attestation + BL",
+                  desc: "Facture + Attest + BL",
                   color: "bg-blue-600",
                 },
                 {
@@ -1535,10 +1528,16 @@ export default function MainApp() {
                   desc: "Preuve de livraison",
                 },
                 {
-                  title: "Attestation",
+                  title: "Attestation / Certif",
                   icon: <Anchor />,
                   action: () => startNew("attestation"),
                   desc: "Construction + garantie",
+                },
+                {
+                  title: "Certificat Garantie",
+                  icon: <CheckCircle />,
+                  action: () => startNew("garantie"),
+                  desc: "Garantie seule (1 an)",
                 },
               ].map((card, i) => (
                 <div
@@ -1547,7 +1546,7 @@ export default function MainApp() {
                   className="p-6 rounded-3xl border-2 border-white shadow-sm bg-white cursor-pointer hover:border-blue-200 transition-all flex items-center gap-5 active:scale-95"
                 >
                   <div
-                    className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner shrink-0 ${
                       card.color || "bg-slate-50 text-blue-600"
                     }`}
                   >
@@ -1723,19 +1722,6 @@ export default function MainApp() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <div className="grid grid-cols-1 gap-2">
-                    <InputGroup label="Date du document" compact>
-                      <Input
-                        type="date"
-                        value={currentInvoice.date || ""}
-                        onChange={(e) =>
-                          setCurrentInvoice((p) => ({
-                            ...normalizeInvoice(p),
-                            date: e.target.value,
-                          }))
-                        }
-                      />
-                    </InputGroup>
-
                     <InputGroup label="Client" compact>
                       <Input
                         value={currentInvoice.clientName || ""}
@@ -1781,7 +1767,7 @@ export default function MainApp() {
 
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
                   <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <CheckCircle size={12} /> Bateau principal
+                    <CheckCircle size={12} /> Bateau
                   </div>
 
                   <select
@@ -1851,7 +1837,7 @@ export default function MainApp() {
                       placeholder="Longueur"
                     />
 
-                    {/* Prix TTC du premier article (le bateau) */}
+                    {/* ✅ Prix TTC saisi => HT calculé automatiquement */}
                     <input
                       className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       type="number"
@@ -1886,7 +1872,7 @@ export default function MainApp() {
                           return { ...inv, items: ni };
                         });
                       }}
-                      placeholder="Prix TTC (Bateau)"
+                      placeholder="Prix TTC"
                     />
                   </div>
                 </div>
@@ -2035,156 +2021,30 @@ export default function MainApp() {
                   </InputGroup>
                 </div>
               </div>
-
-              {/* ✅ NOUVEAU: GESTION GLOBALE DES ARTICLES (Moteur, Montage, Accessoires...) */}
-              <div className="md:col-span-12 rounded-2xl border border-slate-100 bg-white p-4 mt-3 no-print">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="text-[12px] font-black uppercase tracking-widest text-slate-800">
-                    Lignes du document (Bateau, Moteur, Prestations...)
-                  </div>
-                  <Button
-                    onClick={() => {
-                      setCurrentInvoice((p) => {
-                        const inv = normalizeInvoice(p);
-                        return {
-                          ...inv,
-                          items: [
-                            ...inv.items,
-                            { id: Date.now(), description: "", quantity: 1, price: 0, priceTtc: 0 },
-                          ],
-                        };
-                      });
-                    }}
-                    className="!py-2 !px-3 !rounded-xl !text-xs"
-                  >
-                    <Plus size={14} /> Ajouter une ligne manuelle
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  {currentInvoice.items.map((it, i) => (
-                    <div
-                      key={it.id || i}
-                      className="flex flex-col md:flex-row items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100"
-                    >
-                      <div className="w-full md:flex-1">
-                        <Input
-                          value={it.description}
-                          onChange={(e) => {
-                            setCurrentInvoice((p) => {
-                              const inv = normalizeInvoice(p);
-                              const ni = [...inv.items];
-                              ni[i] = { ...ni[i], description: e.target.value };
-                              return { ...inv, items: ni };
-                            });
-                          }}
-                          placeholder="Désignation (Bateau, Moteur...)"
-                          className="!py-2 !text-sm"
-                        />
-                      </div>
-                      <div className="flex gap-2 w-full md:w-auto">
-                        <div className="w-20">
-                          <Input
-                            type="number"
-                            min="1"
-                            value={it.quantity}
-                            onChange={(e) => {
-                              setCurrentInvoice((p) => {
-                                const inv = normalizeInvoice(p);
-                                const ni = [...inv.items];
-                                ni[i] = { ...ni[i], quantity: parseFloat(e.target.value) || 1 };
-                                return { ...inv, items: ni };
-                              });
-                            }}
-                            placeholder="Qté"
-                            className="!py-2 !text-center !text-sm"
-                          />
-                        </div>
-                        <div className="w-32 relative">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={Number(
-                              it.priceTtc !== null && it.priceTtc !== undefined
-                                ? it.priceTtc
-                                : priceTtcFromHt(it.price, currentInvoice.tvaRate, currentInvoice.applyTva)
-                            )}
-                            onChange={(e) => {
-                              setCurrentInvoice((p) => {
-                                const inv = normalizeInvoice(p);
-                                const ni = [...inv.items];
-                                const ttc = parseFloat(e.target.value) || 0;
-                                const ht = priceHtFromTtc(ttc, inv.tvaRate, inv.applyTva);
-                                ni[i] = { ...ni[i], priceTtc: ttc, price: ht };
-                                return { ...inv, items: ni };
-                              });
-                            }}
-                            placeholder="Prix TTC"
-                            className="!py-2 !text-right !text-sm"
-                          />
-                          <div className="absolute -top-2 right-2 bg-white px-1 text-[8px] font-bold text-slate-400">
-                            TTC
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (i === 0 && currentInvoice.items.length === 1)
-                              return alert("Impossible de supprimer la ligne principale.");
-                            setCurrentInvoice((p) => {
-                              const inv = normalizeInvoice(p);
-                              return { ...inv, items: inv.items.filter((_, idx) => idx !== i) };
-                            });
-                          }}
-                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* ✅ NOUVEAU: Catalogue intégré pour tous les documents */}
-                <div className="mt-4 border-t border-slate-100 pt-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
-                    + Ajout rapide : Catalogue Accessoires Pneuboat 2026
-                  </div>
-                  <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-blue-50/50 rounded-xl border border-blue-100 shadow-inner">
-                    {TARIFS_ACCESSOIRES_2026.map((acc) => (
-                      <button
-                        key={acc.name}
-                        type="button"
-                        onClick={() => {
-                          setCurrentInvoice((p) => {
-                            const inv = normalizeInvoice(p);
-                            const ht = acc.price;
-                            const ttc = priceTtcFromHt(ht, inv.tvaRate, inv.applyTva);
-                            return {
-                              ...inv,
-                              items: [
-                                ...inv.items,
-                                {
-                                  id: Date.now() + Math.random(),
-                                  description: acc.name,
-                                  quantity: 1,
-                                  price: ht,
-                                  priceTtc: ttc,
-                                },
-                              ],
-                            };
-                          });
-                        }}
-                        className="px-2 py-1.5 bg-white border border-blue-200 rounded-lg text-[10px] font-bold text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all text-left shadow-sm"
+              
+              {/* NOUVEAU: Changer le nom de l'Attestation */}
+              {(currentInvoice.type === "attestation" || currentInvoice.type === "dossier") && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
+                  <div className="md:col-span-12 rounded-2xl border border-slate-100 bg-blue-50 p-3">
+                    <InputGroup label="Titre du document de construction" compact>
+                      <select
+                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
+                        value={currentInvoice.attestationTitle || "ATTESTATION"}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            attestationTitle: e.target.value,
+                          }))
+                        }
                       >
-                        <span className="block truncate max-w-[150px]">+ {acc.name}</span>
-                        <span className="text-blue-500 font-black block">
-                          {formatCurrency(acc.price)}
-                        </span>
-                      </button>
-                    ))}
+                        <option value="ATTESTATION">Attestation de construction</option>
+                        <option value="CERTIFICAT">Certificat de construction</option>
+                        <option value="ACTE">Acte de construction</option>
+                      </select>
+                    </InputGroup>
                   </div>
                 </div>
-              </div>
+              )}
 
               {currentInvoice.type === "commande" && (
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
@@ -2244,7 +2104,7 @@ export default function MainApp() {
                       </div>
 
                       <div className="md:col-span-2">
-                        <InputGroup label="Accessoires textuels" compact>
+                        <InputGroup label="Accessoires" compact>
                           <Input
                             value={currentInvoice.orderDetails?.accessories || ""}
                             onChange={(e) =>
@@ -2259,7 +2119,7 @@ export default function MainApp() {
                                 };
                               })
                             }
-                            placeholder="Note supplémentaire"
+                            placeholder="Ex: Pompe, gilets..."
                           />
                         </InputGroup>
                       </div>
@@ -2285,8 +2145,8 @@ export default function MainApp() {
                         }
                       />
                     </InputGroup>
-                    <div className="text-[10px] font-bold text-slate-500 mt-2">
-                      Total = prix des lignes • Restant = Total - Versé
+                    <div className="text-[10px] font-bold text-slate-500">
+                      Total = prix (en haut) • Restant = Total - Versé
                     </div>
                   </div>
                 </div>
@@ -2351,28 +2211,6 @@ export default function MainApp() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-            </div>
-            
-            <div className="bg-slate-800 px-6 md:px-8 py-3 flex flex-wrap gap-2 border-t border-slate-700">
-              {[
-                { id: "all", label: "Tout" },
-                { id: "facture", label: "Factures" },
-                { id: "proforma", label: "Proformas" },
-                { id: "commande", label: "Commandes" },
-                { id: "livraison", label: "Livraisons" },
-                { id: "attestation", label: "Attestations" },
-                { id: "dossier", label: "Dossiers" }
-              ].map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setHistoryTab(t.id)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    historyTab === t.id ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-700'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
             </div>
 
             <div className="overflow-x-auto">
