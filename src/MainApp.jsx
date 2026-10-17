@@ -21,44 +21,20 @@ import {
   CheckCircle,
   Percent,
   Phone,
+  CalendarDays,
 } from "lucide-react";
 import { supabase } from "./supabase";
 
 /* ------------------ UTILITAIRES ------------------ */
 const NumberToLetter = (nombre) => {
   const unites = [
-    "",
-    "un",
-    "deux",
-    "trois",
-    "quatre",
-    "cinq",
-    "six",
-    "sept",
-    "huit",
-    "neuf",
-    "dix",
-    "onze",
-    "douze",
-    "treize",
-    "quatorze",
-    "quinze",
-    "seize",
-    "dix-sept",
-    "dix-huit",
-    "dix-neuf",
+    "", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf",
+    "dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept",
+    "dix-huit", "dix-neuf",
   ];
   const dizaines = [
-    "",
-    "dix",
-    "vingt",
-    "trente",
-    "quarante",
-    "cinquante",
-    "soixante",
-    "soixante-dix",
-    "quatre-vingt",
-    "quatre-vingt-dix",
+    "", "dix", "vingt", "trente", "quarante", "cinquante", "soixante",
+    "soixante-dix", "quatre-vingt", "quatre-vingt-dix",
   ];
 
   const conv99 = (n) => {
@@ -149,23 +125,20 @@ const paymentLabel = (pm) => {
   return "—";
 };
 
-/* ------------------ ✅ NOUVEAU: Désignation + TVA inversée ------------------ */
+/* ------------------ Désignation + TVA inversée ------------------ */
 const designationFromModel = (modelName) => {
   const m = String(modelName || "").trim();
 
-  // Exception demandée
   if (/pnb\s*[- ]?\s*525/i.test(m)) {
     return "Bateau rigide open PNB-525";
   }
 
-  // Tous les autres PNB-xxx => "Semi rigide PNB-xxx"
   const match = m.match(/pnb\s*[- ]?\s*(\d{3})/i);
   if (match) {
     const code = `PNB-${match[1]}`;
     return `Semi rigide ${code}`;
   }
 
-  // fallback si non PNB
   return m || "—";
 };
 
@@ -520,8 +493,8 @@ export default function MainApp() {
         ? inv.items.map((it) => ({
             ...it,
             quantity: it?.quantity ?? 1,
-            price: Number(it?.price || 0), // HT (calcul interne)
-            priceTtc: it?.priceTtc ?? null, // TTC (saisie utilisateur)
+            price: Number(it?.price || 0),
+            priceTtc: it?.priceTtc ?? null,
           }))
         : [
             {
@@ -734,12 +707,12 @@ export default function MainApp() {
           model: m.name,
           length: m.length,
           approvalNumber: m.approvalNumber,
-          year: prev.boatDetails?.year || "2026",
+          year: prev.boatDetails?.year || new Date().getFullYear().toString(),
         },
         items: [
           {
             ...firstItem,
-            description: designationFromModel(m.name), // ✅ Désignation
+            description: designationFromModel(m.name),
           },
           ...prev.items.slice(1),
         ],
@@ -874,20 +847,73 @@ export default function MainApp() {
 
     const isCommande = subType === "commande";
 
-    const subtotal = calculateSubtotal(inv.items); // HT
-    const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva); // TTC
+    const subtotal = calculateSubtotal(inv.items);
+    const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
     const totalWords = NumberToLetter(total);
 
     const showTotals =
       subType !== "livraison" && subType !== "attestation" && subType !== "commande" && subType !== "garantie";
     const showPayBlock =
-      showTotals && !!inv.showPayment && subType !== "proforma"; 
+      showTotals && !!inv.showPayment && subType !== "proforma";
 
     const approvalShown = inv.boatDetails?.approvalNumber || "—";
     const showBoatBlockOnInvoice = subType === "facture" || subType === "proforma";
 
+    // Text depending on title selection
     const designationText = inv.attestationTitle === "ACTE" ? "le présent acte" : 
                             inv.attestationTitle === "CERTIFICAT" ? "le présent certificat" : "la présente attestation";
+
+    // Table of items block (reused in Facture, Proforma, Commande, Livraison)
+    const ItemsTable = (
+      <div className="rounded-2xl overflow-hidden border border-slate-200">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="text-left text-slate-700 font-black uppercase bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
+              <th className="py-2.5 px-3">Désignation</th>
+              <th className="py-2.5 px-3 text-center w-16">Qté</th>
+              {subType !== "livraison" && (
+                <>
+                  <th className="py-2.5 px-3 text-right w-24">P.U</th>
+                  <th className="py-2.5 px-3 text-right w-28">Total</th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {inv.items.map((it, i) => (
+              <tr
+                key={it.id || i}
+                className="border-b border-slate-100 last:border-b-0"
+              >
+                <td className="py-2.5 px-3 font-bold">{it.description}</td>
+                <td className="py-2.5 px-3 text-center font-black">
+                  {Number(it.quantity || 0)}
+                </td>
+                {subType !== "livraison" && (
+                  <>
+                    <td className="py-2.5 px-3 text-right">
+                      {Number(it.price || 0).toLocaleString("fr-FR")}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-black text-slate-900">
+                      {(
+                        Number(it.quantity || 0) * Number(it.price || 0)
+                      ).toLocaleString("fr-FR")}
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+            {inv.items.length === 0 && (
+              <tr>
+                <td className="p-6 text-center text-slate-400 font-black" colSpan={4}>
+                  Aucun article
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
 
     return (
       <div className="bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl text-slate-900 relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none">
@@ -1147,7 +1173,7 @@ export default function MainApp() {
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
                       <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Accessoires (Textuel)
+                        Accessoires divers
                       </div>
                       <div className="font-bold">
                         {inv.orderDetails?.accessories || "—"}
@@ -1156,42 +1182,8 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                {/* NOUVEAU: Affichage des articles dans la commande pour voir les accessoires ajoutés */}
-                {inv.items.length > 0 && (
-                  <div className="rounded-2xl overflow-hidden border border-slate-200">
-                    <table className="w-full text-[11px]">
-                      <thead>
-                        <tr className="text-left text-slate-700 font-black uppercase bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
-                          <th className="py-2.5 px-3">Désignation</th>
-                          <th className="py-2.5 px-3 text-center w-16">Qté</th>
-                          <th className="py-2.5 px-3 text-right w-24">P.U</th>
-                          <th className="py-2.5 px-3 text-right w-28">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {inv.items.map((it, i) => (
-                          <tr
-                            key={it.id || i}
-                            className="border-b border-slate-100 last:border-b-0 bg-white"
-                          >
-                            <td className="py-2.5 px-3 font-bold">{it.description}</td>
-                            <td className="py-2.5 px-3 text-center font-black">
-                              {Number(it.quantity || 0)}
-                            </td>
-                            <td className="py-2.5 px-3 text-right">
-                              {Number(it.price || 0).toLocaleString("fr-FR")}
-                            </td>
-                            <td className="py-2.5 px-3 text-right font-black text-slate-900">
-                              {(
-                                Number(it.quantity || 0) * Number(it.price || 0)
-                              ).toLocaleString("fr-FR")}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                {/* TABLEAU DES ARTICLES (BATEAU + ACCESSOIRES) */}
+                {ItemsTable}
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
@@ -1199,7 +1191,7 @@ export default function MainApp() {
                   </div>
 
                   {(() => {
-                    const totalCmd = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
+                    const totalCmd = total; // Utilise le Total global TTC ou HT
                     const paid = Number(inv.orderDetails?.amountPaid || 0);
                     const rest = Math.max(totalCmd - paid, 0);
 
@@ -1207,7 +1199,7 @@ export default function MainApp() {
                       <div className="grid grid-cols-3 gap-3 text-[11px]">
                         <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                           <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                            Total (Bateau + Accessoires)
+                            Total Commande
                           </div>
                           <div className="font-black text-blue-700">
                             {formatCurrency(totalCmd)}
@@ -1261,3 +1253,1330 @@ export default function MainApp() {
                         <div className="font-black">{inv.boatDetails.length || "—"}</div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* TABLEAU DES ARTICLES */}
+                {ItemsTable}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="relative">
+          {showTotals && (
+            <>
+              <div className="flex justify-end mb-3">
+                <div className="w-[58%] rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Récapitulatif
+                  </div>
+                  <div className="p-4 bg-white text-[10px] space-y-2">
+                    <div className="flex justify-between text-slate-500 font-bold">
+                      <span>Sous-total HT</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+
+                    {inv.applyTva && (
+                      <div className="flex justify-between text-slate-500 font-bold">
+                        <span>TVA</span>
+                        <span>{Number(inv.tvaRate || 0)}%</span>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t flex justify-between font-black text-[13px]">
+                      <span className="text-slate-900">
+                        {inv.applyTva ? "TOTAL TTC" : "TOTAL"}
+                      </span>
+                      <span className="text-blue-700">{formatCurrency(total)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                  Total en lettres
+                </div>
+                <div className="text-[11px] font-bold text-slate-800">
+                  {subType === "proforma"
+                    ? "Arrêté le présent devis à la somme de :"
+                    : "Arrêté la présente facture à la somme de :"}
+                </div>
+                <div className="mt-1 text-[12px] font-black text-slate-900">{totalWords}</div>
+
+                {subType === "proforma" && (
+                  <div className="mt-2 text-[10px] font-bold text-slate-500">
+                    Devis valable <span className="text-slate-900 font-black">2 mois</span>{" "}
+                    à compter de la date d’émission.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {showPayBlock && (
+            <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
+              <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                Paiement
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[12px] font-black text-slate-900">
+                    Mode :{" "}
+                    <span className="text-blue-700">{paymentLabel(inv.paymentMethod)}</span>
+                  </div>
+                  {inv.paymentMethod === "cheque" && inv.clientChequeNumber ? (
+                    <div className="text-[10px] text-slate-600 font-bold mt-1">
+                      N° Chèque :{" "}
+                      <span className="font-mono">{inv.clientChequeNumber}</span>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-600 font-bold mt-1">
+                      {inv.paymentMethod === "cheque"
+                        ? "N° Chèque : —"
+                        : inv.paymentMethod === "virement"
+                        ? "Paiement par virement bancaire"
+                        : "Paiement en espèces"}
+                    </div>
+                  )}
+                </div>
+                <div className="text-right text-[10px] font-bold text-slate-600">
+                  <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Paiement prévu
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4 mb-3">
+            <div className="border border-dashed border-slate-200 rounded-2xl h-20 p-3 text-[9px] text-slate-400 uppercase font-black flex flex-col justify-between">
+              Cachet Gérant<span>....................</span>
+            </div>
+            <div className="border border-dashed border-slate-200 rounded-2xl h-20 p-3 text-[9px] text-slate-400 uppercase font-black flex flex-col justify-between">
+              Signature Client<span>....................</span>
+            </div>
+          </div>
+
+          <div className="border-t pt-2 text-[8px] text-slate-400 grid grid-cols-3 gap-2">
+            <div>
+              <b>BANQUE</b> {companyConfig.bankName || "—"}
+              <br />
+              RIB: {companyConfig.bankRib || "—"}
+            </div>
+            <div>
+              <b>RC:</b> {companyConfig.rc || "—"}
+              <br />
+              <b>NIF:</b> {companyConfig.nif || "—"}
+              <br />
+              <b>NIS:</b> {companyConfig.nis || "—"}
+            </div>
+            <div className="text-right uppercase font-black text-slate-900">
+              {companyConfig.name}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ------------------ LOGIN ------------------ */
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm text-center">
+          <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-500/50">
+            <Anchor size={40} />
+          </div>
+          <h1 className="text-2xl font-black text-slate-900 mb-2 uppercase">
+            Pneuboat
+          </h1>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">
+            Accès Gestionnaire
+          </p>
+
+          <input
+            className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center text-lg font-bold mb-4 focus:border-blue-500 outline-none transition-all"
+            type="password"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+            placeholder="••••••••"
+          />
+          {authError && <p className="text-red-500 text-xs font-bold mb-4">{authError}</p>}
+          <Button
+            onClick={handleLogin}
+            className="w-full justify-center py-5 rounded-2xl text-md uppercase tracking-wider shadow-xl shadow-blue-100"
+          >
+            Déverrouiller
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ------------------ APP ------------------ */
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] font-sans pb-24 md:pb-0 md:pl-64">
+      {/* MENU NAVIGATION */}
+      <nav className="fixed bottom-0 left-0 w-full md:w-64 md:h-screen bg-slate-900 text-white z-50 no-print flex md:flex-col shadow-2xl md:shadow-none">
+        <div className="hidden md:block p-8 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <Anchor className="text-blue-500" />
+            <span className="text-xl font-black uppercase">Pneuboat</span>
+          </div>
+        </div>
+
+        <div className="flex md:flex-col flex-1 justify-around md:justify-start p-2 md:p-4 gap-1 md:gap-2">
+          {[
+            { id: "list", icon: <Plus />, label: "Nouveau" },
+            { id: "history", icon: <History />, label: "Archives" },
+            { id: "database", icon: <Database />, label: "Plans" },
+            { id: "settings", icon: <Settings />, label: "Config" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => changeView(tab.id)}
+              className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-3 py-2 md:px-4 md:py-3 rounded-xl transition-all ${
+                view === tab.id || (tab.id === "database" && view === "print_tech_view")
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "text-slate-500 hover:text-white"
+              }`}
+            >
+              <span className="md:w-5">{tab.icon}</span>
+              <span className="text-[10px] md:text-sm font-bold">{tab.label}</span>
+            </button>
+          ))}
+
+          <button
+            onClick={handleLogout}
+            className="flex flex-col md:flex-row items-center gap-1 md:gap-3 px-3 py-2 md:px-4 md:py-3 text-red-400 md:mt-auto md:border-t md:border-slate-800"
+          >
+            <LogOut size={20} />
+            <span className="text-[10px] md:text-sm font-bold">Sortir</span>
+          </button>
+        </div>
+      </nav>
+
+      <main className="p-4 md:p-10 max-w-7xl mx-auto">
+        {/* LIST */}
+        {view === "list" && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="bg-slate-900 rounded-[2rem] p-8 md:p-12 text-white shadow-2xl flex justify-between items-center overflow-hidden relative">
+              <div className="relative z-10">
+                <h2 className="text-2xl md:text-4xl font-black mb-2 uppercase tracking-tight">
+                  Espace Gestion
+                </h2>
+                <p className="text-blue-400 text-xs md:text-sm font-bold uppercase tracking-[0.3em]">
+                  Chantier Naval Pneuboat
+                </p>
+              </div>
+              <Anchor
+                size={120}
+                className="text-slate-800 absolute -right-8 -bottom-8 md:static md:opacity-10 opacity-20"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                {
+                  title: "Dossier Complet",
+                  icon: <FolderOpen className="text-white" />,
+                  action: () => startNew("dossier"),
+                  desc: "Facture + Attest + BL",
+                  color: "bg-blue-600",
+                },
+                {
+                  title: "Facture Client",
+                  icon: <FileText />,
+                  action: () => startNew("facture"),
+                  desc: "Document de vente simple",
+                },
+                {
+                  title: "Facture Proforma",
+                  icon: <ClipboardList />,
+                  action: () => startNew("proforma"),
+                  desc: "Devis / Proforma (2 mois)",
+                },
+                {
+                  title: "Bon de Commande",
+                  icon: <ClipboardList />,
+                  action: () => startNew("commande"),
+                  desc: "Modèle + options + acompte",
+                },
+                {
+                  title: "Bon de Livraison",
+                  icon: <PackageCheck />,
+                  action: () => startNew("livraison"),
+                  desc: "Preuve de livraison",
+                },
+                {
+                  title: "Attestation / Certif",
+                  icon: <Anchor />,
+                  action: () => startNew("attestation"),
+                  desc: "Construction + garantie",
+                },
+                {
+                  title: "Certificat Garantie",
+                  icon: <CheckCircle />,
+                  action: () => startNew("garantie"),
+                  desc: "Garantie seule (1 an)",
+                },
+              ].map((card, i) => (
+                <div
+                  key={i}
+                  onClick={card.action}
+                  className="p-6 rounded-3xl border-2 border-white shadow-sm bg-white cursor-pointer hover:border-blue-200 transition-all flex items-center gap-5 active:scale-95"
+                >
+                  <div
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner shrink-0 ${
+                      card.color || "bg-slate-50 text-blue-600"
+                    }`}
+                  >
+                    {card.icon}
+                  </div>
+                  <div>
+                    <div className="font-black text-slate-800 uppercase tracking-tight leading-none mb-1 text-sm">
+                      {card.title}
+                    </div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                      {card.desc}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* BIBLIOTHÈQUE PDF */}
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tight text-slate-800 flex items-center gap-2">
+                    <FileText className="text-blue-600" /> Bibliothèque PDF (Impression)
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Ajoute tes PDFs ici, puis imprime quand tu veux
+                  </p>
+                </div>
+
+                <label className="cursor-pointer">
+                  <span className="inline-flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm bg-blue-600 text-white shadow-sm">
+                    <Upload size={18} /> Ajouter PDF
+                  </span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="application/pdf,.pdf"
+                    onChange={addPdfToLibrary}
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1 bg-slate-50 rounded-2xl p-3 border border-slate-100 max-h-[340px] overflow-auto">
+                  {(pdfLibrary || []).length === 0 ? (
+                    <div className="p-6 text-center text-slate-400 text-xs font-black uppercase tracking-widest">
+                      Aucun PDF ajouté
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {(pdfLibrary || []).map((p) => (
+                        <div
+                          key={p.id}
+                          className={`p-3 rounded-xl border cursor-pointer ${
+                            pdfSelected?.id === p.id ? "bg-white border-blue-200" : "bg-white/50 border-transparent"
+                          }`}
+                          onClick={() => setPdfSelected(p)}
+                        >
+                          <div className="font-black text-slate-800 text-sm truncate">{p.name}</div>
+                          <div className="text-[10px] text-slate-400 font-bold">
+                            {new Date(p.createdAt).toLocaleString("fr-FR")}
+                          </div>
+                          <div className="mt-2 flex gap-2">
+                            <Button
+                              variant="secondary"
+                              className="!px-3 !py-2 !rounded-lg"
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                setPdfSelected(p);
+                              }}
+                            >
+                              Aperçu
+                            </Button>
+                            <Button
+                              className="!px-3 !py-2 !rounded-lg"
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                const w = window.open();
+                                if (!w) return alert("Pop-up bloquée.");
+                                w.document.write(`
+                                  <html><head><title>PDF</title></head>
+                                  <body style="margin:0">
+                                    <embed src="${p.data}" type="application/pdf" style="width:100vw;height:100vh" />
+                                    <script>setTimeout(()=>{window.focus();window.print();},400)</script>
+                                  </body></html>
+                                `);
+                                w.document.close();
+                              }}
+                            >
+                              <Printer size={16} /> Imprimer
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="!px-3 !py-2 !rounded-lg text-red-500"
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                if (window.confirm("Supprimer ce PDF ?")) removePdf(p.id);
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:col-span-2 bg-white rounded-2xl border border-slate-100 overflow-hidden min-h-[340px]">
+                  {pdfSelected?.data ? (
+                    <embed src={pdfSelected.data} type="application/pdf" className="w-full h-[420px]" />
+                  ) : (
+                    <div className="h-full p-10 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center">
+                      Sélectionne un PDF pour l’aperçu
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {busy && (
+                <div className="mt-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Traitement...
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* EDIT */}
+        {view === "edit" && currentInvoice && (
+          <div className="space-y-4 animate-in slide-in-from-right duration-300">
+            <div className="no-print bg-white rounded-[1.5rem] shadow-sm border border-slate-100 p-3 md:p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <div className="font-black uppercase text-slate-800 text-sm tracking-tight">
+                      Édition
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      Remplis en haut • aperçu en bas
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => changeView("list")}
+                    className="!py-2 !px-3 !rounded-xl"
+                  >
+                    <X size={16} /> Fermer
+                  </Button>
+                  <Button
+                    onClick={saveInvoiceToCloud}
+                    disabled={busy}
+                    className="!py-2 !px-4 !rounded-xl"
+                  >
+                    <Save size={16} /> {busy ? "Envoi..." : "Sauvegarder"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setTimeout(() => window.print(), 100)}
+                    className="!py-2 !px-4 !rounded-xl border-2 border-blue-50"
+                  >
+                    <Printer size={16} /> Imprimer
+                  </Button>
+                </div>
+              </div>
+
+              {/* LIGNE 1 : Client & Bateau & Options */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="grid grid-cols-1 gap-2">
+                    <InputGroup label="Client" compact>
+                      <Input
+                        value={currentInvoice.clientName || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            clientName: e.target.value,
+                          }))
+                        }
+                        placeholder="Nom complet"
+                      />
+                    </InputGroup>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <InputGroup label="Téléphone" compact>
+                        <Input
+                          value={currentInvoice.clientPhone || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientPhone: e.target.value,
+                            }))
+                          }
+                          placeholder="0550..."
+                        />
+                      </InputGroup>
+
+                      {/* CHANGEMENT DE DATE ICI */}
+                      <InputGroup label="Date du document" compact>
+                        <Input
+                          type="date"
+                          value={currentInvoice.date || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              date: e.target.value,
+                            }))
+                          }
+                        />
+                      </InputGroup>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <InputGroup label="ID / Passport" compact>
+                        <Input
+                          value={currentInvoice.clientIdNumber || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientIdNumber: e.target.value,
+                            }))
+                          }
+                          placeholder="Optionnel"
+                        />
+                      </InputGroup>
+                      
+                      <InputGroup label="Adresse" compact>
+                        <Input
+                          value={currentInvoice.clientAddress || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientAddress: e.target.value,
+                            }))
+                          }
+                          placeholder="Adresse"
+                        />
+                      </InputGroup>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
+                  <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <CheckCircle size={12} /> Bateau (Modèle)
+                  </div>
+
+                  <select
+                    className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black outline-none mb-2"
+                    value={
+                      companyConfig.boatModels.find(
+                        (m) => m.name === currentInvoice?.boatDetails?.model
+                      )?.id || ""
+                    }
+                    onChange={(e) => selectModel(e.target.value)}
+                  >
+                    <option value="">Choisir Modèle</option>
+                    {companyConfig.boatModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <input
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                      value={currentInvoice?.boatDetails?.serialNumber || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => {
+                          const inv = normalizeInvoice(p);
+                          return {
+                            ...inv,
+                            boatDetails: {
+                              ...inv.boatDetails,
+                              serialNumber: String(e.target.value || "").toUpperCase(),
+                            },
+                          };
+                        })
+                      }
+                      placeholder="N° Série"
+                    />
+                    <input
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                      value={currentInvoice?.boatDetails?.year || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => {
+                          const inv = normalizeInvoice(p);
+                          return {
+                            ...inv,
+                            boatDetails: { ...inv.boatDetails, year: e.target.value },
+                          };
+                        })
+                      }
+                      placeholder="Année"
+                    />
+                  </div>
+
+                  <input
+                    className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                    value={currentInvoice?.boatDetails?.length || ""}
+                    onChange={(e) =>
+                      setCurrentInvoice((p) => {
+                        const inv = normalizeInvoice(p);
+                        return {
+                          ...inv,
+                          boatDetails: { ...inv.boatDetails, length: e.target.value },
+                        };
+                      })
+                    }
+                    placeholder="Longueur"
+                  />
+                  <div className="text-[9px] font-bold text-blue-200 mt-2 text-center uppercase tracking-widest">
+                    Le prix se modifie dans les lignes ci-dessous
+                  </div>
+                </div>
+
+                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-white p-3">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                          <Percent size={14} /> TVA
+                        </div>
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={!!currentInvoice.applyTva}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                const nextApply = e.target.checked;
+                                const items2 = recomputeItemsHtFromTtc(
+                                  inv.items,
+                                  inv.tvaRate,
+                                  nextApply
+                                );
+                                return { ...inv, applyTva: nextApply, items: items2 };
+                              })
+                            }
+                          />
+                          Appliquer
+                        </label>
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        disabled={!currentInvoice.applyTva}
+                        value={Number(currentInvoice.tvaRate || 0)}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            const nextRate = parseFloat(e.target.value) || 0;
+                            const items2 = recomputeItemsHtFromTtc(
+                              inv.items,
+                              nextRate,
+                              inv.applyTva
+                            );
+                            return { ...inv, tvaRate: nextRate, items: items2 };
+                          })
+                        }
+                        placeholder="TVA %"
+                      />
+                      <div className="mt-1 text-[10px] font-bold text-slate-500">
+                        {currentInvoice.applyTva
+                          ? `TVA: ${Number(currentInvoice.tvaRate || 0)}%`
+                          : "TVA désactivée"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          Paiement
+                        </div>
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={!!currentInvoice.showPayment}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => ({
+                                ...normalizeInvoice(p),
+                                showPayment: e.target.checked,
+                              }))
+                            }
+                          />
+                          Afficher
+                        </label>
+                      </div>
+                      <select
+                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
+                        value={currentInvoice.paymentMethod || "virement"}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            paymentMethod: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="cheque">Chèque</option>
+                        <option value="virement">Virement bancaire</option>
+                        <option value="espece">Espèce</option>
+                      </select>
+                      {currentInvoice.paymentMethod === "cheque" && (
+                        <input
+                          className="w-full mt-2 px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
+                          placeholder="N° de chèque (optionnel)"
+                          value={currentInvoice.clientChequeNumber || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              clientChequeNumber: e.target.value,
+                            }))
+                          }
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* LIGNE 2 : ARTICLES & ACCESSOIRES (100% LIBRE) */}
+              <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-4">
+                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                  <div className="text-[12px] font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                    <ClipboardList size={16} className="text-blue-600" />
+                    Lignes de facturation (Bateau, Accessoires, Options...)
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="!py-2 !px-4 !text-[11px] !rounded-xl !bg-slate-50"
+                    onClick={() => {
+                      setCurrentInvoice((p) => {
+                        const inv = normalizeInvoice(p);
+                        return {
+                          ...inv,
+                          items: [
+                            ...inv.items,
+                            { id: Date.now(), description: "", quantity: 1, price: 0, priceTtc: null },
+                          ],
+                        };
+                      });
+                    }}
+                  >
+                    <Plus size={14} /> Ajouter une ligne
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {currentInvoice.items.map((it, idx) => (
+                    <div key={it.id || idx} className="flex flex-col md:flex-row gap-2 items-center">
+                      <div className="flex-1 w-full relative">
+                        <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          Désignation
+                        </span>
+                        <input
+                          className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                          placeholder="Ex: Moteur 150CV, Remorque, Gilets..."
+                          value={it.description || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCurrentInvoice(p => {
+                              const inv = normalizeInvoice(p);
+                              const ni = [...inv.items];
+                              ni[idx] = { ...ni[idx], description: val };
+                              return { ...inv, items: ni };
+                            });
+                          }}
+                        />
+                      </div>
+                      
+                      <div className="w-full md:w-28 relative">
+                        <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          Qté
+                        </span>
+                        <input
+                          type="number"
+                          className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-bold outline-none focus:border-blue-500 text-center"
+                          value={it.quantity}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setCurrentInvoice(p => {
+                              const inv = normalizeInvoice(p);
+                              const ni = [...inv.items];
+                              ni[idx] = { ...ni[idx], quantity: val };
+                              return { ...inv, items: ni };
+                            });
+                          }}
+                        />
+                      </div>
+
+                      <div className="w-full md:w-40 relative">
+                        <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          Prix Unit. TTC
+                        </span>
+                        <input
+                          type="number"
+                          className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-bold outline-none focus:border-blue-500 text-right text-blue-700"
+                          value={it.priceTtc !== null && it.priceTtc !== undefined ? it.priceTtc : priceTtcFromHt(it.price, currentInvoice.tvaRate, currentInvoice.applyTva)}
+                          onChange={(e) => {
+                            const ttc = parseFloat(e.target.value) || 0;
+                            setCurrentInvoice(p => {
+                              const inv = normalizeInvoice(p);
+                              const ni = [...inv.items];
+                              const ht = priceHtFromTtc(ttc, inv.tvaRate, inv.applyTva);
+                              ni[idx] = { ...ni[idx], priceTtc: ttc, price: ht };
+                              return { ...inv, items: ni };
+                            });
+                          }}
+                        />
+                      </div>
+
+                      <button
+                        className="w-full md:w-12 h-11 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border-2 border-transparent hover:border-red-100"
+                        onClick={() => {
+                          setCurrentInvoice(p => {
+                            const inv = normalizeInvoice(p);
+                            if (inv.items.length <= 1) return inv; // Ne supprime pas la toute dernière ligne
+                            return { ...inv, items: inv.items.filter((_, i) => i !== idx) };
+                          });
+                        }}
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* LIGNE 3 : NOUVEAU Changer le nom de l'Attestation */}
+              {(currentInvoice.type === "attestation" || currentInvoice.type === "dossier") && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
+                  <div className="md:col-span-12 rounded-2xl border border-slate-100 bg-blue-50 p-3">
+                    <InputGroup label="Titre du document de construction" compact>
+                      <select
+                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
+                        value={currentInvoice.attestationTitle || "ATTESTATION"}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            attestationTitle: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="ATTESTATION">Attestation de construction</option>
+                        <option value="CERTIFICAT">Certificat de construction</option>
+                        <option value="ACTE">Acte de construction</option>
+                      </select>
+                    </InputGroup>
+                  </div>
+                </div>
+              )}
+
+              {/* LIGNE 4 : Optionnel Bon de commande */}
+              {currentInvoice.type === "commande" && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
+                  <div className="md:col-span-8 rounded-2xl border border-slate-100 bg-white p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <InputGroup label="Modèle voulu (si différent)" compact>
+                        <Input
+                          value={currentInvoice.orderDetails?.modelWanted || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return {
+                                ...inv,
+                                orderDetails: {
+                                  ...inv.orderDetails,
+                                  modelWanted: e.target.value,
+                                },
+                              };
+                            })
+                          }
+                          placeholder="Ex: PNB-550"
+                        />
+                      </InputGroup>
+
+                      <InputGroup label="Couleurs" compact>
+                        <Input
+                          value={currentInvoice.orderDetails?.colors || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return {
+                                ...inv,
+                                orderDetails: { ...inv.orderDetails, colors: e.target.value },
+                              };
+                            })
+                          }
+                          placeholder="Ex: Bleu / Blanc"
+                        />
+                      </InputGroup>
+
+                      <div className="md:col-span-2">
+                        <InputGroup label="Options (Couleur Gelcoat etc)" compact>
+                          <Input
+                            value={currentInvoice.orderDetails?.options || ""}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                return {
+                                  ...inv,
+                                  orderDetails: { ...inv.orderDetails, options: e.target.value },
+                                };
+                              })
+                            }
+                            placeholder="Ex: Console, banquette..."
+                          />
+                        </InputGroup>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <InputGroup label="Notes Accessoires" compact>
+                          <Input
+                            value={currentInvoice.orderDetails?.accessories || ""}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                return {
+                                  ...inv,
+                                  orderDetails: {
+                                    ...inv.orderDetails,
+                                    accessories: e.target.value,
+                                  },
+                                };
+                              })
+                            }
+                            placeholder="Infos additionnelles"
+                          />
+                        </InputGroup>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3 flex flex-col justify-center">
+                    <InputGroup label="Acompte / Total versé (DA)" compact>
+                      <Input
+                        type="number"
+                        className="w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-xl text-lg font-black outline-none focus:border-blue-500 text-blue-700"
+                        value={Number(currentInvoice.orderDetails?.amountPaid || 0)}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            return {
+                              ...inv,
+                              orderDetails: {
+                                ...inv.orderDetails,
+                                amountPaid: parseFloat(e.target.value) || 0,
+                              },
+                            };
+                          })
+                        }
+                      />
+                    </InputGroup>
+                    <div className="mt-2 text-[10px] font-bold text-slate-500 text-center uppercase tracking-widest">
+                      Total = lignes ci-dessus<br/>Restant = Total - Versé
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[82vh] md:h-[calc(100vh-18rem)] shadow-inner border-4 border-white">
+              <div className="min-w-[980px] flex justify-center">
+                <div
+                  id="printable-area"
+                  className="origin-top"
+                  style={{
+                    transform: `scale(${previewZoom})`,
+                    transformOrigin: "top center",
+                  }}
+                >
+                  {currentInvoice.type === "dossier" ? (
+                    <div>
+                      <div className="page-break">
+                        <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
+                      </div>
+                      <div className="page-break">
+                        <RenderDoc
+                          subType="attestation"
+                          docNumber={currentInvoice.attestationNumber}
+                        />
+                      </div>
+                      <div className="page-break-last">
+                        <RenderDoc
+                          subType="livraison"
+                          docNumber={currentInvoice.deliveryNumber}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* HISTORY */}
+        {view === "history" && (
+          <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
+            <div className="p-6 md:p-8 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black uppercase flex items-center gap-3 tracking-tighter">
+                  <Cloud className="text-blue-500" /> Archives Cloud
+                </h2>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+                  Base de données en temps réel
+                </p>
+              </div>
+              <div className="relative md:w-80">
+                <Search className="absolute left-4 top-3.5 text-slate-500" size={18} />
+                <input
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800 border-none rounded-2xl text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  placeholder="Nom ou N° de doc..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <tbody className="divide-y divide-slate-50">
+                  {(filteredHistory || []).map((inv) => (
+                    <tr
+                      key={inv.db_id || inv.number}
+                      className="hover:bg-blue-50/50 transition-all group"
+                    >
+                      <td className="p-5 md:p-7">
+                        <div className="font-black text-slate-800 uppercase tracking-tight">
+                          {inv.client_name || inv.clientName || "—"}
+                        </div>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">
+                          {inv.doc_number || inv.number} •{" "}
+                          {inv.created_at
+                            ? new Date(inv.created_at).toLocaleDateString("fr-FR")
+                            : ""}
+                        </div>
+                      </td>
+                      <td className="p-5 md:p-7 text-right font-black text-blue-900">
+                        {formatCurrency(inv.total)}
+                      </td>
+                      <td className="p-5 md:p-7 text-right space-x-2 whitespace-nowrap">
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            const inv2 = normalizeInvoice(inv);
+                            setCurrentInvoice(inv2);
+                            changeView("edit");
+                          }}
+                          className="!p-3 border-2"
+                        >
+                          <FileText size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => deleteInvoice(inv)}
+                          className="!p-3 text-red-300 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {(!filteredHistory || filteredHistory.length === 0) && (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em]"
+                      >
+                        Aucune donnée trouvée
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* DATABASE / PLANS */}
+        {view === "database" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
+              <h2 className="text-xl font-black uppercase tracking-tight text-slate-800 flex items-center gap-3">
+                <Database className="text-blue-600" /> Plans & Dossiers Techniques
+              </h2>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                Ajoute des PDFs/images (FICHE/JAUGE/PLAN/APPROBATION) puis imprime
+                “Dossier”
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {companyConfig.boatModels.map((m) => (
+                <div
+                  key={m.id}
+                  className="bg-white rounded-[2rem] p-6 border-2 border-white shadow-sm space-y-5"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-black text-lg uppercase tracking-tight text-slate-800">
+                        {m.name}
+                      </h3>
+                      <p className="text-[9px] font-bold text-blue-500 uppercase tracking-[0.2em]">
+                        {m.type}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1">
+                        {m.approvalNumber}
+                      </p>
+                    </div>
+                    <span className="px-4 py-1.5 bg-slate-50 rounded-full text-[10px] font-black text-slate-500">
+                      {m.length}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {["fiche", "jauge", "plan", "approbation"].map((doc) => {
+                      const exists = !!modelDocs?.[m.id]?.[doc];
+                      return (
+                        <div key={doc} className="relative">
+                          <label
+                            className={`cursor-pointer rounded-2xl p-4 text-[9px] font-black flex items-center justify-center gap-3 border-2 transition-all ${
+                              exists
+                                ? "bg-green-50 border-green-200 text-green-700"
+                                : "bg-slate-50 border-slate-50 text-slate-400 hover:border-blue-200 hover:bg-white"
+                            }`}
+                          >
+                            <Upload size={14} /> {doc.toUpperCase()}
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*,application/pdf,.pdf"
+                              onChange={(e) => handleDocUpload(e, m.id, doc)}
+                            />
+                          </label>
+
+                          {exists && (
+                            <button
+                              className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 flex items-center justify-center shadow"
+                              onClick={() => {
+                                if (window.confirm(`Supprimer ${doc.toUpperCase()} ?`)) {
+                                  handleRemoveModelDoc(m.id, doc);
+                                }
+                              }}
+                              title="Supprimer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      if (!modelDocs[m.id]) return alert("Aucun document pour ce modèle.");
+                      setPrintModelId(m.id);
+                      changeView("print_tech_view");
+                    }}
+                    className="w-full justify-center py-4 rounded-2xl uppercase tracking-widest text-xs"
+                  >
+                    Imprimer Dossier
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SETTINGS */}
+        {view === "settings" && (
+          <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom duration-400">
+            <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-sm border border-slate-100">
+              <h2 className="text-2xl font-black mb-10 flex items-center gap-4 uppercase tracking-tight">
+                <Settings className="text-blue-600" size={28} /> Configuration
+              </h2>
+
+              <div className="flex flex-col md:flex-row items-center gap-8 p-8 bg-slate-50 rounded-[2rem] mb-10">
+                <div className="w-24 h-24 bg-white rounded-[1.5rem] border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
+                  {companyConfig.logo ? (
+                    <img src={companyConfig.logo} alt="Logo" className="object-contain w-full h-full" />
+                  ) : (
+                    <Anchor size={32} className="text-slate-200" />
+                  )}
+                </div>
+
+                <div className="text-center md:text-left space-y-3">
+                  <label className="cursor-pointer bg-blue-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black shadow-xl shadow-blue-200 uppercase tracking-widest inline-block">
+                    Changer le logo
+                    <input type="file" onChange={handleLogoUpload} className="hidden" accept="image/*" />
+                  </label>
+
+                  <div className="flex items-center gap-3 justify-center md:justify-start">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+                      {companyConfig.favicon ? (
+                        <img src={companyConfig.favicon} alt="favicon" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-[10px] font-black text-slate-400">ICO</span>
+                      )}
+                    </div>
+
+                    <label className="cursor-pointer bg-slate-900 text-white px-5 py-3 rounded-2xl text-[10px] font-black shadow uppercase tracking-widest inline-block">
+                      Ajouter Favicon
+                      <input type="file" onChange={handleFaviconUpload} className="hidden" accept="image/*" />
+                    </label>
+                  </div>
+
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                    PNG recommandé (32x32 ou 64x64)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                <InputGroup label="Société">
+                  <Input
+                    value={companyConfig.name}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, name: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="Gérant">
+                  <Input
+                    value={companyConfig.managerName}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, managerName: e.target.value })}
+                  />
+                </InputGroup>
+
+                <div className="md:col-span-2">
+                  <InputGroup label="Adresse">
+                    <Input
+                      value={companyConfig.address}
+                      onChange={(e) => saveConfigOnline({ ...companyConfig, address: e.target.value })}
+                    />
+                  </InputGroup>
+                </div>
+
+                <InputGroup label="Email">
+                  <Input
+                    value={companyConfig.email}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, email: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="Téléphone">
+                  <Input
+                    value={companyConfig.phone}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, phone: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="RC">
+                  <Input
+                    value={companyConfig.rc}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, rc: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="NIF">
+                  <Input
+                    value={companyConfig.nif}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nif: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="NIS">
+                  <Input
+                    value={companyConfig.nis}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nis: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="Banque">
+                  <Input
+                    value={companyConfig.bankName}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, bankName: e.target.value })}
+                  />
+                </InputGroup>
+
+                <div className="md:col-span-2">
+                  <InputGroup label="RIB">
+                    <Input
+                      value={companyConfig.bankRib}
+                      onChange={(e) => saveConfigOnline({ ...companyConfig, bankRib: e.target.value })}
+                    />
+                  </InputGroup>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PRINT TECH VIEW */}
+        {view === "print_tech_view" && (
+          <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-2xl p-6 md:p-10 border border-slate-100">
+            <div className="flex justify-between items-center mb-8 no-print">
+              <Button
+                variant="secondary"
+                onClick={() => changeView("database")}
+                className="!px-6 rounded-2xl uppercase text-[10px] tracking-widest"
+              >
+                <X size={16} /> Fermer
+              </Button>
+
+              <Button
+                onClick={() => setTimeout(() => window.print(), 100)}
+                className="!px-8 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200"
+              >
+                <Printer size={16} /> Tout Imprimer
+              </Button>
+            </div>
+
+            <div className="space-y-10 print-area">
+              {["fiche", "jauge", "plan", "approbation"].map((doc) => {
+                const fileData = modelDocs?.[printModelId]?.[doc];
+                if (!fileData) return null;
+                const pdf = isPdfLike(fileData);
+
+                return (
+                  <div
+                    key={doc}
+                    className="page-break-last flex flex-col items-center justify-center min-h-[90vh]"
+                  >
+                    {pdf ? (
+                      <embed src={fileData} type="application/pdf" className="w-full h-[290mm]" />
+                    ) : (
+                      <img src={fileData} alt={doc} className="max-w-full max-h-[290mm] object-contain" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
