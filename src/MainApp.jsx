@@ -21,7 +21,6 @@ import {
   CheckCircle,
   Percent,
   Phone,
-  CalendarDays,
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -107,7 +106,7 @@ const formatCurrency = (amount) =>
   Number(amount || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) +
   " DA";
 
-const labelDoc = (t, inv) => {
+const labelDocFr = (t, inv) => {
   if (t === "facture") return "FACTURE";
   if (t === "proforma") return "FACTURE PROFORMA";
   if (t === "livraison") return "BON DE LIVRAISON";
@@ -118,11 +117,27 @@ const labelDoc = (t, inv) => {
   return String(t || "").toUpperCase();
 };
 
+const labelDocAr = (t, inv) => {
+  if (t === "facture") return "فاتورة";
+  if (t === "proforma") return "فاتورة شكلية";
+  if (t === "livraison") return "وصل استلام";
+  if (t === "attestation") {
+    const title = inv?.attestationTitle;
+    if (title === "ACTE") return "عقد بناء";
+    if (title === "CERTIFICAT") return "شهادة بناء";
+    return "شهادة بناء";
+  }
+  if (t === "garantie") return "شهادة ضمان";
+  if (t === "commande") return "وصل طلبية";
+  if (t === "dossier") return "ملف كامل";
+  return "";
+};
+
 const paymentLabel = (pm) => {
-  if (pm === "cheque") return "Chèque";
-  if (pm === "virement") return "Virement bancaire";
-  if (pm === "espece") return "Espèce";
-  return "—";
+  if (pm === "cheque") return { fr: "Chèque", ar: "صك" };
+  if (pm === "virement") return { fr: "Virement bancaire", ar: "تحويل بنكي" };
+  if (pm === "espece") return { fr: "Espèce", ar: "نقداً" };
+  return { fr: "—", ar: "—" };
 };
 
 /* ------------------ Désignation + TVA inversée ------------------ */
@@ -530,6 +545,8 @@ export default function MainApp() {
       items,
       boatDetails,
       orderDetails,
+      clientNameAr: inv?.clientNameAr ?? "",
+      clientAddressAr: inv?.clientAddressAr ?? "",
       clientPhone: inv?.clientPhone ?? "",
       applyTva: inv?.applyTva ?? true,
       tvaRate: inv?.tvaRate ?? 19,
@@ -626,7 +643,9 @@ export default function MainApp() {
     let newDoc = normalizeInvoice({
       type,
       clientName: "",
+      clientNameAr: "",
       clientAddress: "",
+      clientAddressAr: "",
       clientIdNumber: "",
       clientPhone: "",
       items: [
@@ -869,12 +888,24 @@ export default function MainApp() {
         <table className="w-full text-[11px]">
           <thead>
             <tr className="text-left text-slate-700 font-black uppercase bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
-              <th className="py-2.5 px-3">Désignation</th>
-              <th className="py-2.5 px-3 text-center w-16">Qté</th>
+              <th className="py-2.5 px-3">
+                <div>Désignation</div>
+                <div dir="rtl" className="text-[9px] text-slate-500">التعيين</div>
+              </th>
+              <th className="py-2.5 px-3 text-center w-16">
+                <div>Qté</div>
+                <div dir="rtl" className="text-[9px] text-slate-500">الكمية</div>
+              </th>
               {subType !== "livraison" && (
                 <>
-                  <th className="py-2.5 px-3 text-right w-24">P.U</th>
-                  <th className="py-2.5 px-3 text-right w-28">Total</th>
+                  <th className="py-2.5 px-3 text-right w-24">
+                    <div>P.U</div>
+                    <div dir="rtl" className="text-[9px] text-slate-500">سعر الوحدة</div>
+                  </th>
+                  <th className="py-2.5 px-3 text-right w-28">
+                    <div>Total</div>
+                    <div dir="rtl" className="text-[9px] text-slate-500">المجموع</div>
+                  </th>
                 </>
               )}
             </tr>
@@ -906,7 +937,7 @@ export default function MainApp() {
             {inv.items.length === 0 && (
               <tr>
                 <td className="p-6 text-center text-slate-400 font-black" colSpan={4}>
-                  Aucun article
+                  Aucun article / لا يوجد أي عنصر
                 </td>
               </tr>
             )}
@@ -945,80 +976,118 @@ export default function MainApp() {
               </div>
             </div>
 
-            <div className="text-right">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase border border-slate-900">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                {labelDoc(subType, inv)}
-              </span>
+            <div className="text-right flex flex-col items-end">
+              <div className="inline-flex flex-col items-end px-4 py-2 rounded-xl bg-slate-900 text-white text-[12px] font-black uppercase border border-slate-900 shadow-md">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  {labelDocFr(subType, inv)}
+                </div>
+                <div className="text-[11px] text-blue-200 mt-1" dir="rtl">
+                  {labelDocAr(subType, inv)}
+                </div>
+              </div>
 
-              <div className="mt-3">
+              <div className="mt-3 text-right">
                 <div className="font-mono text-base font-black text-slate-900">
                   {docNumber}
                 </div>
-                <div className="text-[10px] font-semibold text-slate-400">
-                  Le {new Date(inv.date).toLocaleDateString("fr-FR")}
+                <div className="text-[10px] font-semibold text-slate-500 mt-1 flex justify-end gap-2 items-center">
+                  <span>Le {new Date(inv.date).toLocaleDateString("fr-FR")}</span>
+                  <span>|</span>
+                  <span dir="rtl">في {new Date(inv.date).toLocaleDateString("ar-DZ")}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mb-5 bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden">
+          <div className="mb-5 bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-2xl p-4 relative overflow-hidden flex justify-between gap-4">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600" />
-            <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">
-              Client
-            </h3>
-            <div className="text-[14px] font-black uppercase truncate text-slate-900">
-              {inv.clientName || "—"}
-            </div>
-            <div className="text-[11px] text-slate-600 line-clamp-1">
-              {inv.clientAddress || "—"}
+            
+            <div className="flex-1">
+              <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">
+                Client
+              </h3>
+              <div className="text-[14px] font-black uppercase truncate text-slate-900">
+                {inv.clientName || "—"}
+              </div>
+              <div className="text-[11px] text-slate-600 line-clamp-1 mt-1">
+                {inv.clientAddress || "—"}
+              </div>
             </div>
 
-            <div className="mt-2 flex flex-wrap gap-2">
-              {!!inv.clientIdNumber && (
-                <span className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  ID: {inv.clientIdNumber}
-                </span>
-              )}
-              {!!inv.clientPhone && (
-                <span className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 inline-flex items-center gap-1">
-                  <Phone size={12} /> {inv.clientPhone}
-                </span>
-              )}
+            <div className="flex-1 text-right" dir="rtl">
+              <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">
+                الزبون
+              </h3>
+              <div className="text-[14px] font-black uppercase truncate text-slate-900">
+                {inv.clientNameAr || "—"}
+              </div>
+              <div className="text-[11px] text-slate-600 line-clamp-1 mt-1">
+                {inv.clientAddressAr || "—"}
+              </div>
             </div>
+          </div>
+
+          {/* Info Complémentaires Client (ID, Phone) */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {!!inv.clientIdNumber && (
+              <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                <span>ID: {inv.clientIdNumber}</span>
+                <span className="text-slate-300">|</span>
+                <span dir="rtl">رقم.ت: {inv.clientIdNumber}</span>
+              </span>
+            )}
+            {!!inv.clientPhone && (
+              <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 inline-flex items-center gap-2">
+                <Phone size={12} /> {inv.clientPhone}
+                <span className="text-slate-300">|</span>
+                <span dir="rtl">الهاتف</span>
+              </span>
+            )}
           </div>
 
           {subType === "livraison" && (
             <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                Détails Livraison
+              <div className="flex justify-between items-center mb-3">
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">Détails Livraison</div>
+                <div className="text-[10px] font-black tracking-widest text-slate-500" dir="rtl">تفاصيل التسليم</div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-[11px]">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                    Modèle
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                  <div>
+                    <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                    <div className="font-black">{inv.boatDetails.model || "—"}</div>
                   </div>
-                  <div className="font-black">{inv.boatDetails.model || "—"}</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                    N° de série
-                  </div>
-                  <div className="font-black font-mono text-blue-700">
-                    {inv.boatDetails.serialNumber || "—"}
+                  <div className="text-right" dir="rtl">
+                    <div className="text-[8px] text-slate-400 uppercase tracking-widest">الموديل</div>
                   </div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                    Téléphone client
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                  <div>
+                    <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                    <div className="font-black font-mono text-blue-700">{inv.boatDetails.serialNumber || "—"}</div>
                   </div>
-                  <div className="font-black">{inv.clientPhone || "—"}</div>
+                  <div className="text-right" dir="rtl">
+                    <div className="text-[8px] text-slate-400 uppercase tracking-widest">رقم التسلسل</div>
+                  </div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                    Longueur
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                  <div>
+                    <div className="text-[8px] text-slate-400 uppercase tracking-widest">Téléphone client</div>
+                    <div className="font-black">{inv.clientPhone || "—"}</div>
                   </div>
-                  <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                  <div className="text-right" dir="rtl">
+                    <div className="text-[8px] text-slate-400 uppercase tracking-widest">هاتف الزبون</div>
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                  <div>
+                    <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                    <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                  </div>
+                  <div className="text-right" dir="rtl">
+                    <div className="text-[8px] text-slate-400 uppercase tracking-widest">الطول</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1027,113 +1096,162 @@ export default function MainApp() {
           <div className="min-h-[175px]">
             {subType === "attestation" ? (
               <div className="space-y-4">
-                <p className="text-justify text-[11px] leading-relaxed">
-                  Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
-                  <b>{companyConfig.name}</b>, certifie par {designationText} que le navire a été construit
-                  à neuf dans nos ateliers pour le compte de{" "}
-                  <b>{inv.clientName || ".........."}</b>.
-                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <p className="text-justify text-[11px] leading-relaxed">
+                    Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
+                    <b>{companyConfig.name}</b>, certifie par {designationText} que le navire a été construit
+                    à neuf dans nos ateliers pour le compte de{" "}
+                    <b>{inv.clientName || ".........."}</b>.
+                  </p>
+                  <p className="text-justify text-[12px] leading-relaxed font-bold" dir="rtl">
+                    أنا الممضي أسفله، <b>{companyConfig.managerName}</b>، مسير شركة{" "}
+                    <b>{companyConfig.name}</b>، أشهد بموجب هذه الوثيقة أن القارب قد تم بناؤه جديداً في ورشاتنا لصالح السيد(ة){" "}
+                    <b>{inv.clientNameAr || inv.clientName || ".........."}</b>.
+                  </p>
+                </div>
 
                 <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-red-50 p-4">
-                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">
-                    Garantie
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">Garantie</div>
+                    <div className="text-[10px] font-black tracking-widest text-slate-500" dir="rtl">الضمان</div>
                   </div>
-                  <div className="text-[11px] font-bold text-slate-700">
-                    Garantie <span className="text-slate-900 font-black">1 an</span>{" "}
-                    sur tout décollement ou problème provenant d’usine (défaut de
-                    fabrication), sous réserve d’une utilisation normale.
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-[11px] font-bold text-slate-700">
+                      Garantie <span className="text-slate-900 font-black">1 an</span>{" "}
+                      sur tout décollement ou problème provenant d’usine (défaut de fabrication), sous réserve d’une utilisation normale.
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-700 text-justify" dir="rtl">
+                      ضمان لمدة <span className="text-slate-900 font-black">سنة (1)</span> على أي تفكك أو مشكل ناتج عن المصنع (عيب في الصنع)، شريطة الاستخدام العادي للقارب.
+                    </div>
                   </div>
                 </div>
 
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                  <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
-                    Détails du Bateau
+                  <div className="bg-slate-900 text-white px-4 py-2 flex justify-between items-center">
+                    <div className="text-[9px] font-black uppercase tracking-widest">Détails du Bateau</div>
+                    <div className="text-[10px] font-black tracking-widest" dir="rtl">تفاصيل القارب</div>
                   </div>
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Modèle
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                        <div className="font-black">{inv.boatDetails.model || "—"}</div>
                       </div>
-                      <div className="font-black">{inv.boatDetails.model || "—"}</div>
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">الموديل</div>
+                      </div>
                     </div>
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        N° de série
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                        <div className="font-black text-blue-700 font-mono">{inv.boatDetails.serialNumber || "—"}</div>
                       </div>
-                      <div className="font-black text-blue-700 font-mono">
-                        {inv.boatDetails.serialNumber || "—"}
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">رقم التسلسل</div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2 flex justify-between items-center">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Numéro d’approbation (DMMP)</div>
+                        <div className="font-black text-slate-900">{approvalShown}</div>
+                      </div>
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">رقم الاعتماد</div>
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Numéro d’approbation (DMMP)
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                        <div className="font-black">{inv.boatDetails.length || "—"}</div>
                       </div>
-                      <div className="font-black text-slate-900">{approvalShown}</div>
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">الطول</div>
+                      </div>
                     </div>
-
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Longueur
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Année de construction</div>
+                        <div className="font-black">{inv.boatDetails.year || "—"}</div>
                       </div>
-                      <div className="font-black">{inv.boatDetails.length || "—"}</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Année de construction
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">سنة الصنع</div>
                       </div>
-                      <div className="font-black">{inv.boatDetails.year || "—"}</div>
                     </div>
                   </div>
                 </div>
               </div>
             ) : subType === "garantie" ? (
               <div className="space-y-4">
-                <p className="text-justify text-[12px] leading-relaxed">
-                  Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
-                  <b>{companyConfig.name}</b>, certifie par la présente que le navire détaillé ci-dessous bénéficie d'une <b>garantie d'une (01) année</b> à compter de la date de livraison, pour le compte de notre client <b>{inv.clientName || ".........."}</b>.
-                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <p className="text-justify text-[12px] leading-relaxed">
+                    Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
+                    <b>{companyConfig.name}</b>, certifie par la présente que le navire détaillé ci-dessous bénéficie d'une <b>garantie d'une (01) année</b> à compter de la date de livraison, pour le compte de notre client <b>{inv.clientName || ".........."}</b>.
+                  </p>
+                  <p className="text-justify text-[12px] leading-relaxed font-bold" dir="rtl">
+                    أنا الممضي أسفله، <b>{companyConfig.managerName}</b>، مسير شركة{" "}
+                    <b>{companyConfig.name}</b>، أشهد بموجب هذه الوثيقة أن القارب المفصل أدناه يستفيد من <b>ضمان لمدة سنة (01) واحدة</b> ابتداءً من تاريخ التسليم، لصالح زبوننا <b>{inv.clientNameAr || inv.clientName || ".........."}</b>.
+                  </p>
+                </div>
 
                 <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
-                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">
-                    Conditions de Garantie
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">Conditions de Garantie</div>
+                    <div className="text-[10px] font-black tracking-widest text-slate-500" dir="rtl">شروط الضمان</div>
                   </div>
-                  <div className="text-[11px] font-bold text-slate-700">
-                    Cette garantie couvre exclusivement tout décollement ou problème provenant de l'usine (défaut de
-                    fabrication). Elle reste valable sous réserve d’une utilisation normale du bateau, conforme aux recommandations du constructeur.
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-[11px] font-bold text-slate-700">
+                      Cette garantie couvre exclusivement tout décollement ou problème provenant de l'usine (défaut de
+                      fabrication). Elle reste valable sous réserve d’une utilisation normale du bateau, conforme aux recommandations du constructeur.
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-700 text-justify" dir="rtl">
+                      يغطي هذا الضمان حصرياً أي تفكك أو مشكل ناتج عن المصنع (عيب في الصنع). ويبقى صالحاً بشرط الاستخدام العادي للقارب، وفقاً لتوصيات المصنع.
+                    </div>
                   </div>
                 </div>
 
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                  <div className="bg-slate-900 text-white px-3 py-2 text-[9px] font-black uppercase text-center tracking-widest">
-                    Détails du Bateau Garanti
+                  <div className="bg-slate-900 text-white px-4 py-2 flex justify-between items-center">
+                    <div className="text-[9px] font-black uppercase tracking-widest">Détails du Bateau Garanti</div>
+                    <div className="text-[10px] font-black tracking-widest" dir="rtl">تفاصيل القارب المضمون</div>
                   </div>
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Modèle
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                        <div className="font-black">{inv.boatDetails.model || "—"}</div>
                       </div>
-                      <div className="font-black">{inv.boatDetails.model || "—"}</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        N° de série
-                      </div>
-                      <div className="font-black text-blue-700 font-mono">
-                        {inv.boatDetails.serialNumber || "—"}
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">الموديل</div>
                       </div>
                     </div>
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Longueur
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                        <div className="font-black text-blue-700 font-mono">{inv.boatDetails.serialNumber || "—"}</div>
                       </div>
-                      <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">رقم التسلسل</div>
+                      </div>
                     </div>
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Année de construction
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                        <div className="font-black">{inv.boatDetails.length || "—"}</div>
                       </div>
-                      <div className="font-black">{inv.boatDetails.year || "—"}</div>
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">الطول</div>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Année de construction</div>
+                        <div className="font-black">{inv.boatDetails.year || "—"}</div>
+                      </div>
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">سنة الصنع</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1141,42 +1259,49 @@ export default function MainApp() {
             ) : isCommande ? (
               <div className="space-y-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                    Bon de commande
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">Bon de commande</div>
+                    <div className="text-[10px] font-black tracking-widest text-slate-500" dir="rtl">معلومات الطلبية</div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-[11px]">
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Modèle voulu
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle voulu</div>
+                        <div className="font-black">{inv.orderDetails?.modelWanted || inv.boatDetails?.model || "—"}</div>
                       </div>
-                      <div className="font-black">
-                        {inv.orderDetails?.modelWanted ||
-                          inv.boatDetails?.model ||
-                          "—"}
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">الموديل المطلوب</div>
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Couleurs
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Couleurs</div>
+                        <div className="font-bold">{inv.orderDetails?.colors || "—"}</div>
                       </div>
-                      <div className="font-bold">{inv.orderDetails?.colors || "—"}</div>
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">الألوان</div>
+                      </div>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Options
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Options</div>
+                        <div className="font-bold">{inv.orderDetails?.options || "—"}</div>
                       </div>
-                      <div className="font-bold">{inv.orderDetails?.options || "—"}</div>
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">خيارات إضافية</div>
+                      </div>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2">
-                      <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                        Accessoires divers
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 col-span-2 flex justify-between">
+                      <div>
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">Accessoires divers</div>
+                        <div className="font-bold">{inv.orderDetails?.accessories || "—"}</div>
                       </div>
-                      <div className="font-bold">
-                        {inv.orderDetails?.accessories || "—"}
+                      <div className="text-right" dir="rtl">
+                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">لوازم مختلفة</div>
                       </div>
                     </div>
                   </div>
@@ -1186,8 +1311,9 @@ export default function MainApp() {
                 {ItemsTable}
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                    Règlement
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">Règlement</div>
+                    <div className="text-[10px] font-black tracking-widest text-slate-500" dir="rtl">التسوية المالية</div>
                   </div>
 
                   {(() => {
@@ -1197,26 +1323,31 @@ export default function MainApp() {
 
                     return (
                       <div className="grid grid-cols-3 gap-3 text-[11px]">
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                            Total Commande
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                          <div>
+                            <div className="text-[8px] text-slate-400 uppercase tracking-widest">Total Commande</div>
+                            <div className="font-black text-blue-700">{formatCurrency(totalCmd)}</div>
                           </div>
-                          <div className="font-black text-blue-700">
-                            {formatCurrency(totalCmd)}
+                          <div className="text-right" dir="rtl">
+                            <div className="text-[8px] text-slate-400 uppercase tracking-widest">المجموع</div>
                           </div>
                         </div>
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                            Total versé
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                          <div>
+                            <div className="text-[8px] text-slate-400 uppercase tracking-widest">Total versé</div>
+                            <div className="font-black">{formatCurrency(paid)}</div>
                           </div>
-                          <div className="font-black">{formatCurrency(paid)}</div>
+                          <div className="text-right" dir="rtl">
+                            <div className="text-[8px] text-slate-400 uppercase tracking-widest">المبلغ المدفوع</div>
+                          </div>
                         </div>
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                            Restant
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                          <div>
+                            <div className="text-[8px] text-slate-400 uppercase tracking-widest">Restant</div>
+                            <div className="font-black text-red-600">{formatCurrency(rest)}</div>
                           </div>
-                          <div className="font-black text-red-600">
-                            {formatCurrency(rest)}
+                          <div className="text-right" dir="rtl">
+                            <div className="text-[8px] text-slate-400 uppercase tracking-widest">الباقي</div>
                           </div>
                         </div>
                       </div>
@@ -1228,29 +1359,37 @@ export default function MainApp() {
               <div className="space-y-3">
                 {showBoatBlockOnInvoice && (
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                      Détails Bateau
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">Détails Bateau</div>
+                      <div className="text-[10px] font-black tracking-widest text-slate-500" dir="rtl">تفاصيل القارب</div>
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-[11px]">
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                          Modèle
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                        <div>
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">Modèle</div>
+                          <div className="font-black">{inv.boatDetails.model || "—"}</div>
                         </div>
-                        <div className="font-black">{inv.boatDetails.model || "—"}</div>
-                      </div>
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                          N° de série
-                        </div>
-                        <div className="font-black text-blue-700 font-mono">
-                          {inv.boatDetails.serialNumber || "—"}
+                        <div className="text-right" dir="rtl">
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">الموديل</div>
                         </div>
                       </div>
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <div className="text-[8px] text-slate-400 uppercase tracking-widest">
-                          Longueur
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                        <div>
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">N° de série</div>
+                          <div className="font-black text-blue-700 font-mono">{inv.boatDetails.serialNumber || "—"}</div>
                         </div>
-                        <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                        <div className="text-right" dir="rtl">
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">رقم التسلسل</div>
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between">
+                        <div>
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">Longueur</div>
+                          <div className="font-black">{inv.boatDetails.length || "—"}</div>
+                        </div>
+                        <div className="text-right" dir="rtl">
+                          <div className="text-[8px] text-slate-400 uppercase tracking-widest">الطول</div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1267,48 +1406,62 @@ export default function MainApp() {
           {showTotals && (
             <>
               <div className="flex justify-end mb-3">
-                <div className="w-[58%] rounded-2xl border border-slate-200 overflow-hidden">
-                  <div className="px-4 py-3 bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    Récapitulatif
-                  </div>
-                  <div className="p-4 bg-white text-[10px] space-y-2">
-                    <div className="flex justify-between text-slate-500 font-bold">
-                      <span>Sous-total HT</span>
-                      <span>{formatCurrency(subtotal)}</span>
+                <div className="w-full md:w-[70%] rounded-2xl border border-slate-200 overflow-hidden flex">
+                  
+                  {/* Totals Section */}
+                  <div className="w-full">
+                    <div className="px-4 py-3 bg-slate-50 flex justify-between border-b border-slate-100">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Récapitulatif</div>
+                      <div className="text-[10px] font-black tracking-widest text-slate-500" dir="rtl">الملخص</div>
                     </div>
-
-                    {inv.applyTva && (
-                      <div className="flex justify-between text-slate-500 font-bold">
-                        <span>TVA</span>
-                        <span>{Number(inv.tvaRate || 0)}%</span>
+                    <div className="p-4 bg-white text-[10px] space-y-2">
+                      <div className="flex justify-between items-center text-slate-500 font-bold">
+                        <div className="flex-1">Sous-total HT</div>
+                        <div className="flex-1 text-center">{formatCurrency(subtotal)}</div>
+                        <div className="flex-1 text-right" dir="rtl">المجموع دون الرسوم</div>
                       </div>
-                    )}
 
-                    <div className="pt-2 border-t flex justify-between font-black text-[13px]">
-                      <span className="text-slate-900">
-                        {inv.applyTva ? "TOTAL TTC" : "TOTAL"}
-                      </span>
-                      <span className="text-blue-700">{formatCurrency(total)}</span>
+                      {inv.applyTva && (
+                        <div className="flex justify-between items-center text-slate-500 font-bold">
+                          <div className="flex-1">TVA</div>
+                          <div className="flex-1 text-center">{Number(inv.tvaRate || 0)}%</div>
+                          <div className="flex-1 text-right" dir="rtl">الرسم على القيمة المضافة</div>
+                        </div>
+                      )}
+
+                      <div className="pt-2 border-t flex justify-between items-center font-black text-[13px]">
+                        <div className="flex-1 text-slate-900">{inv.applyTva ? "TOTAL TTC" : "TOTAL"}</div>
+                        <div className="flex-1 text-center text-blue-700">{formatCurrency(total)}</div>
+                        <div className="flex-1 text-right text-slate-900" dir="rtl">{inv.applyTva ? "المجموع بكل الرسوم" : "المجموع"}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                  Total en lettres
+                <div className="flex justify-between items-center mb-2">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">Total en lettres</div>
+                  <div className="text-[10px] font-black tracking-widest text-slate-500" dir="rtl">المبلغ بالحروف</div>
                 </div>
-                <div className="text-[11px] font-bold text-slate-800">
-                  {subType === "proforma"
-                    ? "Arrêté le présent devis à la somme de :"
-                    : "Arrêté la présente facture à la somme de :"}
+                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-[11px] font-bold text-slate-800">
+                  <div>
+                    {subType === "proforma"
+                      ? "Arrêté le présent devis à la somme de :"
+                      : "Arrêté la présente facture à la somme de :"}
+                  </div>
+                  <div dir="rtl">
+                    {subType === "proforma"
+                      ? "حُدّد هذا الكشف بمبلغ :"
+                      : "حُدّدت هذه الفاتورة بمبلغ :"}
+                  </div>
                 </div>
-                <div className="mt-1 text-[12px] font-black text-slate-900">{totalWords}</div>
+                <div className="mt-2 text-[12px] font-black text-slate-900 text-center bg-slate-50 p-2 rounded-xl border border-slate-100">{totalWords}</div>
 
                 {subType === "proforma" && (
-                  <div className="mt-2 text-[10px] font-bold text-slate-500">
-                    Devis valable <span className="text-slate-900 font-black">2 mois</span>{" "}
-                    à compter de la date d’émission.
+                  <div className="mt-3 flex justify-between text-[10px] font-bold text-slate-500">
+                    <div>Devis valable <span className="text-slate-900 font-black">2 mois</span> à compter de la date d’émission.</div>
+                    <div dir="rtl">هذا الكشف صالح لمدة <span className="text-slate-900 font-black">شهرين</span> من تاريخ الإصدار.</div>
                   </div>
                 )}
               </div>
@@ -1316,47 +1469,63 @@ export default function MainApp() {
           )}
 
           {showPayBlock && (
-            <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
-              <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                Paiement
+            <div className="mb-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 flex justify-between items-center">
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Paiement</div>
+                <div className="text-[12px] font-black text-slate-900">
+                  Mode : <span className="text-blue-700">{paymentLabel(inv.paymentMethod).fr}</span>
+                </div>
+                {inv.paymentMethod === "cheque" && inv.clientChequeNumber ? (
+                  <div className="text-[10px] text-slate-600 font-bold mt-1">
+                    N° Chèque : <span className="font-mono">{inv.clientChequeNumber}</span>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-slate-600 font-bold mt-1">
+                    {inv.paymentMethod === "cheque"
+                      ? "N° Chèque : —"
+                      : inv.paymentMethod === "virement"
+                      ? "Paiement par virement bancaire"
+                      : "Paiement en espèces"}
+                  </div>
+                )}
               </div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-[12px] font-black text-slate-900">
-                    Mode :{" "}
-                    <span className="text-blue-700">{paymentLabel(inv.paymentMethod)}</span>
-                  </div>
-                  {inv.paymentMethod === "cheque" && inv.clientChequeNumber ? (
-                    <div className="text-[10px] text-slate-600 font-bold mt-1">
-                      N° Chèque :{" "}
-                      <span className="font-mono">{inv.clientChequeNumber}</span>
-                    </div>
-                  ) : (
-                    <div className="text-[10px] text-slate-600 font-bold mt-1">
-                      {inv.paymentMethod === "cheque"
-                        ? "N° Chèque : —"
-                        : inv.paymentMethod === "virement"
-                        ? "Paiement par virement bancaire"
-                        : "Paiement en espèces"}
-                    </div>
-                  )}
+
+              <div className="text-right" dir="rtl">
+                <div className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">الدفع</div>
+                <div className="text-[12px] font-black text-slate-900">
+                  الطريقة : <span className="text-blue-700">{paymentLabel(inv.paymentMethod).ar}</span>
                 </div>
-                <div className="text-right text-[10px] font-bold text-slate-600">
-                  <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Paiement prévu
+                {inv.paymentMethod === "cheque" && inv.clientChequeNumber ? (
+                  <div className="text-[10px] text-slate-600 font-bold mt-1">
+                    رقم الصك : <span className="font-mono" dir="ltr">{inv.clientChequeNumber}</span>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-[10px] text-slate-600 font-bold mt-1">
+                    {inv.paymentMethod === "cheque"
+                      ? "رقم الصك : —"
+                      : inv.paymentMethod === "virement"
+                      ? "الدفع عن طريق تحويل بنكي"
+                      : "الدفع نقداً"}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4 mb-3">
-            <div className="border border-dashed border-slate-200 rounded-2xl h-20 p-3 text-[9px] text-slate-400 uppercase font-black flex flex-col justify-between">
-              Cachet Gérant<span>....................</span>
+            <div className="border border-dashed border-slate-200 rounded-2xl h-24 p-3 text-[9px] text-slate-400 uppercase font-black flex flex-col justify-between items-center relative">
+              <div className="w-full flex justify-between px-2">
+                <span>Cachet Gérant</span>
+                <span dir="rtl">ختم المسير</span>
+              </div>
+              <span className="text-slate-200">..............................</span>
             </div>
-            <div className="border border-dashed border-slate-200 rounded-2xl h-20 p-3 text-[9px] text-slate-400 uppercase font-black flex flex-col justify-between">
-              Signature Client<span>....................</span>
+            <div className="border border-dashed border-slate-200 rounded-2xl h-24 p-3 text-[9px] text-slate-400 uppercase font-black flex flex-col justify-between items-center relative">
+              <div className="w-full flex justify-between px-2">
+                <span>Signature Client</span>
+                <span dir="rtl">إمضاء الزبون</span>
+              </div>
+              <span className="text-slate-200">..............................</span>
             </div>
           </div>
 
@@ -1706,9 +1875,9 @@ export default function MainApp() {
 
               {/* LIGNE 1 : Client & Bateau & Options */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <div className="grid grid-cols-1 gap-2">
-                    <InputGroup label="Client" compact>
+                <div className="md:col-span-5 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                    <InputGroup label="Nom Complet (FR)" compact>
                       <Input
                         value={currentInvoice.clientName || ""}
                         onChange={(e) =>
@@ -1717,70 +1886,93 @@ export default function MainApp() {
                             clientName: e.target.value,
                           }))
                         }
-                        placeholder="Nom complet"
+                        placeholder="Ex: Nom Prénom"
                       />
                     </InputGroup>
+                    <InputGroup label="الاسم واللقب (AR)" compact>
+                      <Input
+                        dir="rtl"
+                        value={currentInvoice.clientNameAr || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            clientNameAr: e.target.value,
+                          }))
+                        }
+                        placeholder="الاسم الكامل"
+                      />
+                    </InputGroup>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <InputGroup label="Téléphone" compact>
-                        <Input
-                          value={currentInvoice.clientPhone || ""}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => ({
-                              ...normalizeInvoice(p),
-                              clientPhone: e.target.value,
-                            }))
-                          }
-                          placeholder="0550..."
-                        />
-                      </InputGroup>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                    <InputGroup label="Adresse (FR)" compact>
+                      <Input
+                        value={currentInvoice.clientAddress || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            clientAddress: e.target.value,
+                          }))
+                        }
+                        placeholder="Adresse"
+                      />
+                    </InputGroup>
+                    <InputGroup label="العنوان (AR)" compact>
+                      <Input
+                        dir="rtl"
+                        value={currentInvoice.clientAddressAr || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            clientAddressAr: e.target.value,
+                          }))
+                        }
+                        placeholder="العنوان بالعربية"
+                      />
+                    </InputGroup>
+                  </div>
 
-                      {/* CHANGEMENT DE DATE ICI */}
-                      <InputGroup label="Date du document" compact>
-                        <Input
-                          type="date"
-                          value={currentInvoice.date || ""}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => ({
-                              ...normalizeInvoice(p),
-                              date: e.target.value,
-                            }))
-                          }
-                        />
-                      </InputGroup>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <InputGroup label="ID / Passport" compact>
-                        <Input
-                          value={currentInvoice.clientIdNumber || ""}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => ({
-                              ...normalizeInvoice(p),
-                              clientIdNumber: e.target.value,
-                            }))
-                          }
-                          placeholder="Optionnel"
-                        />
-                      </InputGroup>
-                      
-                      <InputGroup label="Adresse" compact>
-                        <Input
-                          value={currentInvoice.clientAddress || ""}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => ({
-                              ...normalizeInvoice(p),
-                              clientAddress: e.target.value,
-                            }))
-                          }
-                          placeholder="Adresse"
-                        />
-                      </InputGroup>
-                    </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <InputGroup label="Téléphone" compact>
+                      <Input
+                        value={currentInvoice.clientPhone || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            clientPhone: e.target.value,
+                          }))
+                        }
+                        placeholder="0550..."
+                      />
+                    </InputGroup>
+                    <InputGroup label="ID / Passport" compact>
+                      <Input
+                        value={currentInvoice.clientIdNumber || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            clientIdNumber: e.target.value,
+                          }))
+                        }
+                        placeholder="Optionnel"
+                      />
+                    </InputGroup>
+                    <InputGroup label="Date Document" compact>
+                      <Input
+                        type="date"
+                        value={currentInvoice.date || ""}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => ({
+                            ...normalizeInvoice(p),
+                            date: e.target.value,
+                          }))
+                        }
+                      />
+                    </InputGroup>
                   </div>
                 </div>
 
-                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
+                <div className="md:col-span-3 rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-600 to-blue-800 p-3 text-white">
                   <div className="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-2">
                     <CheckCircle size={12} /> Bateau (Modèle)
                   </div>
@@ -1802,7 +1994,7 @@ export default function MainApp() {
                     ))}
                   </select>
 
-                  <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div className="grid grid-cols-1 gap-2 mb-2">
                     <input
                       className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       value={currentInvoice?.boatDetails?.serialNumber || ""}
@@ -1820,6 +2012,23 @@ export default function MainApp() {
                       }
                       placeholder="N° Série"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
+                      value={currentInvoice?.boatDetails?.length || ""}
+                      onChange={(e) =>
+                        setCurrentInvoice((p) => {
+                          const inv = normalizeInvoice(p);
+                          return {
+                            ...inv,
+                            boatDetails: { ...inv.boatDetails, length: e.target.value },
+                          };
+                        })
+                      }
+                      placeholder="Longueur"
+                    />
                     <input
                       className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
                       value={currentInvoice?.boatDetails?.year || ""}
@@ -1834,24 +2043,6 @@ export default function MainApp() {
                       }
                       placeholder="Année"
                     />
-                  </div>
-
-                  <input
-                    className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
-                    value={currentInvoice?.boatDetails?.length || ""}
-                    onChange={(e) =>
-                      setCurrentInvoice((p) => {
-                        const inv = normalizeInvoice(p);
-                        return {
-                          ...inv,
-                          boatDetails: { ...inv.boatDetails, length: e.target.value },
-                        };
-                      })
-                    }
-                    placeholder="Longueur"
-                  />
-                  <div className="text-[9px] font-bold text-blue-200 mt-2 text-center uppercase tracking-widest">
-                    Le prix se modifie dans les lignes ci-dessous
                   </div>
                 </div>
 
@@ -1937,9 +2128,9 @@ export default function MainApp() {
                           }))
                         }
                       >
-                        <option value="cheque">Chèque</option>
-                        <option value="virement">Virement bancaire</option>
-                        <option value="espece">Espèce</option>
+                        <option value="cheque">Chèque / صك</option>
+                        <option value="virement">Virement bancaire / تحويل بنكي</option>
+                        <option value="espece">Espèce / نقداً</option>
                       </select>
                       {currentInvoice.paymentMethod === "cheque" && (
                         <input
@@ -2054,7 +2245,7 @@ export default function MainApp() {
                         onClick={() => {
                           setCurrentInvoice(p => {
                             const inv = normalizeInvoice(p);
-                            if (inv.items.length <= 1) return inv; // Ne supprime pas la toute dernière ligne
+                            if (inv.items.length <= 1) return inv;
                             return { ...inv, items: inv.items.filter((_, i) => i !== idx) };
                           });
                         }}
@@ -2081,9 +2272,9 @@ export default function MainApp() {
                           }))
                         }
                       >
-                        <option value="ATTESTATION">Attestation de construction</option>
-                        <option value="CERTIFICAT">Certificat de construction</option>
-                        <option value="ACTE">Acte de construction</option>
+                        <option value="ATTESTATION">Attestation de construction / شهادة بناء</option>
+                        <option value="CERTIFICAT">Certificat de construction / شهادة بناء</option>
+                        <option value="ACTE">Acte de construction / عقد بناء</option>
                       </select>
                     </InputGroup>
                   </div>
