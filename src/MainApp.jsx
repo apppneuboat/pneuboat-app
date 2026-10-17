@@ -883,11 +883,9 @@ export default function MainApp() {
     const approvalShown = inv.boatDetails?.approvalNumber || "—";
     const showBoatBlockOnInvoice = subType === "facture" || subType === "proforma";
 
-    // Text depending on title selection
     const designationText = inv.attestationTitle === "ACTE" ? "le présent acte" : 
                             inv.attestationTitle === "CERTIFICAT" ? "le présent certificat" : "la présente attestation";
 
-    // Table of items block
     const ItemsTable = (
       <div className="rounded-2xl overflow-hidden border border-slate-200">
         <table className="w-full text-[11px]">
@@ -942,7 +940,7 @@ export default function MainApp() {
             {inv.items.length === 0 && (
               <tr>
                 <td className="p-6 text-center text-slate-400 font-black" colSpan={4}>
-                  Aucun article {isBilingual && "/ لا يوجد أي عنصر"}
+                  {isBilingual ? "Aucun article / لا يوجد أي عنصر" : "Aucun article"}
                 </td>
               </tr>
             )}
@@ -1035,7 +1033,6 @@ export default function MainApp() {
             )}
           </div>
 
-          {/* Info Complémentaires Client (ID, Phone) */}
           <div className="flex flex-wrap gap-2 mb-4">
             {!!inv.clientIdNumber && (
               <span className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
@@ -1132,8 +1129,7 @@ export default function MainApp() {
                   </div>
                   <div className={`grid grid-cols-1 ${isBilingual ? 'md:grid-cols-2' : ''} gap-4`}>
                     <div className="text-[11px] font-bold text-slate-700">
-                      Garantie <span className="text-slate-900 font-black">1 an</span>{" "}
-                      sur tout décollement ou problème provenant d&apos;usine (défaut de fabrication), sous réserve d&apos;une utilisation normale.
+                      Garantie <span className="text-slate-900 font-black">1 an</span> sur tout décollement ou problème provenant d&apos;usine (défaut de fabrication), sous réserve d&apos;une utilisation normale.
                     </div>
                     {isBilingual && (
                       <div className="text-[11px] font-bold text-slate-700 text-justify" dir="rtl">
@@ -1231,8 +1227,7 @@ export default function MainApp() {
                   </div>
                   <div className={`grid grid-cols-1 ${isBilingual ? 'md:grid-cols-2' : ''} gap-4`}>
                     <div className="text-[11px] font-bold text-slate-700">
-                      Cette garantie couvre exclusivement tout décollement ou problème provenant de l&apos;usine (défaut de
-                      fabrication). Elle reste valable sous réserve d&apos;une utilisation normale du bateau, conforme aux recommandations du constructeur.
+                      Cette garantie couvre exclusivement tout décollement ou problème provenant de l&apos;usine (défaut de fabrication). Elle reste valable sous réserve d&apos;une utilisation normale du bateau, conforme aux recommandations du constructeur.
                     </div>
                     {isBilingual && (
                       <div className="text-[11px] font-bold text-slate-700 text-justify" dir="rtl">
@@ -1354,7 +1349,6 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                {/* TABLEAU DES ARTICLES (BATEAU + ACCESSOIRES) */}
                 {ItemsTable}
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -1454,7 +1448,6 @@ export default function MainApp() {
                   </div>
                 )}
 
-                {/* TABLEAU DES ARTICLES */}
                 {ItemsTable}
               </div>
             )}
@@ -1466,8 +1459,6 @@ export default function MainApp() {
             <>
               <div className="flex justify-end mb-3">
                 <div className="w-full md:w-[70%] rounded-2xl border border-slate-200 overflow-hidden flex">
-                  
-                  {/* Totals Section */}
                   <div className="w-full">
                     <div className="px-4 py-3 bg-slate-50 flex justify-between border-b border-slate-100">
                       <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Récapitulatif</div>
@@ -2375,4 +2366,505 @@ export default function MainApp() {
               {currentInvoice.type === "commande" && (
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
                   <div className="md:col-span-8 rounded-2xl border border-slate-100 bg-white p-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <InputGroup label="Modèle voulu (si différent)" compact>
+                        <Input
+                          value={currentInvoice.orderDetails?.modelWanted || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return {
+                                ...inv,
+                                orderDetails: {
+                                  ...inv.orderDetails,
+                                  modelWanted: e.target.value,
+                                },
+                              };
+                            })
+                          }
+                          placeholder="Ex: PNB-550"
+                        />
+                      </InputGroup>
+
+                      <InputGroup label="Couleurs" compact>
+                        <Input
+                          value={currentInvoice.orderDetails?.colors || ""}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => {
+                              const inv = normalizeInvoice(p);
+                              return {
+                                ...inv,
+                                orderDetails: { ...inv.orderDetails, colors: e.target.value },
+                              };
+                            })
+                          }
+                          placeholder="Ex: Bleu / Blanc"
+                        />
+                      </InputGroup>
+
+                      <div className="md:col-span-2">
+                        <InputGroup label="Options (Couleur Gelcoat etc)" compact>
+                          <Input
+                            value={currentInvoice.orderDetails?.options || ""}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                return {
+                                  ...inv,
+                                  orderDetails: { ...inv.orderDetails, options: e.target.value },
+                                };
+                              })
+                            }
+                            placeholder="Ex: Console, banquette..."
+                          />
+                        </InputGroup>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <InputGroup label="Notes Accessoires" compact>
+                          <Input
+                            value={currentInvoice.orderDetails?.accessories || ""}
+                            onChange={(e) =>
+                              setCurrentInvoice((p) => {
+                                const inv = normalizeInvoice(p);
+                                return {
+                                  ...inv,
+                                  orderDetails: {
+                                    ...inv.orderDetails,
+                                    accessories: e.target.value,
+                                  },
+                                };
+                              })
+                            }
+                            placeholder="Infos additionnelles"
+                          />
+                        </InputGroup>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3 flex flex-col justify-center">
+                    <InputGroup label="Acompte / Total versé (DA)" compact>
+                      <Input
+                        type="number"
+                        className="w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-xl text-lg font-black outline-none focus:border-blue-500 text-blue-700"
+                        value={Number(currentInvoice.orderDetails?.amountPaid || 0)}
+                        onChange={(e) =>
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            return {
+                              ...inv,
+                              orderDetails: {
+                                ...inv.orderDetails,
+                                amountPaid: parseFloat(e.target.value) || 0,
+                              },
+                            };
+                          })
+                        }
+                      />
+                    </InputGroup>
+                    <div className="mt-2 text-[10px] font-bold text-slate-500 text-center uppercase tracking-widest">
+                      Total = lignes ci-dessus<br/>Restant = Total - Versé
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[82vh] md:h-[calc(100vh-18rem)] shadow-inner border-4 border-white">
+              <div className="min-w-[980px] flex justify-center">
+                <div
+                  id="printable-area"
+                  className="origin-top"
+                  style={{
+                    transform: `scale(${previewZoom})`,
+                    transformOrigin: "top center",
+                  }}
+                >
+                  {currentInvoice.type === "dossier" ? (
+                    <div>
+                      <div className="page-break">
+                        <RenderDoc subType="facture" docNumber={currentInvoice.invoiceNumber} />
+                      </div>
+                      <div className="page-break">
+                        <RenderDoc
+                          subType="attestation"
+                          docNumber={currentInvoice.attestationNumber}
+                        />
+                      </div>
+                      <div className="page-break-last">
+                        <RenderDoc
+                          subType="livraison"
+                          docNumber={currentInvoice.deliveryNumber}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <RenderDoc subType={currentInvoice.type} docNumber={currentInvoice.number} />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* HISTORY */}
+        {view === "history" && (
+          <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
+            <div className="p-6 md:p-8 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black uppercase flex items-center gap-3 tracking-tighter">
+                  <Cloud className="text-blue-500" /> Archives Cloud
+                </h2>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+                  Base de données en temps réel
+                </p>
+              </div>
+              <div className="relative md:w-80">
+                <Search className="absolute left-4 top-3.5 text-slate-500" size={18} />
+                <input
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800 border-none rounded-2xl text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  placeholder="Nom ou N° de doc..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <tbody className="divide-y divide-slate-50">
+                  {(filteredHistory || []).map((inv) => (
+                    <tr
+                      key={inv.db_id || inv.number}
+                      className="hover:bg-blue-50/50 transition-all group"
+                    >
+                      <td className="p-5 md:p-7">
+                        <div className="font-black text-slate-800 uppercase tracking-tight">
+                          {inv.client_name || inv.clientName || "—"}
+                        </div>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-widest">
+                          {inv.doc_number || inv.number} •{" "}
+                          {inv.created_at
+                            ? new Date(inv.created_at).toLocaleDateString("fr-FR")
+                            : ""}
+                        </div>
+                      </td>
+                      <td className="p-5 md:p-7 text-right font-black text-blue-900">
+                        {formatCurrency(inv.total)}
+                      </td>
+                      <td className="p-5 md:p-7 text-right space-x-2 whitespace-nowrap">
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            const inv2 = normalizeInvoice(inv);
+                            setCurrentInvoice(inv2);
+                            changeView("edit");
+                          }}
+                          className="!p-3 border-2"
+                        >
+                          <FileText size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => deleteInvoice(inv)}
+                          className="!p-3 text-red-300 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {(!filteredHistory || filteredHistory.length === 0) && (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-[0.2em]"
+                      >
+                        Aucune donnée trouvée
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* DATABASE / PLANS */}
+        {view === "database" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 md:p-8">
+              <h2 className="text-xl font-black uppercase tracking-tight text-slate-800 flex items-center gap-3">
+                <Database className="text-blue-600" /> Plans & Dossiers Techniques
+              </h2>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                Ajoute des PDFs/images (FICHE/JAUGE/PLAN/APPROBATION) puis imprime
+                “Dossier”
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {companyConfig.boatModels.map((m) => (
+                <div
+                  key={m.id}
+                  className="bg-white rounded-[2rem] p-6 border-2 border-white shadow-sm space-y-5"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-black text-lg uppercase tracking-tight text-slate-800">
+                        {m.name}
+                      </h3>
+                      <p className="text-[9px] font-bold text-blue-500 uppercase tracking-[0.2em]">
+                        {m.type}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1">
+                        {m.approvalNumber}
+                      </p>
+                    </div>
+                    <span className="px-4 py-1.5 bg-slate-50 rounded-full text-[10px] font-black text-slate-500">
+                      {m.length}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {["fiche", "jauge", "plan", "approbation"].map((doc) => {
+                      const exists = !!modelDocs?.[m.id]?.[doc];
+                      return (
+                        <div key={doc} className="relative">
+                          <label
+                            className={`cursor-pointer rounded-2xl p-4 text-[9px] font-black flex items-center justify-center gap-3 border-2 transition-all ${
+                              exists
+                                ? "bg-green-50 border-green-200 text-green-700"
+                                : "bg-slate-50 border-slate-50 text-slate-400 hover:border-blue-200 hover:bg-white"
+                            }`}
+                          >
+                            <Upload size={14} /> {doc.toUpperCase()}
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*,application/pdf,.pdf"
+                              onChange={(e) => handleDocUpload(e, m.id, doc)}
+                            />
+                          </label>
+
+                          {exists && (
+                            <button
+                              className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 flex items-center justify-center shadow"
+                              onClick={() => {
+                                if (window.confirm(`Supprimer ${doc.toUpperCase()} ?`)) {
+                                  handleRemoveModelDoc(m.id, doc);
+                                }
+                              }}
+                              title="Supprimer"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      if (!modelDocs[m.id]) return alert("Aucun document pour ce modèle.");
+                      setPrintModelId(m.id);
+                      changeView("print_tech_view");
+                    }}
+                    className="w-full justify-center py-4 rounded-2xl uppercase tracking-widest text-xs"
+                  >
+                    Imprimer Dossier
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SETTINGS */}
+        {view === "settings" && (
+          <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom duration-400">
+            <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-sm border border-slate-100">
+              <h2 className="text-2xl font-black mb-10 flex items-center gap-4 uppercase tracking-tight">
+                <Settings className="text-blue-600" size={28} /> Configuration
+              </h2>
+
+              <div className="flex flex-col md:flex-row items-center gap-8 p-8 bg-slate-50 rounded-[2rem] mb-10">
+                <div className="w-24 h-24 bg-white rounded-[1.5rem] border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
+                  {companyConfig.logo ? (
+                    <img src={companyConfig.logo} alt="Logo" className="object-contain w-full h-full" />
+                  ) : (
+                    <Anchor size={32} className="text-slate-200" />
+                  )}
+                </div>
+
+                <div className="text-center md:text-left space-y-3">
+                  <label className="cursor-pointer bg-blue-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black shadow-xl shadow-blue-200 uppercase tracking-widest inline-block">
+                    Changer le logo
+                    <input type="file" onChange={handleLogoUpload} className="hidden" accept="image/*" />
+                  </label>
+
+                  <div className="flex items-center gap-3 justify-center md:justify-start">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+                      {companyConfig.favicon ? (
+                        <img src={companyConfig.favicon} alt="favicon" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-[10px] font-black text-slate-400">ICO</span>
+                      )}
+                    </div>
+
+                    <label className="cursor-pointer bg-slate-900 text-white px-5 py-3 rounded-2xl text-[10px] font-black shadow uppercase tracking-widest inline-block">
+                      Ajouter Favicon
+                      <input type="file" onChange={handleFaviconUpload} className="hidden" accept="image/*" />
+                    </label>
+                  </div>
+
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                    PNG recommandé (32x32 ou 64x64)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                <InputGroup label="Société (FR)">
+                  <Input
+                    value={companyConfig.name}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, name: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="الشركة (Société AR)">
+                  <Input
+                    dir="rtl"
+                    value={companyConfig.nameAr || ""}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nameAr: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="Gérant (FR)">
+                  <Input
+                    value={companyConfig.managerName}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, managerName: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="المسير (Gérant AR)">
+                  <Input
+                    dir="rtl"
+                    value={companyConfig.managerNameAr || ""}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, managerNameAr: e.target.value })}
+                  />
+                </InputGroup>
+
+                <div className="md:col-span-2">
+                  <InputGroup label="Adresse">
+                    <Input
+                      value={companyConfig.address}
+                      onChange={(e) => saveConfigOnline({ ...companyConfig, address: e.target.value })}
+                    />
+                  </InputGroup>
+                </div>
+
+                <InputGroup label="Email">
+                  <Input
+                    value={companyConfig.email}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, email: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="Téléphone">
+                  <Input
+                    value={companyConfig.phone}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, phone: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="RC">
+                  <Input
+                    value={companyConfig.rc}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, rc: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="NIF">
+                  <Input
+                    value={companyConfig.nif}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nif: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="NIS">
+                  <Input
+                    value={companyConfig.nis}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, nis: e.target.value })}
+                  />
+                </InputGroup>
+
+                <InputGroup label="Banque">
+                  <Input
+                    value={companyConfig.bankName}
+                    onChange={(e) => saveConfigOnline({ ...companyConfig, bankName: e.target.value })}
+                  />
+                </InputGroup>
+
+                <div className="md:col-span-2">
+                  <InputGroup label="RIB">
+                    <Input
+                      value={companyConfig.bankRib}
+                      onChange={(e) => saveConfigOnline({ ...companyConfig, bankRib: e.target.value })}
+                    />
+                  </InputGroup>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PRINT TECH VIEW */}
+        {view === "print_tech_view" && (
+          <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-2xl p-6 md:p-10 border border-slate-100">
+            <div className="flex justify-between items-center mb-8 no-print">
+              <Button
+                variant="secondary"
+                onClick={() => changeView("database")}
+                className="!px-6 rounded-2xl uppercase text-[10px] tracking-widest"
+              >
+                <X size={16} /> Fermer
+              </Button>
+
+              <Button
+                onClick={() => setTimeout(() => window.print(), 100)}
+                className="!px-8 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl shadow-blue-200"
+              >
+                <Printer size={16} /> Tout Imprimer
+              </Button>
+            </div>
+
+            <div className="space-y-10 print-area">
+              {["fiche", "jauge", "plan", "approbation"].map((doc) => {
+                const fileData = modelDocs?.[printModelId]?.[doc];
+                if (!fileData) return null;
+                const pdf = isPdfLike(fileData);
+
+                return (
+                  <div
+                    key={doc}
+                    className="page-break-last flex flex-col items-center justify-center min-h-[90vh]"
+                  >
+                    {pdf ? (
+                      <embed src={fileData} type="application/pdf" className="w-full h-[290mm]" />
+                    ) : (
+                      <img src={fileData} alt={doc} className="max-w-full max-h-[290mm] object-contain" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
