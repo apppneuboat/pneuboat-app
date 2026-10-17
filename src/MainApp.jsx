@@ -267,7 +267,9 @@ export default function MainApp() {
 
   const [companyConfig, setCompanyConfig] = useState({
     name: "PNEUBOAT SARL",
+    nameAr: "ذ.م.م نيو-بوت",
     managerName: "Sekkal Gherbi Youcef",
+    managerNameAr: "سكال غربي يوسف",
     address: "Hai el Badr Oran",
     email: "info@pneuboat.net",
     website: "www.pneuboat.net",
@@ -555,7 +557,7 @@ export default function MainApp() {
       clientChequeNumber: inv?.clientChequeNumber ?? "",
       date: inv?.date || new Date().toISOString().split("T")[0],
       attestationTitle: inv?.attestationTitle || "ATTESTATION",
-      isBilingual: inv?.isBilingual ?? true, // Nouvelle propriété
+      isBilingual: inv?.isBilingual ?? true,
     };
   };
 
@@ -885,7 +887,7 @@ export default function MainApp() {
     const designationText = inv.attestationTitle === "ACTE" ? "le présent acte" : 
                             inv.attestationTitle === "CERTIFICAT" ? "le présent certificat" : "la présente attestation";
 
-    // Table of items block (reused in Facture, Proforma, Commande, Livraison)
+    // Table of items block
     const ItemsTable = (
       <div className="rounded-2xl overflow-hidden border border-slate-200">
         <table className="w-full text-[11px]">
@@ -1116,8 +1118,8 @@ export default function MainApp() {
                   </p>
                   {isBilingual && (
                     <p className="text-justify text-[12px] leading-relaxed font-bold" dir="rtl">
-                      أنا الممضي أسفله، <b>{companyConfig.managerName}</b>، مسير شركة{" "}
-                      <b>{companyConfig.name}</b>، أشهد بموجب هذه الوثيقة أن القارب قد تم بناؤه جديداً في ورشاتنا لصالح السيد(ة){" "}
+                      أنا الممضي أسفله، <b>{companyConfig.managerNameAr || companyConfig.managerName}</b>، مسير شركة{" "}
+                      <b>{companyConfig.nameAr || companyConfig.name}</b>، أشهد بموجب هذه الوثيقة أن القارب قد تم بناؤه جديداً في ورشاتنا لصالح السيد(ة){" "}
                       <b>{inv.clientNameAr || inv.clientName || ".........."}</b>.
                     </p>
                   )}
@@ -1212,12 +1214,12 @@ export default function MainApp() {
                 <div className={`grid grid-cols-1 ${isBilingual ? 'md:grid-cols-2' : ''} gap-6`}>
                   <p className="text-justify text-[12px] leading-relaxed">
                     Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
-                    <b>{companyConfig.name}</b>, certifie par la présente que le navire détaillé ci-dessous bénéficie d'une <b>garantie d'une (01) année</b> à compter de la date de livraison, pour le compte de notre client <b>{inv.clientName || ".........."}</b>.
+                    <b>{companyConfig.name}</b>, certifie par la présente que le navire détaillé ci-dessous bénéficie d’une <b>garantie d’une (01) année</b> à compter de la date de livraison, pour le compte de notre client <b>{inv.clientName || ".........."}</b>.
                   </p>
                   {isBilingual && (
                     <p className="text-justify text-[12px] leading-relaxed font-bold" dir="rtl">
-                      أنا الممضي أسفله، <b>{companyConfig.managerName}</b>، مسير شركة{" "}
-                      <b>{companyConfig.name}</b>، أشهد بموجب هذه الوثيقة أن القارب المفصل أدناه يستفيد من <b>ضمان لمدة سنة (01) واحدة</b> ابتداءً من تاريخ التسليم، لصالح زبوننا <b>{inv.clientNameAr || inv.clientName || ".........."}</b>.
+                      أنا الممضي أسفله، <b>{companyConfig.managerNameAr || companyConfig.managerName}</b>، مسير شركة{" "}
+                      <b>{companyConfig.nameAr || companyConfig.name}</b>، أشهد بموجب هذه الوثيقة أن القارب المفصل أدناه يستفيد من <b>ضمان لمدة سنة (01) واحدة</b> ابتداءً من تاريخ التسليم، لصالح زبوننا <b>{inv.clientNameAr || inv.clientName || ".........."}</b>.
                     </p>
                   )}
                 </div>
@@ -1229,7 +1231,7 @@ export default function MainApp() {
                   </div>
                   <div className={`grid grid-cols-1 ${isBilingual ? 'md:grid-cols-2' : ''} gap-4`}>
                     <div className="text-[11px] font-bold text-slate-700">
-                      Cette garantie couvre exclusivement tout décollement ou problème provenant de l'usine (défaut de
+                      Cette garantie couvre exclusivement tout décollement ou problème provenant de l’usine (défaut de
                       fabrication). Elle reste valable sous réserve d’une utilisation normale du bateau, conforme aux recommandations du constructeur.
                     </div>
                     {isBilingual && (
@@ -2061,426 +2063,4 @@ export default function MainApp() {
 
                   <div className="grid grid-cols-1 gap-2 mb-2">
                     <input
-                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
-                      value={currentInvoice?.boatDetails?.serialNumber || ""}
-                      onChange={(e) =>
-                        setCurrentInvoice((p) => {
-                          const inv = normalizeInvoice(p);
-                          return {
-                            ...inv,
-                            boatDetails: {
-                              ...inv.boatDetails,
-                              serialNumber: String(e.target.value || "").toUpperCase(),
-                            },
-                          };
-                        })
-                      }
-                      placeholder="N° Série"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
-                      value={currentInvoice?.boatDetails?.length || ""}
-                      onChange={(e) =>
-                        setCurrentInvoice((p) => {
-                          const inv = normalizeInvoice(p);
-                          return {
-                            ...inv,
-                            boatDetails: { ...inv.boatDetails, length: e.target.value },
-                          };
-                        })
-                      }
-                      placeholder="Longueur"
-                    />
-                    <input
-                      className="w-full px-3 py-2.5 bg-white/10 border-2 border-white/20 rounded-xl text-sm font-black placeholder-white/60 outline-none"
-                      value={currentInvoice?.boatDetails?.year || ""}
-                      onChange={(e) =>
-                        setCurrentInvoice((p) => {
-                          const inv = normalizeInvoice(p);
-                          return {
-                            ...inv,
-                            boatDetails: { ...inv.boatDetails, year: e.target.value },
-                          };
-                        })
-                      }
-                      placeholder="Année"
-                    />
-                  </div>
-                </div>
-
-                <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-white p-3">
-                  <div className="grid grid-cols-1 gap-3">
-                    {/* BILINGUE TOGGLE */}
-                    <div className="rounded-2xl border border-slate-100 bg-blue-50 p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Langue du document
-                        </div>
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-700 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4"
-                            checked={!!currentInvoice.isBilingual}
-                            onChange={(e) =>
-                              setCurrentInvoice((p) => ({
-                                ...normalizeInvoice(p),
-                                isBilingual: e.target.checked,
-                              }))
-                            }
-                          />
-                          Bilingue (FR/AR)
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                          <Percent size={14} /> TVA
-                        </div>
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          <input
-                            type="checkbox"
-                            checked={!!currentInvoice.applyTva}
-                            onChange={(e) =>
-                              setCurrentInvoice((p) => {
-                                const inv = normalizeInvoice(p);
-                                const nextApply = e.target.checked;
-                                const items2 = recomputeItemsHtFromTtc(
-                                  inv.items,
-                                  inv.tvaRate,
-                                  nextApply
-                                );
-                                return { ...inv, applyTva: nextApply, items: items2 };
-                              })
-                            }
-                          />
-                          Appliquer
-                        </label>
-                      </div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        disabled={!currentInvoice.applyTva}
-                        value={Number(currentInvoice.tvaRate || 0)}
-                        onChange={(e) =>
-                          setCurrentInvoice((p) => {
-                            const inv = normalizeInvoice(p);
-                            const nextRate = parseFloat(e.target.value) || 0;
-                            const items2 = recomputeItemsHtFromTtc(
-                              inv.items,
-                              nextRate,
-                              inv.applyTva
-                            );
-                            return { ...inv, tvaRate: nextRate, items: items2 };
-                          })
-                        }
-                        placeholder="TVA %"
-                      />
-                      <div className="mt-1 text-[10px] font-bold text-slate-500">
-                        {currentInvoice.applyTva
-                          ? `TVA: ${Number(currentInvoice.tvaRate || 0)}%`
-                          : "TVA désactivée"}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Paiement
-                        </div>
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          <input
-                            type="checkbox"
-                            checked={!!currentInvoice.showPayment}
-                            onChange={(e) =>
-                              setCurrentInvoice((p) => ({
-                                ...normalizeInvoice(p),
-                                showPayment: e.target.checked,
-                              }))
-                            }
-                          />
-                          Afficher
-                        </label>
-                      </div>
-                      <select
-                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
-                        value={currentInvoice.paymentMethod || "virement"}
-                        onChange={(e) =>
-                          setCurrentInvoice((p) => ({
-                            ...normalizeInvoice(p),
-                            paymentMethod: e.target.value,
-                          }))
-                        }
-                      >
-                        <option value="cheque">Chèque / صك</option>
-                        <option value="virement">Virement bancaire / تحويل بنكي</option>
-                        <option value="espece">Espèce / نقداً</option>
-                      </select>
-                      {currentInvoice.paymentMethod === "cheque" && (
-                        <input
-                          className="w-full mt-2 px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
-                          placeholder="N° de chèque (optionnel)"
-                          value={currentInvoice.clientChequeNumber || ""}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => ({
-                              ...normalizeInvoice(p),
-                              clientChequeNumber: e.target.value,
-                            }))
-                          }
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* LIGNE 2 : ARTICLES & ACCESSOIRES (100% LIBRE) */}
-              <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-4">
-                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-                  <div className="text-[12px] font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
-                    <ClipboardList size={16} className="text-blue-600" />
-                    Lignes de facturation (Bateau, Accessoires, Options...)
-                  </div>
-                  <Button
-                    variant="secondary"
-                    className="!py-2 !px-4 !text-[11px] !rounded-xl !bg-slate-50"
-                    onClick={() => {
-                      setCurrentInvoice((p) => {
-                        const inv = normalizeInvoice(p);
-                        return {
-                          ...inv,
-                          items: [
-                            ...inv.items,
-                            { id: Date.now(), description: "", quantity: 1, price: 0, priceTtc: null },
-                          ],
-                        };
-                      });
-                    }}
-                  >
-                    <Plus size={14} /> Ajouter une ligne
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  {currentInvoice.items.map((it, idx) => (
-                    <div key={it.id || idx} className="flex flex-col md:flex-row gap-2 items-center">
-                      <div className="flex-1 w-full relative">
-                        <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                          Désignation
-                        </span>
-                        <input
-                          className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
-                          placeholder="Ex: Moteur 150CV, Remorque, Gilets..."
-                          value={it.description || ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCurrentInvoice(p => {
-                              const inv = normalizeInvoice(p);
-                              const ni = [...inv.items];
-                              ni[idx] = { ...ni[idx], description: val };
-                              return { ...inv, items: ni };
-                            });
-                          }}
-                        />
-                      </div>
-                      
-                      <div className="w-full md:w-28 relative">
-                        <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                          Qté
-                        </span>
-                        <input
-                          type="number"
-                          className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-bold outline-none focus:border-blue-500 text-center"
-                          value={it.quantity}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            setCurrentInvoice(p => {
-                              const inv = normalizeInvoice(p);
-                              const ni = [...inv.items];
-                              ni[idx] = { ...ni[idx], quantity: val };
-                              return { ...inv, items: ni };
-                            });
-                          }}
-                        />
-                      </div>
-
-                      <div className="w-full md:w-40 relative">
-                        <span className="absolute -top-2 left-3 bg-white px-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                          Prix Unit. TTC
-                        </span>
-                        <input
-                          type="number"
-                          className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-bold outline-none focus:border-blue-500 text-right text-blue-700"
-                          value={it.priceTtc !== null && it.priceTtc !== undefined ? it.priceTtc : priceTtcFromHt(it.price, currentInvoice.tvaRate, currentInvoice.applyTva)}
-                          onChange={(e) => {
-                            const ttc = parseFloat(e.target.value) || 0;
-                            setCurrentInvoice(p => {
-                              const inv = normalizeInvoice(p);
-                              const ni = [...inv.items];
-                              const ht = priceHtFromTtc(ttc, inv.tvaRate, inv.applyTva);
-                              ni[idx] = { ...ni[idx], priceTtc: ttc, price: ht };
-                              return { ...inv, items: ni };
-                            });
-                          }}
-                        />
-                      </div>
-
-                      <button
-                        className="w-full md:w-12 h-11 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border-2 border-transparent hover:border-red-100"
-                        onClick={() => {
-                          setCurrentInvoice(p => {
-                            const inv = normalizeInvoice(p);
-                            if (inv.items.length <= 1) return inv;
-                            return { ...inv, items: inv.items.filter((_, i) => i !== idx) };
-                          });
-                        }}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* LIGNE 3 : NOUVEAU Changer le nom de l'Attestation */}
-              {(currentInvoice.type === "attestation" || currentInvoice.type === "dossier") && (
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
-                  <div className="md:col-span-12 rounded-2xl border border-slate-100 bg-white p-3">
-                    <InputGroup label="Titre du document de construction" compact>
-                      <select
-                        className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl text-sm font-semibold outline-none focus:border-blue-500"
-                        value={currentInvoice.attestationTitle || "ATTESTATION"}
-                        onChange={(e) =>
-                          setCurrentInvoice((p) => ({
-                            ...normalizeInvoice(p),
-                            attestationTitle: e.target.value,
-                          }))
-                        }
-                      >
-                        <option value="ATTESTATION">Attestation de construction</option>
-                        <option value="CERTIFICAT">Certificat de construction</option>
-                        <option value="ACTE">Acte de construction</option>
-                      </select>
-                    </InputGroup>
-                  </div>
-                </div>
-              )}
-
-              {/* LIGNE 4 : Optionnel Bon de commande */}
-              {currentInvoice.type === "commande" && (
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3 no-print">
-                  <div className="md:col-span-8 rounded-2xl border border-slate-100 bg-white p-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <InputGroup label="Modèle voulu (si différent)" compact>
-                        <Input
-                          value={currentInvoice.orderDetails?.modelWanted || ""}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => {
-                              const inv = normalizeInvoice(p);
-                              return {
-                                ...inv,
-                                orderDetails: {
-                                  ...inv.orderDetails,
-                                  modelWanted: e.target.value,
-                                },
-                              };
-                            })
-                          }
-                          placeholder="Ex: PNB-550"
-                        />
-                      </InputGroup>
-
-                      <InputGroup label="Couleurs" compact>
-                        <Input
-                          value={currentInvoice.orderDetails?.colors || ""}
-                          onChange={(e) =>
-                            setCurrentInvoice((p) => {
-                              const inv = normalizeInvoice(p);
-                              return {
-                                ...inv,
-                                orderDetails: { ...inv.orderDetails, colors: e.target.value },
-                              };
-                            })
-                          }
-                          placeholder="Ex: Bleu / Blanc"
-                        />
-                      </InputGroup>
-
-                      <div className="md:col-span-2">
-                        <InputGroup label="Options (Couleur Gelcoat etc)" compact>
-                          <Input
-                            value={currentInvoice.orderDetails?.options || ""}
-                            onChange={(e) =>
-                              setCurrentInvoice((p) => {
-                                const inv = normalizeInvoice(p);
-                                return {
-                                  ...inv,
-                                  orderDetails: { ...inv.orderDetails, options: e.target.value },
-                                };
-                              })
-                            }
-                            placeholder="Ex: Console, banquette..."
-                          />
-                        </InputGroup>
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <InputGroup label="Notes Accessoires" compact>
-                          <Input
-                            value={currentInvoice.orderDetails?.accessories || ""}
-                            onChange={(e) =>
-                              setCurrentInvoice((p) => {
-                                const inv = normalizeInvoice(p);
-                                return {
-                                  ...inv,
-                                  orderDetails: {
-                                    ...inv.orderDetails,
-                                    accessories: e.target.value,
-                                  },
-                                };
-                              })
-                            }
-                            placeholder="Infos additionnelles"
-                          />
-                        </InputGroup>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-slate-50 p-3 flex flex-col justify-center">
-                    <InputGroup label="Acompte / Total versé (DA)" compact>
-                      <Input
-                        type="number"
-                        className="w-full px-4 py-4 bg-white border-2 border-slate-200 rounded-xl text-lg font-black outline-none focus:border-blue-500 text-blue-700"
-                        value={Number(currentInvoice.orderDetails?.amountPaid || 0)}
-                        onChange={(e) =>
-                          setCurrentInvoice((p) => {
-                            const inv = normalizeInvoice(p);
-                            return {
-                              ...inv,
-                              orderDetails: {
-                                ...inv.orderDetails,
-                                amountPaid: parseFloat(e.target.value) || 0,
-                              },
-                            };
-                          })
-                        }
-                      />
-                    </InputGroup>
-                    <div className="mt-2 text-[10px] font-bold text-slate-500 text-center uppercase tracking-widest">
-                      Total = lignes ci-dessus<br/>Restant = Total - Versé
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-slate-200 rounded-[2rem] p-2 md:p-4 overflow-auto h-[82vh] md:h-[calc(100vh-18rem)] shadow-inner border-4 border-white">
-              <div className="min-w-[980px] flex justify-center">
-                <div
-                  id="printable-area"
-                  className="origin-top"
-                  style={{
+                      className="w-full px-3 py-2.5 bg-white/10
