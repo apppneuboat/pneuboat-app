@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabase";
 
-/* ------------------ UTILITAIRES ------------------ */
+/* ------------------ UTILITAIRES : CHIFFRES EN LETTRES (FR) ------------------ */
 const NumberToLetter = (nombre) => {
   const unites = [
     "", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf",
@@ -91,6 +91,237 @@ const NumberToLetter = (nombre) => {
   return final.charAt(0).toUpperCase() + final.slice(1);
 };
 
+/* ------------------ UTILITAIRES : CHIFFRES EN LETTRES (AR) ------------------ */
+const NumberToLetterAr = (nombre) => {
+  const val = Number(nombre || 0);
+  if (val === 0) return "صفر دينار جزائري";
+
+  const ones = [
+    "", "واحد", "اثنان", "ثلاثة", "أربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة",
+    "عشرة", "أحد عشر", "اثنا عشر", "ثلاثة عشر", "أربعة عشر", "خمسة عشر", "ستة عشر",
+    "سبعة عشر", "ثمانية عشر", "تسعة عشر",
+  ];
+  const tens = [
+    "", "عشرة", "عشرون", "ثلاثون", "أربعون", "خمسون", "ستون", "سبعون", "ثمانون", "تسعون",
+  ];
+  const hundreds = [
+    "", "مائة", "مئتان", "ثلاثمائة", "أربعمائة", "خمسمائة", "ستمائة", "سبعمائة", "ثمانمائة", "تسعمائة",
+  ];
+
+  const conv99 = (n) => {
+    if (n < 20) return ones[n];
+    const u = n % 10;
+    const d = Math.floor(n / 10);
+    if (u === 0) return tens[d];
+    return `${ones[u]} و ${tens[d]}`;
+  };
+
+  const conv999 = (n) => {
+    const c = Math.floor(n / 100);
+    const r = n % 100;
+    let res = "";
+    if (c > 0) res += hundreds[c];
+    if (r > 0) res += (res ? " و " : "") + conv99(r);
+    return res;
+  };
+
+  const ent = Math.floor(val);
+  const dec = Math.round((val - ent) * 100);
+
+  let n = ent;
+  let parts = [];
+
+  if (n >= 1000000) {
+    const m = Math.floor(n / 1000000);
+    if (m === 1) parts.push("مليون");
+    else if (m === 2) parts.push("مليونان");
+    else if (m >= 3 && m <= 10) parts.push(`${ones[m]} ملايين`);
+    else parts.push(`${conv999(m)} مليون`);
+    n %= 1000000;
+  }
+
+  if (n >= 1000) {
+    const k = Math.floor(n / 1000);
+    if (k === 1) parts.push("ألف");
+    else if (k === 2) parts.push("ألفان");
+    else if (k >= 3 && k <= 10) parts.push(`${ones[k]} آلاف`);
+    else parts.push(`${conv999(k)} ألف`);
+    n %= 1000;
+  }
+
+  if (n > 0) {
+    parts.push(conv999(n));
+  }
+
+  let final = parts.join(" و ") + " دينار جزائري";
+  if (dec > 0) {
+    final += " و " + conv99(dec) + " سنتيم";
+  }
+  return final;
+};
+
+/* ------------------ TRANSCRIPTION PHONÉTIQUE FR -> AR ------------------ */
+const DICT_FR_AR = {
+  // Prénoms & Noms fréquents
+  mohamed: "محمد", mohammed: "محمد", mhamed: "امحمد", ahmed: "أحمد",
+  youcef: "يوسف", youssef: "يوسف", ali: "علي", omar: "عمر",
+  amine: "أمين", karim: "كريم", sofiane: "سفيان", yacine: "ياسين",
+  yassine: "ياسين", mourad: "مراد", kamel: "كمال", nabil: "نبيل",
+  farid: "فريد", rachid: "رشيد", said: "سعيد", walid: "وليد",
+  khalil: "خليل", khaled: "خالد", bilal: "بلال", bilel: "بلال",
+  hamza: "حمزة", tarek: "طارق", tarik: "طارق", kader: "قادر",
+  abdelkader: "عبد القادر", abdelkrim: "عبد الكريم", abderrahmane: "عبد الرحمن",
+  abdallah: "عبد الله", abdellah: "عبد الله", abdelaziz: "عبد العزيز",
+  abdelhak: "عبد الحق", abdelmalek: "عبد المالك", abdelmadjid: "عبد المجيد",
+  brahim: "براهيم", ibrahim: "إبراهيم", ismail: "إسماعيل",
+  mustapha: "مصطفى", moustafa: "مصطفى", sidahmed: "سيد أحمد",
+  boumediene: "بومدين", houari: "هواري", benali: "بن علي",
+  mansour: "منصور", mansouri: "منصوري", tahar: "طاهر",
+  djamel: "جمال", djamil: "جميل", samir: "سمير", adel: "عادل",
+  riad: "رياض", ryad: "رياض", redha: "رضا", reda: "رضا",
+  mehdi: "مهدي", mahdi: "مهدي", lotfi: "لطفي", ramzi: "رمزي",
+  zakaria: "زكرياء", zaki: "زكي", anis: "أنيس", ayoub: "أيوب",
+  ilyes: "إلياس", ilyas: "إلياس", imad: "عماد", fouad: "فؤاد",
+   slimane: "سليمان", salim: "سليم", selim: "سليم",
+  hichem: "هشام", hicham: "هشام", hakima: "حكيمة", hakim: "حكيم",
+  wassila: "وسيلة", fatima: "فاطمة", khadidja: "خديجة", aicha: "عائشة",
+  meriem: "مريم", maryam: "مريم", amina: "أمينة", sarah: "سارة",
+  sara: "سارة", yasmine: "ياسمين", yasmina: "ياسمينة", nadia: "نادية",
+  karima: "كريمة", samira: "سميرة", nacera: "نصيرة", zohra: "زهرة",
+  halima: "حليمة", souad: "سعاد", nawel: "نوال", asma: "أسماء",
+  ikram: "إكرام", imane: "إيمان", imene: "إيمان", nesrine: "نسرين",
+  sekkal: "سكال", gherbi: "غربي",
+
+  // Villes & Lieux (Algérie)
+  oran: "وهران", wahran: "وهران", alger: "الجزائر", annaba: "عنابة",
+  constantine: "قسنطينة", tlemcen: "تلمسان", mostaganem: "مستغانم",
+  temouchent: "تموشنت", sidi: "سيدي", bel: "بل", abbes: "عباس",
+  bejaia: "بجاية", tizi: "تيزي", ouzou: "وزو", blida: "البليدة",
+  tipaza: "تيبازة", chlef: "الشلف", mascara: "معسكر", relizane: "غليزان",
+  saïda: "سعيدة", saida: "سعيدة", skikda: "سكيكدة", jijel: "جيجل",
+  setif: "سطيف", batna: "باتنة", biskra: "بسكرة", ouargla: "ورقلة",
+  ghardaia: "غرداية", bechar: "بشار", adrar: "أدرار", tamanrasset: "تمنراست",
+  boumerdes: "بومرداس", bouira: "البويرة", medea: "المدية",
+  ain: "عين", turk: "الترك", el: "ال", al: "ال", bir: "بئر",
+  djir: "الجير", es: "ال", senia: "السانية", arzew: "أرزيو",
+  bethioua: "بطيوة", misserghine: "مسرغين", bousfer: "بوسفر",
+  badr: "البدر", akid: "عقيد",
+
+  // Mots d'adresse & Entreprise
+  hai: "حي", cite: "حي", cité: "حي", rue: "شارع", boulevard: "نهج",
+  bd: "نهج", avenue: "شارع", route: "طريق", RN: "ط.و",
+  lotissement: "تجزئة", lot: "تجزئة", coop: "تعاونية",
+  cooperative: "تعاونية", batiment: "عمارة", bt: "عمارة",
+  bloc: "بلوك", porte: "باب", numero: "رقم", num: "رقم",
+  sarl: "ذ.م.م", eurl: "م.ش.و.ذ.م.م", spa: "ش.ذ.أ", snc: "ش.ت",
+  et: "و", ben: "بن", bou: "بو", bel: "بل",
+};
+
+const transliterateWord = (word) => {
+  if (!word) return "";
+  if (/^\d+$/.test(word)) return word; // Garde les chiffres tels quels
+
+  const clean = word.toLowerCase().trim();
+  if (DICT_FR_AR[clean]) return DICT_FR_AR[clean];
+
+  let w = clean
+    .replace(/^[l']+/i, "ل")
+    .replace(/^[d']+/i, "د");
+
+  // Préfixes arabes courants
+  let prefix = "";
+  if (w.startsWith("el-") || w.startsWith("al-")) {
+    prefix = "ال";
+    w = w.slice(3);
+  } else if (w.startsWith("ben")) {
+    prefix = "بن ";
+    w = w.slice(3);
+  }
+
+  if (DICT_FR_AR[w]) return prefix + DICT_FR_AR[w];
+
+  // Remplacement des sons composés (digrammes / trigrammes)
+  w = w
+    .replace(/tch/g, "تش")
+    .replace(/dj/g, "ج")
+    .replace(/ch/g, "ش")
+    .replace(/sh/g, "ش")
+    .replace(/kh/g, "خ")
+    .replace(/gh/g, "غ")
+    .replace(/th/g, "ث")
+    .replace(/dh/g, "ذ")
+    .replace(/ph/g, "ف")
+    .replace(/ou/g, "و")
+    .replace(/oo/g, "و")
+    .replace(/eau/g, "و")
+    .replace(/au/g, "و")
+    .replace(/ai/g, "ي")
+    .replace(/ei/g, "ي")
+    .replace(/ee/g, "ي")
+    .replace(/qu/g, "ك")
+    .replace(/gu/g, "غ")
+    .replace(/gn/g, "ني");
+
+  // Remplacement des doubles consonnes par une seule en arabe
+  w = w.replace(/([bcdfghjklmnpqrstvwxz])\1+/g, "$1");
+
+  // Voyelles en début de mot
+  if (/^[aàâä]/.test(w)) w = "أ" + w.slice(1);
+  else if (/^[eéèêëiîï]/.test(w)) w = "إ" + w.slice(1);
+  else if (/^[oôöuùûü]/.test(w)) w = "أو" + w.slice(1);
+
+  // E muet en fin de mot (souvent ة ou ignoré)
+  w = w.replace(/ia$/g, "ية").replace(/a$/g, "ة").replace(/e$/g, "");
+
+  const charMap = {
+    a: "ا", à: "ا", â: "ا", ä: "ا",
+    b: "ب",
+    c: "ك", ç: "س",
+    d: "د",
+    e: "ي", é: "ي", è: "ا", ê: "ا", ë: "",
+    f: "ف",
+    g: "غ",
+    h: "ه",
+    i: "ي", î: "ي", ï: "ي",
+    j: "ج",
+    k: "ك",
+    l: "ل",
+    m: "م",
+    n: "ن",
+    o: "و", ô: "و", ö: "و",
+    p: "ب",
+    q: "ق",
+    r: "ر",
+    s: "س",
+    t: "ت",
+    u: "و", ù: "و", û: "و", ü: "و",
+    v: "ف",
+    w: "و",
+    x: "كس",
+    y: "ي",
+    z: "ز",
+  };
+
+  let out = "";
+  for (let ch of w) {
+    out += charMap[ch] !== undefined ? charMap[ch] : ch;
+  }
+
+  return prefix + out;
+};
+
+const transliterateFrToAr = (text) => {
+  if (!text) return "";
+  return text
+    .split(/(\s+|[,.;:/\\()-]+)/)
+    .map((token) => {
+      if (/^\s+$/.test(token) || /^[,.;:/\\()-]+$/.test(token)) return token;
+      return transliterateWord(token);
+    })
+    .join("");
+};
+
+/* ------------------ CALCULS & FORMATAGE ------------------ */
 const calculateSubtotal = (items) =>
   (items || []).reduce(
     (acc, item) => acc + Number(item.quantity || 0) * Number(item.price || 0),
@@ -330,7 +561,7 @@ export default function MainApp() {
     email: "info@pneuboat.net",
     website: "www.pneuboat.net",
     phone: "0563269639",
-    docTheme: "black", // <-- Par défaut "black" pour un rendu d'impression ultra net
+    docTheme: "black",
     nextInvoiceNumber: 1,
     nextProformaNumber: 1,
     nextDeliveryNumber: 1,
@@ -930,7 +1161,6 @@ export default function MainApp() {
     const inv = normalizeInvoice(currentInvoice);
     const { isBilingual } = inv;
 
-    // Récupération du thème choisi dans Configuration
     const themeKey = companyConfig.docTheme || "black";
     const T = DOC_THEMES[themeKey] || DOC_THEMES.black;
 
@@ -939,6 +1169,7 @@ export default function MainApp() {
     const subtotal = calculateSubtotal(inv.items);
     const total = calculateTotal(inv.items, inv.tvaRate, inv.applyTva);
     const totalWords = NumberToLetter(total);
+    const totalWordsAr = NumberToLetterAr(total);
 
     const showTotals =
       subType !== "livraison" && subType !== "attestation" && subType !== "commande" && subType !== "garantie";
@@ -1094,7 +1325,7 @@ export default function MainApp() {
             )}
           </div>
 
-          {/* MODIFICATION 1 : Numéro ID uniquement en Français */}
+          {/* Numéro ID uniquement en Français */}
           <div className="flex flex-wrap gap-2 mb-4">
             {!!inv.clientIdNumber && (
               <span className={`px-3 py-1.5 rounded-lg bg-white border ${T.borderMain} text-[10px] font-black uppercase tracking-widest ${T.textMain} flex items-center gap-2`}>
@@ -1550,12 +1781,13 @@ export default function MainApp() {
                 </div>
               </div>
 
-              <div className={`mb-4 rounded-2xl border ${T.borderMain} bg-white p-4`}>
-                <div className="flex justify-between items-center mb-2">
+              {/* TOTAL EN LETTRES BILINGUE FR + AR */}
+              <div className={`mb-4 rounded-2xl border ${T.borderMain} bg-white p-3.5`}>
+                <div className="flex justify-between items-center mb-1.5">
                   <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Total en lettres</div>
                   {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">المبلغ بالحروف</div>}
                 </div>
-                <div className={`flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-[11px] font-bold ${T.textMain}`}>
+                <div className={`flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-[10px] font-bold ${T.textMain}`}>
                   <div>
                     {subType === "proforma"
                       ? "Arrêté le présent devis à la somme de :"
@@ -1569,12 +1801,19 @@ export default function MainApp() {
                     </div>
                   )}
                 </div>
-                <div className={`mt-2 text-[12px] font-black ${T.textMain} text-center ${T.boxBg} p-2 rounded-xl border ${T.borderSub}`}>
-                  {totalWords}
+                <div className={`mt-1.5 p-2 rounded-xl border ${T.borderSub} ${T.boxBg} space-y-1`}>
+                  <div className={`text-[11px] font-black ${T.textMain} text-center`}>
+                    {totalWords}
+                  </div>
+                  {isBilingual && (
+                    <div className={`text-[12px] font-black ${T.textMain} text-center border-t ${T.borderSub} pt-1`} dir="rtl">
+                      {totalWordsAr}
+                    </div>
+                  )}
                 </div>
 
                 {subType === "proforma" && (
-                  <div className={`mt-3 flex justify-between text-[10px] font-bold ${T.textSub}`}>
+                  <div className={`mt-2.5 flex justify-between text-[10px] font-bold ${T.textSub}`}>
                     <div>Devis valable <span className={`font-black ${T.textMain}`}>2 mois</span> à compter de la date d&apos;émission.</div>
                     {isBilingual && <div dir="rtl">هذا الكشف صالح لمدة <span className={`font-black ${T.textMain}`}>شهرين</span> من تاريخ الإصدار.</div>}
                   </div>
@@ -1997,17 +2236,24 @@ export default function MainApp() {
                     <InputGroup label="Nom Complet (FR)" compact>
                       <Input
                         value={currentInvoice.clientName || ""}
-                        onChange={(e) =>
-                          setCurrentInvoice((p) => ({
-                            ...normalizeInvoice(p),
-                            clientName: e.target.value,
-                          }))
-                        }
-                        placeholder="Ex: Nom Prénom"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            const prevAuto = transliterateFrToAr(inv.clientName || "");
+                            const shouldAuto = !inv.clientNameAr || inv.clientNameAr === prevAuto;
+                            return {
+                              ...inv,
+                              clientName: val,
+                              clientNameAr: shouldAuto ? transliterateFrToAr(val) : inv.clientNameAr,
+                            };
+                          });
+                        }}
+                        placeholder="Ex: Mohamed Ali"
                       />
                     </InputGroup>
                     {currentInvoice.isBilingual && (
-                      <InputGroup label="الاسم واللقب (AR)" compact>
+                      <InputGroup label="الاسم واللقب (AR - Auto)" compact>
                         <Input
                           dir="rtl"
                           value={currentInvoice.clientNameAr || ""}
@@ -2027,17 +2273,24 @@ export default function MainApp() {
                     <InputGroup label="Adresse (FR)" compact>
                       <Input
                         value={currentInvoice.clientAddress || ""}
-                        onChange={(e) =>
-                          setCurrentInvoice((p) => ({
-                            ...normalizeInvoice(p),
-                            clientAddress: e.target.value,
-                          }))
-                        }
-                        placeholder="Adresse"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCurrentInvoice((p) => {
+                            const inv = normalizeInvoice(p);
+                            const prevAuto = transliterateFrToAr(inv.clientAddress || "");
+                            const shouldAuto = !inv.clientAddressAr || inv.clientAddressAr === prevAuto;
+                            return {
+                              ...inv,
+                              clientAddress: val,
+                              clientAddressAr: shouldAuto ? transliterateFrToAr(val) : inv.clientAddressAr,
+                            };
+                          });
+                        }}
+                        placeholder="Ex: Hai El Badr Oran"
                       />
                     </InputGroup>
                     {currentInvoice.isBilingual && (
-                      <InputGroup label="العنوان (AR)" compact>
+                      <InputGroup label="العنوان (AR - Auto)" compact>
                         <Input
                           dir="rtl"
                           value={currentInvoice.clientAddressAr || ""}
@@ -2754,7 +3007,7 @@ export default function MainApp() {
                 <Settings className="text-blue-600" size={28} /> Configuration
               </h2>
 
-              {/* MODIFICATION 2 : SÉLECTEUR DE COULEUR DES FACTURES */}
+              {/* SÉLECTEUR DE COULEUR DES FACTURES */}
               <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200 mb-10">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
                   <Palette className="text-blue-600" size={18} /> Style & Couleur des Textes (Factures / Impression)
