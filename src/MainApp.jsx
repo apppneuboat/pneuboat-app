@@ -22,6 +22,7 @@ import {
   Percent,
   Phone,
   Palette,
+  LayoutTemplate,
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -162,7 +163,6 @@ const NumberToLetterAr = (nombre) => {
 
 /* ------------------ TRANSCRIPTION PHONÉTIQUE FR -> AR ------------------ */
 const DICT_FR_AR = {
-  // Prénoms & Noms fréquents
   mohamed: "محمد", mohammed: "محمد", mhamed: "امحمد", ahmed: "أحمد",
   youcef: "يوسف", youssef: "يوسف", ali: "علي", omar: "عمر",
   amine: "أمين", karim: "كريم", sofiane: "سفيان", yacine: "ياسين",
@@ -182,7 +182,7 @@ const DICT_FR_AR = {
   mehdi: "مهدي", mahdi: "مهدي", lotfi: "لطفي", ramzi: "رمزي",
   zakaria: "زكرياء", zaki: "زكي", anis: "أنيس", ayoub: "أيوب",
   ilyes: "إلياس", ilyas: "إلياس", imad: "عماد", fouad: "فؤاد",
-   slimane: "سليمان", salim: "سليم", selim: "سليم",
+  slimane: "سليمان", salim: "سليم", selim: "سليم",
   hichem: "هشام", hicham: "هشام", hakima: "حكيمة", hakim: "حكيم",
   wassila: "وسيلة", fatima: "فاطمة", khadidja: "خديجة", aicha: "عائشة",
   meriem: "مريم", maryam: "مريم", amina: "أمينة", sarah: "سارة",
@@ -192,7 +192,6 @@ const DICT_FR_AR = {
   ikram: "إكرام", imane: "إيمان", imene: "إيمان", nesrine: "نسرين",
   sekkal: "سكال", gherbi: "غربي",
 
-  // Villes & Lieux (Algérie)
   oran: "وهران", wahran: "وهران", alger: "الجزائر", annaba: "عنابة",
   constantine: "قسنطينة", tlemcen: "تلمسان", mostaganem: "مستغانم",
   temouchent: "تموشنت", sidi: "سيدي", bel: "بل", abbes: "عباس",
@@ -207,19 +206,18 @@ const DICT_FR_AR = {
   bethioua: "بطيوة", misserghine: "مسرغين", bousfer: "بوسفر",
   badr: "البدر", akid: "عقيد",
 
-  // Mots d'adresse & Entreprise
   hai: "حي", cite: "حي", cité: "حي", rue: "شارع", boulevard: "نهج",
   bd: "نهج", avenue: "شارع", route: "طريق", RN: "ط.و",
   lotissement: "تجزئة", lot: "تجزئة", coop: "تعاونية",
   cooperative: "تعاونية", batiment: "عمارة", bt: "عمارة",
   bloc: "بلوك", porte: "باب", numero: "رقم", num: "رقم",
   sarl: "ذ.م.م", eurl: "م.ش.و.ذ.م.م", spa: "ش.ذ.أ", snc: "ش.ت",
-  et: "و", ben: "بن", bou: "بو", bel: "بل",
+  et: "و", ben: "بن", bou: "بو",
 };
 
 const transliterateWord = (word) => {
   if (!word) return "";
-  if (/^\d+$/.test(word)) return word; // Garde les chiffres tels quels
+  if (/^\d+$/.test(word)) return word;
 
   const clean = word.toLowerCase().trim();
   if (DICT_FR_AR[clean]) return DICT_FR_AR[clean];
@@ -228,7 +226,6 @@ const transliterateWord = (word) => {
     .replace(/^[l']+/i, "ل")
     .replace(/^[d']+/i, "د");
 
-  // Préfixes arabes courants
   let prefix = "";
   if (w.startsWith("el-") || w.startsWith("al-")) {
     prefix = "ال";
@@ -240,7 +237,6 @@ const transliterateWord = (word) => {
 
   if (DICT_FR_AR[w]) return prefix + DICT_FR_AR[w];
 
-  // Remplacement des sons composés (digrammes / trigrammes)
   w = w
     .replace(/tch/g, "تش")
     .replace(/dj/g, "ج")
@@ -262,44 +258,23 @@ const transliterateWord = (word) => {
     .replace(/gu/g, "غ")
     .replace(/gn/g, "ني");
 
-  // Remplacement des doubles consonnes par une seule en arabe
   w = w.replace(/([bcdfghjklmnpqrstvwxz])\1+/g, "$1");
 
-  // Voyelles en début de mot
   if (/^[aàâä]/.test(w)) w = "أ" + w.slice(1);
   else if (/^[eéèêëiîï]/.test(w)) w = "إ" + w.slice(1);
   else if (/^[oôöuùûü]/.test(w)) w = "أو" + w.slice(1);
 
-  // E muet en fin de mot (souvent ة ou ignoré)
   w = w.replace(/ia$/g, "ية").replace(/a$/g, "ة").replace(/e$/g, "");
 
   const charMap = {
     a: "ا", à: "ا", â: "ا", ä: "ا",
-    b: "ب",
-    c: "ك", ç: "س",
-    d: "د",
+    b: "ب", c: "ك", ç: "س", d: "د",
     e: "ي", é: "ي", è: "ا", ê: "ا", ë: "",
-    f: "ف",
-    g: "غ",
-    h: "ه",
-    i: "ي", î: "ي", ï: "ي",
-    j: "ج",
-    k: "ك",
-    l: "ل",
-    m: "م",
-    n: "ن",
-    o: "و", ô: "و", ö: "و",
-    p: "ب",
-    q: "ق",
-    r: "ر",
-    s: "س",
-    t: "ت",
-    u: "و", ù: "و", û: "و", ü: "و",
-    v: "ف",
-    w: "و",
-    x: "كس",
-    y: "ي",
-    z: "ز",
+    f: "ف", g: "غ", h: "ه", i: "ي", î: "ي", ï: "ي",
+    j: "ج", k: "ك", l: "ل", m: "م", n: "ن",
+    o: "و", ô: "و", ö: "و", p: "ب", q: "ق",
+    r: "ر", s: "س", t: "ت", u: "و", ù: "و", û: "و", ü: "و",
+    v: "ف", w: "و", x: "كس", y: "ي", z: "ز",
   };
 
   let out = "";
@@ -372,29 +347,70 @@ const paymentLabel = (pm) => {
   return { fr: "—", ar: "—" };
 };
 
-/* ------------------ THÈMES DE COULEURS POUR L'IMPRESSION ------------------ */
+/* ------------------ PALETTES DE COULEURS HAUT DE GAMME ------------------ */
 const DOC_THEMES = {
   black: {
     id: "black",
-    label: "Noir Intense (Recommandé Imprimante)",
-    desc: "100% Noir & Blanc contrasté — évite les textes bleus ou pâles",
+    label: "Noir Intense (Imprimante)",
+    desc: "100% Noir & Blanc contrasté — idéal laser monochrome",
+    preview: ["#000000", "#475569", "#f1f5f9"],
     textMain: "text-black",
     textSub: "text-black font-bold",
     textLabel: "text-black font-black",
     accentText: "text-black",
     badgeBg: "bg-black text-white border-black",
-    badgeAr: "text-white",
+    badgeAr: "text-slate-200",
     tableHead: "bg-slate-100 text-black border-black",
     borderMain: "border-black",
     borderSub: "border-slate-400",
     boxBg: "bg-white",
     highlightBox: "bg-slate-50 border-black",
     topBar: "bg-black",
+    bannerBg: "bg-black text-white",
+  },
+  yacht: {
+    id: "yacht",
+    label: "Bleu Yachting Royal",
+    desc: "Bleu océan profond & touches dorées nautiques",
+    preview: ["#0c2340", "#1e3a8a", "#d97706"],
+    textMain: "text-slate-950",
+    textSub: "text-slate-700 font-semibold",
+    textLabel: "text-blue-950 font-black",
+    accentText: "text-blue-900",
+    badgeBg: "bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white border-amber-500/40",
+    badgeAr: "text-amber-300",
+    tableHead: "bg-slate-900 text-white border-slate-900",
+    borderMain: "border-slate-300",
+    borderSub: "border-slate-200",
+    boxBg: "bg-slate-50/80",
+    highlightBox: "bg-amber-50/50 border-amber-400",
+    topBar: "bg-gradient-to-r from-blue-950 via-amber-500 to-blue-950",
+    bannerBg: "bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white",
+  },
+  gold: {
+    id: "gold",
+    label: "Or & Prestige",
+    desc: "Noir carbone & accents bronze/or très luxueux",
+    preview: ["#18181b", "#78350f", "#f59e0b"],
+    textMain: "text-zinc-950",
+    textSub: "text-zinc-700 font-semibold",
+    textLabel: "text-amber-900 font-black",
+    accentText: "text-amber-800",
+    badgeBg: "bg-zinc-900 text-amber-50 border-amber-600",
+    badgeAr: "text-amber-400",
+    tableHead: "bg-amber-50/90 text-zinc-950 border-amber-400",
+    borderMain: "border-amber-400/80",
+    borderSub: "border-amber-200",
+    boxBg: "bg-amber-50/20",
+    highlightBox: "bg-amber-50/60 border-amber-500",
+    topBar: "bg-gradient-to-r from-zinc-900 via-amber-600 to-zinc-900",
+    bannerBg: "bg-zinc-900 text-white",
   },
   blue: {
     id: "blue",
-    label: "Bleu Marine Foncé",
-    desc: "Textes en noir profond et titres en bleu marine foncé",
+    label: "Bleu Marine Classique",
+    desc: "Textes en noir profond et titres en bleu marine",
+    preview: ["#172554", "#1d4ed8", "#dbeafe"],
     textMain: "text-slate-950",
     textSub: "text-slate-800 font-semibold",
     textLabel: "text-slate-700 font-black",
@@ -407,11 +423,89 @@ const DOC_THEMES = {
     boxBg: "bg-slate-50/70",
     highlightBox: "bg-blue-50/60 border-blue-400",
     topBar: "bg-gradient-to-r from-blue-900 via-blue-700 to-red-700",
+    bannerBg: "bg-blue-950 text-white",
+  },
+  crimson: {
+    id: "crimson",
+    label: "Rouge Régate",
+    desc: "Gris anthracite et rouge bordeaux sportif",
+    preview: ["#881337", "#e11d48", "#ffe4e6"],
+    textMain: "text-slate-950",
+    textSub: "text-slate-700 font-semibold",
+    textLabel: "text-rose-950 font-black",
+    accentText: "text-rose-800",
+    badgeBg: "bg-rose-950 text-white border-rose-950",
+    badgeAr: "text-rose-200",
+    tableHead: "bg-rose-50 text-rose-950 border-rose-300",
+    borderMain: "border-slate-300",
+    borderSub: "border-slate-200",
+    boxBg: "bg-slate-50/60",
+    highlightBox: "bg-rose-50/50 border-rose-300",
+    topBar: "bg-gradient-to-r from-slate-900 via-rose-700 to-slate-900",
+    bannerBg: "bg-rose-950 text-white",
+  },
+  emerald: {
+    id: "emerald",
+    label: "Émeraude Marine",
+    desc: "Vert forêt profond, sobre et institutionnel",
+    preview: ["#064e3b", "#059669", "#d1fae5"],
+    textMain: "text-slate-950",
+    textSub: "text-slate-700 font-semibold",
+    textLabel: "text-emerald-950 font-black",
+    accentText: "text-emerald-800",
+    badgeBg: "bg-emerald-950 text-white border-emerald-900",
+    badgeAr: "text-emerald-200",
+    tableHead: "bg-emerald-50/90 text-emerald-950 border-emerald-300",
+    borderMain: "border-slate-300",
+    borderSub: "border-slate-200",
+    boxBg: "bg-emerald-50/20",
+    highlightBox: "bg-emerald-50/60 border-emerald-400",
+    topBar: "bg-gradient-to-r from-emerald-950 via-emerald-600 to-emerald-950",
+    bannerBg: "bg-emerald-950 text-white",
+  },
+  ocean: {
+    id: "ocean",
+    label: "Cobalt & Cyan Moderne",
+    desc: "Bleu vif moderne et très frais",
+    preview: ["#0369a1", "#0284c7", "#e0f2fe"],
+    textMain: "text-slate-950",
+    textSub: "text-slate-700 font-semibold",
+    textLabel: "text-sky-900 font-black",
+    accentText: "text-sky-700",
+    badgeBg: "bg-sky-900 text-white border-sky-900",
+    badgeAr: "text-sky-200",
+    tableHead: "bg-sky-50 text-sky-950 border-sky-300",
+    borderMain: "border-sky-300",
+    borderSub: "border-slate-200",
+    boxBg: "bg-sky-50/30",
+    highlightBox: "bg-sky-50/70 border-sky-400",
+    topBar: "bg-gradient-to-r from-sky-900 via-cyan-500 to-blue-900",
+    bannerBg: "bg-sky-900 text-white",
+  },
+  sand: {
+    id: "sand",
+    label: "Sable & Bronze",
+    desc: "Tons chauds, pierre et terre cuite",
+    preview: ["#44403c", "#78716c", "#f5f5f4"],
+    textMain: "text-stone-950",
+    textSub: "text-stone-700 font-semibold",
+    textLabel: "text-stone-800 font-black",
+    accentText: "text-stone-900",
+    badgeBg: "bg-stone-900 text-stone-100 border-stone-900",
+    badgeAr: "text-amber-200",
+    tableHead: "bg-stone-200/80 text-stone-950 border-stone-400",
+    borderMain: "border-stone-400",
+    borderSub: "border-stone-300",
+    boxBg: "bg-stone-50",
+    highlightBox: "bg-stone-100 border-stone-400",
+    topBar: "bg-stone-800",
+    bannerBg: "bg-stone-900 text-white",
   },
   slate: {
     id: "slate",
     label: "Gris Anthracite Pro",
     desc: "Nuances de gris foncés et sobres",
+    preview: ["#0f172a", "#475569", "#e2e8f0"],
     textMain: "text-slate-950",
     textSub: "text-slate-800 font-semibold",
     textLabel: "text-slate-700 font-black",
@@ -424,6 +518,31 @@ const DOC_THEMES = {
     boxBg: "bg-slate-50",
     highlightBox: "bg-slate-100 border-slate-400",
     topBar: "bg-slate-900",
+    bannerBg: "bg-slate-900 text-white",
+  },
+};
+
+/* ------------------ MODÈLES DE MISE EN PAGE (DESIGNS DE FACTURE) ------------------ */
+const DOC_LAYOUTS = {
+  classic: {
+    id: "classic",
+    label: "Classique Pneuboat",
+    desc: "Votre modèle actuel avec cartes arrondies et badge latéral",
+  },
+  prestige: {
+    id: "prestige",
+    label: "Prestige Yachting (Bannière)",
+    desc: "En-tête pleine largeur coloré et structure corporate haut de gamme",
+  },
+  minimal: {
+    id: "minimal",
+    label: "Minimaliste & Épuré",
+    desc: "Angles droits, lignes fines, style architectural très net à l'impression",
+  },
+  executive: {
+    id: "executive",
+    label: "Exécutif Encadré (Officiel)",
+    desc: "Double cadre officiel A4 et titre centré solennel (idéal Actes & Certificats)",
   },
 };
 
@@ -561,7 +680,8 @@ export default function MainApp() {
     email: "info@pneuboat.net",
     website: "www.pneuboat.net",
     phone: "0563269639",
-    docTheme: "black",
+    docTheme: "yacht",
+    docLayout: "classic",
     nextInvoiceNumber: 1,
     nextProformaNumber: 1,
     nextDeliveryNumber: 1,
@@ -728,7 +848,8 @@ export default function MainApp() {
         setCompanyConfig((prev) => ({
           ...prev,
           ...configData.config,
-          docTheme: configData.config.docTheme || prev.docTheme || "black",
+          docTheme: configData.config.docTheme || prev.docTheme || "yacht",
+          docLayout: configData.config.docLayout || prev.docLayout || "classic",
         }));
       }
 
@@ -850,6 +971,8 @@ export default function MainApp() {
       date: inv?.date || new Date().toISOString().split("T")[0],
       attestationTitle: inv?.attestationTitle || "ATTESTATION",
       isBilingual: inv?.isBilingual ?? true,
+      docTheme: inv?.docTheme || companyConfig.docTheme || "yacht",
+      docLayout: inv?.docLayout || companyConfig.docLayout || "classic",
     };
   };
 
@@ -974,6 +1097,8 @@ export default function MainApp() {
       clientChequeNumber: "",
       attestationTitle: "ATTESTATION",
       isBilingual: true,
+      docTheme: companyConfig.docTheme || "yacht",
+      docLayout: companyConfig.docLayout || "classic",
     });
 
     let n = nf;
@@ -1155,14 +1280,23 @@ export default function MainApp() {
     });
   }, [invoiceHistory, searchTerm]);
 
-  /* ------------------ RENDU DOCUMENT ------------------ */
+  /* ------------------ RENDU DOCUMENT MULTI-MODÈLES ------------------ */
   const RenderDoc = ({ subType, docNumber }) => {
     if (!currentInvoice) return null;
     const inv = normalizeInvoice(currentInvoice);
     const { isBilingual } = inv;
 
-    const themeKey = companyConfig.docTheme || "black";
+    const themeKey = inv.docTheme || companyConfig.docTheme || "yacht";
     const T = DOC_THEMES[themeKey] || DOC_THEMES.black;
+
+    const layoutKey = inv.docLayout || companyConfig.docLayout || "classic";
+    const isMinimal = layoutKey === "minimal";
+    const isPrestige = layoutKey === "prestige";
+    const isExecutive = layoutKey === "executive";
+
+    // Adaptations de forme selon le modèle choisi
+    const radiusBox = isMinimal ? "rounded-none" : isExecutive ? "rounded-lg" : "rounded-2xl";
+    const radiusInner = isMinimal ? "rounded-none" : isExecutive ? "rounded-md" : "rounded-xl";
 
     const isCommande = subType === "commande";
 
@@ -1172,38 +1306,231 @@ export default function MainApp() {
     const totalWordsAr = NumberToLetterAr(total);
 
     const showTotals =
-      subType !== "livraison" && subType !== "attestation" && subType !== "commande" && subType !== "garantie";
+      subType !== "livraison" &&
+      subType !== "attestation" &&
+      subType !== "commande" &&
+      subType !== "garantie";
     const showPayBlock =
       showTotals && !!inv.showPayment && subType !== "proforma";
 
     const approvalShown = inv.boatDetails?.approvalNumber || "—";
     const showBoatBlockOnInvoice = subType === "facture" || subType === "proforma";
 
-    const designationText = inv.attestationTitle === "ACTE" ? "le présent acte" : 
-                            inv.attestationTitle === "CERTIFICAT" ? "le présent certificat" : "la présente attestation";
+    const designationText =
+      inv.attestationTitle === "ACTE"
+        ? "le présent acte"
+        : inv.attestationTitle === "CERTIFICAT"
+        ? "le présent certificat"
+        : "la présente attestation";
+
+    /* --- EN-TÊTE SELON LE MODÈLE CHOISI --- */
+    const renderHeader = () => {
+      if (isPrestige) {
+        return (
+          <div className="mb-5">
+            <div className={`-mx-[14mm] -mt-[14mm] px-[14mm] py-6 ${T.bannerBg} flex justify-between items-center shadow-sm`}>
+              <div>
+                {companyConfig.logo ? (
+                  <img
+                    src={companyConfig.logo}
+                    alt="logo"
+                    className="h-14 object-contain mb-2 bg-white/95 p-1.5 rounded-xl"
+                  />
+                ) : (
+                  <h1 className="text-2xl font-black uppercase tracking-tight text-white">
+                    {companyConfig.name}
+                  </h1>
+                )}
+                <div className="text-[10px] text-white/80 leading-tight font-medium">
+                  <p>{companyConfig.address} • Tél: {companyConfig.phone}</p>
+                  <p>{companyConfig.email} • {companyConfig.website || "www.pneuboat.net"}</p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-[15px] font-black uppercase tracking-widest text-white">
+                  {labelDocFr(subType, inv)}
+                </div>
+                {isBilingual && (
+                  <div className={`text-[13px] font-bold ${T.badgeAr}`} dir="rtl">
+                    {labelDocAr(subType, inv)}
+                  </div>
+                )}
+                <div className="mt-2 inline-block px-3 py-1 rounded-lg bg-white/15 text-white font-mono text-sm font-black">
+                  {docNumber}
+                </div>
+                <div className="text-[10px] text-white/80 mt-1">
+                  Le {new Date(inv.date).toLocaleDateString("fr-FR")}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (isMinimal) {
+        return (
+          <div className={`border-b-4 ${T.borderMain} pb-4 mb-5 flex justify-between items-end`}>
+            <div>
+              {companyConfig.logo ? (
+                <img
+                  src={companyConfig.logo}
+                  alt="logo"
+                  className="h-12 object-contain mb-2"
+                />
+              ) : (
+                <h1 className={`text-2xl font-black uppercase tracking-tighter ${T.textMain}`}>
+                  {companyConfig.name}
+                </h1>
+              )}
+              <div className={`text-[10px] ${T.textSub} leading-tight`}>
+                <p>{companyConfig.address} — Tél: {companyConfig.phone}</p>
+                <p>{companyConfig.email} — {companyConfig.website || "www.pneuboat.net"}</p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <div className={`text-lg font-black uppercase tracking-widest ${T.accentText}`}>
+                {labelDocFr(subType, inv)}
+              </div>
+              {isBilingual && (
+                <div className={`text-sm font-black ${T.textMain}`} dir="rtl">
+                  {labelDocAr(subType, inv)}
+                </div>
+              )}
+              <div className={`font-mono text-sm font-black mt-1 ${T.textMain}`}>
+                N° {docNumber} <span className="font-normal opacity-60">|</span> {new Date(inv.date).toLocaleDateString("fr-FR")}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (isExecutive) {
+        return (
+          <div className="mb-5">
+            <div className="flex justify-between items-start pb-3">
+              <div>
+                {companyConfig.logo ? (
+                  <img
+                    src={companyConfig.logo}
+                    alt="logo"
+                    className="h-12 object-contain mb-1"
+                  />
+                ) : (
+                  <h1 className={`text-xl font-black uppercase ${T.textMain}`}>
+                    {companyConfig.name}
+                  </h1>
+                )}
+                <div className={`text-[10px] ${T.textSub} leading-tight`}>
+                  <p>{companyConfig.address}</p>
+                  <p>Tél: {companyConfig.phone} • {companyConfig.email}</p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                {isBilingual && (
+                  <div className={`text-sm font-black ${T.textMain}`} dir="rtl">
+                    {companyConfig.nameAr || companyConfig.name}
+                  </div>
+                )}
+                <div className={`font-mono text-sm font-black mt-1 ${T.accentText}`}>
+                  Réf : {docNumber}
+                </div>
+                <div className={`text-[10px] ${T.textSub}`}>
+                  Oran, le {new Date(inv.date).toLocaleDateString("fr-FR")}
+                </div>
+              </div>
+            </div>
+
+            <div className={`py-2.5 px-4 border-y-2 ${T.borderMain} ${T.boxBg} flex justify-between items-center`}>
+              <span className={`text-[13px] font-black uppercase tracking-widest ${T.accentText}`}>
+                {labelDocFr(subType, inv)}
+              </span>
+              <span className={`font-mono text-xs font-black ${T.textMain}`}>
+                {docNumber}
+              </span>
+              {isBilingual && (
+                <span className={`text-[13px] font-black ${T.accentText}`} dir="rtl">
+                  {labelDocAr(subType, inv)}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // Modèle Classic par défaut
+      return (
+        <div className={`flex justify-between items-start border-b-2 ${T.borderMain} pb-4 mb-4`}>
+          <div>
+            {companyConfig.logo ? (
+              <img
+                src={companyConfig.logo}
+                alt="logo"
+                className="h-12 object-contain mb-2"
+              />
+            ) : (
+              <h1 className={`text-xl font-black uppercase tracking-tight ${T.textMain}`}>
+                Pneuboat <span className={T.accentText}>SARL</span>
+              </h1>
+            )}
+            <div className={`text-[10px] ${T.textSub} leading-tight`}>
+              <p>{companyConfig.address}</p>
+              <p>Tél: {companyConfig.phone}</p>
+              <p>{companyConfig.email}</p>
+              <p>{companyConfig.website || "www.pneuboat.net"}</p>
+            </div>
+          </div>
+
+          <div className="text-right flex flex-col items-end">
+            <div className={`inline-flex flex-col items-end px-4 py-2 rounded-xl text-[12px] font-black uppercase border shadow-sm ${T.badgeBg}`}>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                {labelDocFr(subType, inv)}
+              </div>
+              {isBilingual && (
+                <div className={`text-[11px] mt-1 ${T.badgeAr}`} dir="rtl">
+                  {labelDocAr(subType, inv)}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 text-right">
+              <div className={`font-mono text-base font-black ${T.textMain}`}>
+                {docNumber}
+              </div>
+              <div className={`text-[10px] mt-1 flex justify-end gap-2 items-center ${T.textSub}`}>
+                <span>Le {new Date(inv.date).toLocaleDateString("fr-FR")}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
 
     const ItemsTable = (
-      <div className={`rounded-2xl overflow-hidden border ${T.borderMain}`}>
+      <div className={`${radiusBox} overflow-hidden border ${T.borderMain}`}>
         <table className={`w-full text-[11px] ${T.textMain}`}>
           <thead>
             <tr className={`text-left font-black uppercase border-b ${T.tableHead}`}>
               <th className="py-2.5 px-3">
                 <div>Désignation</div>
-                {isBilingual && <div dir="rtl" className={`text-[9px] ${T.textSub}`}>التعيين</div>}
+                {isBilingual && <div dir="rtl" className="text-[9px] opacity-85">التعيين</div>}
               </th>
               <th className="py-2.5 px-3 text-center w-16">
                 <div>Qté</div>
-                {isBilingual && <div dir="rtl" className={`text-[9px] ${T.textSub}`}>الكمية</div>}
+                {isBilingual && <div dir="rtl" className="text-[9px] opacity-85">الكمية</div>}
               </th>
               {subType !== "livraison" && (
                 <>
                   <th className="py-2.5 px-3 text-right w-24">
                     <div>P.U</div>
-                    {isBilingual && <div dir="rtl" className={`text-[9px] ${T.textSub}`}>سعر الوحدة</div>}
+                    {isBilingual && <div dir="rtl" className="text-[9px] opacity-85">سعر الوحدة</div>}
                   </th>
                   <th className="py-2.5 px-3 text-right w-28">
                     <div>Total</div>
-                    {isBilingual && <div dir="rtl" className={`text-[9px] ${T.textSub}`}>المجموع</div>}
+                    {isBilingual && <div dir="rtl" className="text-[9px] opacity-85">المجموع</div>}
                   </th>
                 </>
               )}
@@ -1213,7 +1540,7 @@ export default function MainApp() {
             {inv.items.map((it, i) => (
               <tr
                 key={it.id || i}
-                className={`border-b ${T.borderSub} last:border-b-0`}
+                className={`border-b ${T.borderSub} last:border-b-0 ${isPrestige && i % 2 === 1 ? T.boxBg : ""}`}
               >
                 <td className={`py-2.5 px-3 font-bold ${T.textMain}`}>{it.description}</td>
                 <td className={`py-2.5 px-3 text-center font-black ${T.textMain}`}>
@@ -1247,56 +1574,23 @@ export default function MainApp() {
 
     return (
       <div className={`bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl ${T.textMain} relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none`}>
-        <div className={`absolute top-0 left-0 right-0 h-2 ${T.topBar}`} />
+        {/* Barre supérieure ou Cadre selon le modèle */}
+        {!isPrestige && !isExecutive && (
+          <div className={`absolute top-0 left-0 right-0 ${isMinimal ? "h-1" : "h-2"} ${T.topBar}`} />
+        )}
+        {isExecutive && (
+          <>
+            <div className={`absolute inset-[6mm] border-2 ${T.borderMain} pointer-events-none`} />
+            <div className={`absolute top-[6mm] bottom-[6mm] left-[6mm] w-1.5 ${T.topBar} pointer-events-none`} />
+          </>
+        )}
 
         <div className="relative">
-          <div className={`flex justify-between items-start border-b-2 ${T.borderMain} pb-4 mb-4`}>
-            <div>
-              {companyConfig.logo ? (
-                <img
-                  src={companyConfig.logo}
-                  alt="logo"
-                  className="h-12 object-contain mb-2"
-                />
-              ) : (
-                <h1 className={`text-xl font-black uppercase tracking-tight ${T.textMain}`}>
-                  Pneuboat <span className={T.accentText}>SARL</span>
-                </h1>
-              )}
-              <div className={`text-[10px] ${T.textSub} leading-tight`}>
-                <p>{companyConfig.address}</p>
-                <p>Tél: {companyConfig.phone}</p>
-                <p>{companyConfig.email}</p>
-                <p>{companyConfig.website || "www.pneuboat.net"}</p>
-              </div>
-            </div>
+          {renderHeader()}
 
-            <div className="text-right flex flex-col items-end">
-              <div className={`inline-flex flex-col items-end px-4 py-2 rounded-xl text-[12px] font-black uppercase border shadow-sm ${T.badgeBg}`}>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                  {labelDocFr(subType, inv)}
-                </div>
-                {isBilingual && (
-                  <div className={`text-[11px] mt-1 ${T.badgeAr}`} dir="rtl">
-                    {labelDocAr(subType, inv)}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 text-right">
-                <div className={`font-mono text-base font-black ${T.textMain}`}>
-                  {docNumber}
-                </div>
-                <div className={`text-[10px] mt-1 flex justify-end gap-2 items-center ${T.textSub}`}>
-                  <span>Le {new Date(inv.date).toLocaleDateString("fr-FR")}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className={`mb-5 ${T.boxBg} border ${T.borderMain} rounded-2xl p-4 relative overflow-hidden flex justify-between gap-4`}>
-            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${T.topBar}`} />
+          {/* BLOC CLIENT */}
+          <div className={`mb-4 ${T.boxBg} border ${T.borderMain} ${radiusBox} p-4 relative overflow-hidden flex justify-between gap-4`}>
+            {!isMinimal && <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${T.topBar}`} />}
             
             <div className="flex-1 pl-1">
               <h3 className={`text-[9px] uppercase tracking-widest mb-1 ${T.textLabel}`}>
@@ -1325,15 +1619,15 @@ export default function MainApp() {
             )}
           </div>
 
-          {/* Numéro ID uniquement en Français */}
+          {/* Numéro ID & Téléphone */}
           <div className="flex flex-wrap gap-2 mb-4">
             {!!inv.clientIdNumber && (
-              <span className={`px-3 py-1.5 rounded-lg bg-white border ${T.borderMain} text-[10px] font-black uppercase tracking-widest ${T.textMain} flex items-center gap-2`}>
+              <span className={`px-3 py-1.5 ${radiusInner} bg-white border ${T.borderMain} text-[10px] font-black uppercase tracking-widest ${T.textMain} flex items-center gap-2`}>
                 <span>ID: {inv.clientIdNumber}</span>
               </span>
             )}
             {!!inv.clientPhone && (
-              <span className={`px-3 py-1.5 rounded-lg bg-white border ${T.borderMain} text-[10px] font-black uppercase tracking-widest ${T.textMain} inline-flex items-center gap-2`}>
+              <span className={`px-3 py-1.5 ${radiusInner} bg-white border ${T.borderMain} text-[10px] font-black uppercase tracking-widest ${T.textMain} inline-flex items-center gap-2`}>
                 <Phone size={12} /> {inv.clientPhone}
                 {isBilingual && <><span className="opacity-40">|</span><span dir="rtl">الهاتف</span></>}
               </span>
@@ -1341,13 +1635,13 @@ export default function MainApp() {
           </div>
 
           {subType === "livraison" && (
-            <div className={`mb-4 rounded-2xl border ${T.borderMain} bg-white p-4`}>
+            <div className={`mb-4 ${radiusBox} border ${T.borderMain} bg-white p-4`}>
               <div className="flex justify-between items-center mb-3">
                 <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Détails Livraison</div>
                 {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">تفاصيل التسليم</div>}
               </div>
               <div className="grid grid-cols-2 gap-3 text-[11px]">
-                <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                   <div>
                     <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Modèle</div>
                     <div className={`font-black ${T.textMain}`}>{inv.boatDetails.model || "—"}</div>
@@ -1358,7 +1652,7 @@ export default function MainApp() {
                     </div>
                   )}
                 </div>
-                <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                   <div>
                     <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>N° de série</div>
                     <div className={`font-black font-mono ${T.accentText}`}>{inv.boatDetails.serialNumber || "—"}</div>
@@ -1369,7 +1663,7 @@ export default function MainApp() {
                     </div>
                   )}
                 </div>
-                <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                   <div>
                     <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Téléphone client</div>
                     <div className={`font-black ${T.textMain}`}>{inv.clientPhone || "—"}</div>
@@ -1380,7 +1674,7 @@ export default function MainApp() {
                     </div>
                   )}
                 </div>
-                <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                   <div>
                     <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Longueur</div>
                     <div className={`font-black ${T.textMain}`}>{inv.boatDetails.length || "—"}</div>
@@ -1398,7 +1692,7 @@ export default function MainApp() {
           <div className="min-h-[175px]">
             {subType === "attestation" ? (
               <div className="space-y-4">
-                <div className={`grid grid-cols-1 ${isBilingual ? 'md:grid-cols-2' : ''} gap-6`}>
+                <div className={`grid grid-cols-1 ${isBilingual ? "md:grid-cols-2" : ""} gap-6`}>
                   <p className={`text-justify text-[11px] leading-relaxed ${T.textMain}`}>
                     Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
                     <b>{companyConfig.name}</b>, certifie par {designationText} que le navire a été construit
@@ -1414,12 +1708,12 @@ export default function MainApp() {
                   )}
                 </div>
 
-                <div className={`rounded-2xl border ${T.highlightBox} p-4`}>
+                <div className={`${radiusBox} border ${T.highlightBox} p-4`}>
                   <div className="flex justify-between items-center mb-1">
                     <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Garantie</div>
                     {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">الضمان</div>}
                   </div>
-                  <div className={`grid grid-cols-1 ${isBilingual ? 'md:grid-cols-2' : ''} gap-4`}>
+                  <div className={`grid grid-cols-1 ${isBilingual ? "md:grid-cols-2" : ""} gap-4`}>
                     <div className={`text-[11px] font-bold ${T.textMain}`}>
                       Garantie <span className="font-black underline">1 an</span> sur tout décollement ou problème provenant d&apos;usine (défaut de fabrication), sous réserve d&apos;une utilisation normale.
                     </div>
@@ -1431,13 +1725,13 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                <div className={`border ${T.borderMain} rounded-2xl overflow-hidden`}>
+                <div className={`border ${T.borderMain} ${radiusBox} overflow-hidden`}>
                   <div className={`${T.badgeBg} px-4 py-2 flex justify-between items-center`}>
                     <div className="text-[9px] font-black uppercase tracking-widest">Détails du Bateau</div>
                     {isBilingual && <div className="text-[10px] font-black tracking-widest" dir="rtl">تفاصيل القارب</div>}
                   </div>
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Modèle</div>
                         <div className={`font-black ${T.textMain}`}>{inv.boatDetails.model || "—"}</div>
@@ -1448,7 +1742,7 @@ export default function MainApp() {
                         </div>
                       )}
                     </div>
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>N° de série</div>
                         <div className={`font-black font-mono ${T.accentText}`}>{inv.boatDetails.serialNumber || "—"}</div>
@@ -1460,7 +1754,7 @@ export default function MainApp() {
                       )}
                     </div>
 
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} col-span-2 flex justify-between items-center`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} col-span-2 flex justify-between items-center`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Numéro d&apos;approbation (DMMP)</div>
                         <div className={`font-black ${T.textMain}`}>{approvalShown}</div>
@@ -1472,7 +1766,7 @@ export default function MainApp() {
                       )}
                     </div>
 
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Longueur</div>
                         <div className={`font-black ${T.textMain}`}>{inv.boatDetails.length || "—"}</div>
@@ -1483,7 +1777,7 @@ export default function MainApp() {
                         </div>
                       )}
                     </div>
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Année de construction</div>
                         <div className={`font-black ${T.textMain}`}>{inv.boatDetails.year || "—"}</div>
@@ -1499,7 +1793,7 @@ export default function MainApp() {
               </div>
             ) : subType === "garantie" ? (
               <div className="space-y-4">
-                <div className={`grid grid-cols-1 ${isBilingual ? 'md:grid-cols-2' : ''} gap-6`}>
+                <div className={`grid grid-cols-1 ${isBilingual ? "md:grid-cols-2" : ""} gap-6`}>
                   <p className={`text-justify text-[12px] leading-relaxed ${T.textMain}`}>
                     Je soussigné, <b>{companyConfig.managerName}</b>, gérant de{" "}
                     <b>{companyConfig.name}</b>, certifie par la présente que le navire détaillé ci-dessous bénéficie d&apos;une <b>garantie d&apos;une (01) année</b> à compter de la date de livraison, pour le compte de notre client <b>{inv.clientName || ".........."}</b>.
@@ -1512,12 +1806,12 @@ export default function MainApp() {
                   )}
                 </div>
 
-                <div className={`rounded-2xl border ${T.highlightBox} p-4`}>
+                <div className={`${radiusBox} border ${T.highlightBox} p-4`}>
                   <div className="flex justify-between items-center mb-1">
                     <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Conditions de Garantie</div>
                     {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">شروط الضمان</div>}
                   </div>
-                  <div className={`grid grid-cols-1 ${isBilingual ? 'md:grid-cols-2' : ''} gap-4`}>
+                  <div className={`grid grid-cols-1 ${isBilingual ? "md:grid-cols-2" : ""} gap-4`}>
                     <div className={`text-[11px] font-bold ${T.textMain}`}>
                       Cette garantie couvre exclusivement tout décollement ou problème provenant de l&apos;usine (défaut de fabrication). Elle reste valable sous réserve d&apos;une utilisation normale du bateau, conforme aux recommandations du constructeur.
                     </div>
@@ -1529,13 +1823,13 @@ export default function MainApp() {
                   </div>
                 </div>
 
-                <div className={`border ${T.borderMain} rounded-2xl overflow-hidden`}>
+                <div className={`border ${T.borderMain} ${radiusBox} overflow-hidden`}>
                   <div className={`${T.badgeBg} px-4 py-2 flex justify-between items-center`}>
                     <div className="text-[9px] font-black uppercase tracking-widest">Détails du Bateau Garanti</div>
                     {isBilingual && <div className="text-[10px] font-black tracking-widest" dir="rtl">تفاصيل القارب المضمون</div>}
                   </div>
                   <div className="p-4 grid grid-cols-2 gap-3 bg-white">
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Modèle</div>
                         <div className={`font-black ${T.textMain}`}>{inv.boatDetails.model || "—"}</div>
@@ -1546,7 +1840,7 @@ export default function MainApp() {
                         </div>
                       )}
                     </div>
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>N° de série</div>
                         <div className={`font-black font-mono ${T.accentText}`}>{inv.boatDetails.serialNumber || "—"}</div>
@@ -1557,7 +1851,7 @@ export default function MainApp() {
                         </div>
                       )}
                     </div>
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Longueur</div>
                         <div className={`font-black ${T.textMain}`}>{inv.boatDetails.length || "—"}</div>
@@ -1568,7 +1862,7 @@ export default function MainApp() {
                         </div>
                       )}
                     </div>
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Année de construction</div>
                         <div className={`font-black ${T.textMain}`}>{inv.boatDetails.year || "—"}</div>
@@ -1584,14 +1878,14 @@ export default function MainApp() {
               </div>
             ) : isCommande ? (
               <div className="space-y-4">
-                <div className={`rounded-2xl border ${T.borderMain} bg-white p-4`}>
+                <div className={`${radiusBox} border ${T.borderMain} bg-white p-4`}>
                   <div className="flex justify-between items-center mb-3">
                     <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Bon de commande</div>
                     {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">معلومات الطلبية</div>}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-[11px]">
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Modèle voulu</div>
                         <div className={`font-black ${T.textMain}`}>{inv.orderDetails?.modelWanted || inv.boatDetails?.model || "—"}</div>
@@ -1603,7 +1897,7 @@ export default function MainApp() {
                       )}
                     </div>
 
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Couleurs</div>
                         <div className={`font-bold ${T.textMain}`}>{inv.orderDetails?.colors || "—"}</div>
@@ -1615,7 +1909,7 @@ export default function MainApp() {
                       )}
                     </div>
 
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} col-span-2 flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} col-span-2 flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Options</div>
                         <div className={`font-bold ${T.textMain}`}>{inv.orderDetails?.options || "—"}</div>
@@ -1627,7 +1921,7 @@ export default function MainApp() {
                       )}
                     </div>
 
-                    <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} col-span-2 flex justify-between`}>
+                    <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} col-span-2 flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Accessoires divers</div>
                         <div className={`font-bold ${T.textMain}`}>{inv.orderDetails?.accessories || "—"}</div>
@@ -1643,7 +1937,7 @@ export default function MainApp() {
 
                 {ItemsTable}
 
-                <div className={`rounded-2xl border ${T.borderMain} bg-white p-4`}>
+                <div className={`${radiusBox} border ${T.borderMain} bg-white p-4`}>
                   <div className="flex justify-between items-center mb-3">
                     <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Règlement</div>
                     {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">التسوية المالية</div>}
@@ -1656,7 +1950,7 @@ export default function MainApp() {
 
                     return (
                       <div className="grid grid-cols-3 gap-3 text-[11px]">
-                        <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                        <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                           <div>
                             <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Total Commande</div>
                             <div className={`font-black ${T.accentText}`}>{formatCurrency(totalCmd)}</div>
@@ -1667,7 +1961,7 @@ export default function MainApp() {
                             </div>
                           )}
                         </div>
-                        <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                        <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                           <div>
                             <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Total versé</div>
                             <div className={`font-black ${T.textMain}`}>{formatCurrency(paid)}</div>
@@ -1678,7 +1972,7 @@ export default function MainApp() {
                             </div>
                           )}
                         </div>
-                        <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                        <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                           <div>
                             <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Restant</div>
                             <div className={`font-black ${T.textMain}`}>{formatCurrency(rest)}</div>
@@ -1697,13 +1991,13 @@ export default function MainApp() {
             ) : (
               <div className="space-y-3">
                 {showBoatBlockOnInvoice && (
-                  <div className={`rounded-2xl border ${T.borderMain} bg-white p-4`}>
+                  <div className={`${radiusBox} border ${T.borderMain} bg-white p-4`}>
                     <div className="flex justify-between items-center mb-3">
                       <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Détails Bateau</div>
                       {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">تفاصيل القارب</div>}
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-[11px]">
-                      <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                      <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                         <div>
                           <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Modèle</div>
                           <div className={`font-black ${T.textMain}`}>{inv.boatDetails.model || "—"}</div>
@@ -1714,7 +2008,7 @@ export default function MainApp() {
                           </div>
                         )}
                       </div>
-                      <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                      <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                         <div>
                           <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>N° de série</div>
                           <div className={`font-black font-mono ${T.accentText}`}>{inv.boatDetails.serialNumber || "—"}</div>
@@ -1725,7 +2019,7 @@ export default function MainApp() {
                           </div>
                         )}
                       </div>
-                      <div className={`p-3 rounded-xl ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                      <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                         <div>
                           <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Longueur</div>
                           <div className={`font-black ${T.textMain}`}>{inv.boatDetails.length || "—"}</div>
@@ -1750,7 +2044,7 @@ export default function MainApp() {
           {showTotals && (
             <>
               <div className="flex justify-end mb-3">
-                <div className={`w-full md:w-[70%] rounded-2xl border ${T.borderMain} overflow-hidden flex`}>
+                <div className={`w-full md:w-[70%] ${radiusBox} border ${T.borderMain} overflow-hidden flex`}>
                   <div className="w-full">
                     <div className={`px-4 py-2.5 ${T.tableHead} flex justify-between border-b ${T.borderMain}`}>
                       <div className="text-[10px] font-black uppercase tracking-widest">Récapitulatif</div>
@@ -1782,7 +2076,7 @@ export default function MainApp() {
               </div>
 
               {/* TOTAL EN LETTRES BILINGUE FR + AR */}
-              <div className={`mb-4 rounded-2xl border ${T.borderMain} bg-white p-3.5`}>
+              <div className={`mb-4 ${radiusBox} border ${T.borderMain} bg-white p-3.5`}>
                 <div className="flex justify-between items-center mb-1.5">
                   <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Total en lettres</div>
                   {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">المبلغ بالحروف</div>}
@@ -1801,7 +2095,7 @@ export default function MainApp() {
                     </div>
                   )}
                 </div>
-                <div className={`mt-1.5 p-2 rounded-xl border ${T.borderSub} ${T.boxBg} space-y-1`}>
+                <div className={`mt-1.5 p-2 ${radiusInner} border ${T.borderSub} ${T.boxBg} space-y-1`}>
                   <div className={`text-[11px] font-black ${T.textMain} text-center`}>
                     {totalWords}
                   </div>
@@ -1823,7 +2117,7 @@ export default function MainApp() {
           )}
 
           {showPayBlock && (
-            <div className={`mb-4 rounded-2xl border ${T.highlightBox} p-4 flex justify-between items-center`}>
+            <div className={`mb-4 ${radiusBox} border ${T.highlightBox} p-4 flex justify-between items-center`}>
               <div>
                 <div className={`text-[9px] uppercase tracking-widest mb-1 ${T.textLabel}`}>Paiement</div>
                 <div className={`text-[12px] font-black ${T.textMain}`}>
@@ -1869,14 +2163,14 @@ export default function MainApp() {
           )}
 
           <div className="grid grid-cols-2 gap-4 mb-3">
-            <div className={`border border-dashed ${T.borderMain} rounded-2xl h-24 p-3 text-[9px] ${T.textLabel} uppercase flex flex-col justify-between items-center relative`}>
+            <div className={`border border-dashed ${T.borderMain} ${radiusBox} h-24 p-3 text-[9px] ${T.textLabel} uppercase flex flex-col justify-between items-center relative`}>
               <div className="w-full flex justify-between px-2">
                 <span>Cachet Gérant</span>
                 {isBilingual && <span dir="rtl">ختم المسير</span>}
               </div>
               <span className="opacity-30">..............................</span>
             </div>
-            <div className={`border border-dashed ${T.borderMain} rounded-2xl h-24 p-3 text-[9px] ${T.textLabel} uppercase flex flex-col justify-between items-center relative`}>
+            <div className={`border border-dashed ${T.borderMain} ${radiusBox} h-24 p-3 text-[9px] ${T.textLabel} uppercase flex flex-col justify-between items-center relative`}>
               <div className="w-full flex justify-between px-2">
                 <span>Signature Client</span>
                 {isBilingual && <span dir="rtl">إمضاء الزبون</span>}
@@ -2189,7 +2483,7 @@ export default function MainApp() {
         {view === "edit" && currentInvoice && (
           <div className="space-y-4 animate-in slide-in-from-right duration-300">
             <div className="no-print bg-white rounded-[1.5rem] shadow-sm border border-slate-100 p-3 md:p-4">
-              <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
                     <FileText size={18} />
@@ -2229,10 +2523,70 @@ export default function MainApp() {
                 </div>
               </div>
 
+              {/* BARRE DE PERSONNALISATION EN DIRECT (STYLE & COULEUR) */}
+              <div className="mb-3 p-3 rounded-2xl bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5 mr-2">
+                    <LayoutTemplate size={14} /> Modèle Facture :
+                  </span>
+                  {Object.values(DOC_LAYOUTS).map((ly) => {
+                    const active = (currentInvoice.docLayout || companyConfig.docLayout || "classic") === ly.id;
+                    return (
+                      <button
+                        key={ly.id}
+                        type="button"
+                        onClick={() => {
+                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), docLayout: ly.id }));
+                          saveConfigOnline({ ...companyConfig, docLayout: ly.id });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${
+                          active
+                            ? "bg-blue-600 text-white shadow-md"
+                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        }`}
+                      >
+                        {ly.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5 mr-1">
+                    <Palette size={14} /> Thème :
+                  </span>
+                  {Object.values(DOC_THEMES).map((th) => {
+                    const active = (currentInvoice.docTheme || companyConfig.docTheme || "yacht") === th.id;
+                    return (
+                      <button
+                        key={th.id}
+                        type="button"
+                        title={th.label}
+                        onClick={() => {
+                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), docTheme: th.id }));
+                          saveConfigOnline({ ...companyConfig, docTheme: th.id });
+                        }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all border ${
+                          active
+                            ? "bg-white text-slate-900 border-white shadow-md scale-105"
+                            : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                        }`}
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full border border-black/20 shrink-0"
+                          style={{ backgroundColor: th.preview[0] }}
+                        />
+                        <span className="hidden sm:inline">{th.label.split(" ")[0]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* LIGNE 1 : Client & Bateau & Options */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div className="md:col-span-5 rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <div className={`grid grid-cols-1 ${currentInvoice.isBilingual ? 'md:grid-cols-2' : ''} gap-2 mb-2`}>
+                  <div className={`grid grid-cols-1 ${currentInvoice.isBilingual ? "md:grid-cols-2" : ""} gap-2 mb-2`}>
                     <InputGroup label="Nom Complet (FR)" compact>
                       <Input
                         value={currentInvoice.clientName || ""}
@@ -2269,7 +2623,7 @@ export default function MainApp() {
                     )}
                   </div>
 
-                  <div className={`grid grid-cols-1 ${currentInvoice.isBilingual ? 'md:grid-cols-2' : ''} gap-2 mb-2`}>
+                  <div className={`grid grid-cols-1 ${currentInvoice.isBilingual ? "md:grid-cols-2" : ""} gap-2 mb-2`}>
                     <InputGroup label="Adresse (FR)" compact>
                       <Input
                         value={currentInvoice.clientAddress || ""}
@@ -2586,7 +2940,7 @@ export default function MainApp() {
                           value={it.description || ""}
                           onChange={(e) => {
                             const val = e.target.value;
-                            setCurrentInvoice(p => {
+                            setCurrentInvoice((p) => {
                               const inv = normalizeInvoice(p);
                               const ni = [...inv.items];
                               ni[idx] = { ...ni[idx], description: val };
@@ -2606,7 +2960,7 @@ export default function MainApp() {
                           value={it.quantity}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
-                            setCurrentInvoice(p => {
+                            setCurrentInvoice((p) => {
                               const inv = normalizeInvoice(p);
                               const ni = [...inv.items];
                               ni[idx] = { ...ni[idx], quantity: val };
@@ -2626,7 +2980,7 @@ export default function MainApp() {
                           value={it.priceTtc !== null && it.priceTtc !== undefined ? it.priceTtc : priceTtcFromHt(it.price, currentInvoice.tvaRate, currentInvoice.applyTva)}
                           onChange={(e) => {
                             const ttc = parseFloat(e.target.value) || 0;
-                            setCurrentInvoice(p => {
+                            setCurrentInvoice((p) => {
                               const inv = normalizeInvoice(p);
                               const ni = [...inv.items];
                               const ht = priceHtFromTtc(ttc, inv.tvaRate, inv.applyTva);
@@ -2640,7 +2994,7 @@ export default function MainApp() {
                       <button
                         className="w-full md:w-12 h-11 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border-2 border-transparent hover:border-red-100"
                         onClick={() => {
-                          setCurrentInvoice(p => {
+                          setCurrentInvoice((p) => {
                             const inv = normalizeInvoice(p);
                             if (inv.items.length <= 1) return inv;
                             return { ...inv, items: inv.items.filter((_, i) => i !== idx) };
@@ -3001,20 +3355,55 @@ export default function MainApp() {
 
         {/* SETTINGS */}
         {view === "settings" && (
-          <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom duration-400">
+          <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom duration-400">
             <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-sm border border-slate-100">
               <h2 className="text-2xl font-black mb-10 flex items-center gap-4 uppercase tracking-tight">
                 <Settings className="text-blue-600" size={28} /> Configuration
               </h2>
 
+              {/* SÉLECTEUR DE MODÈLE DE MISE EN PAGE */}
+              <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200 mb-8">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
+                  <LayoutTemplate className="text-blue-600" size={18} /> Modèle de Mise en Page (Design des Factures)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.values(DOC_LAYOUTS).map((ly) => {
+                    const active = (companyConfig.docLayout || "classic") === ly.id;
+                    return (
+                      <div
+                        key={ly.id}
+                        onClick={() =>
+                          saveConfigOnline({ ...companyConfig, docLayout: ly.id })
+                        }
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                          active
+                            ? "border-blue-600 bg-white shadow-md"
+                            : "border-slate-200 bg-white/60 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-black text-xs uppercase text-slate-900">
+                            {ly.label}
+                          </span>
+                          {active && <CheckCircle size={16} className="text-blue-600 shrink-0" />}
+                        </div>
+                        <p className="text-[10px] font-semibold text-slate-500 leading-snug">
+                          {ly.desc}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* SÉLECTEUR DE COULEUR DES FACTURES */}
               <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200 mb-10">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
-                  <Palette className="text-blue-600" size={18} /> Style & Couleur des Textes (Factures / Impression)
+                  <Palette className="text-blue-600" size={18} /> Palette de Couleurs (Factures / Impression)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {Object.values(DOC_THEMES).map((th) => {
-                    const active = (companyConfig.docTheme || "black") === th.id;
+                    const active = (companyConfig.docTheme || "yacht") === th.id;
                     return (
                       <div
                         key={th.id}
@@ -3028,10 +3417,19 @@ export default function MainApp() {
                         }`}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="font-black text-xs uppercase text-slate-900">
-                            {th.label}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {th.preview.map((col, idx) => (
+                              <span
+                                key={idx}
+                                className="w-3.5 h-3.5 rounded-full border border-black/15"
+                                style={{ backgroundColor: col }}
+                              />
+                            ))}
+                          </div>
                           {active && <CheckCircle size={16} className="text-blue-600 shrink-0" />}
+                        </div>
+                        <div className="font-black text-xs uppercase text-slate-900 mb-1">
+                          {th.label}
                         </div>
                         <p className="text-[10px] font-semibold text-slate-500 leading-snug">
                           {th.desc}
