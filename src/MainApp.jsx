@@ -23,6 +23,8 @@ import {
   Phone,
   Palette,
   LayoutTemplate,
+  Stamp,
+  Copy,
 } from "lucide-react";
 import { supabase } from "./supabase";
 
@@ -349,6 +351,25 @@ const paymentLabel = (pm) => {
 
 /* ------------------ PALETTES DE COULEURS HAUT DE GAMME ------------------ */
 const DOC_THEMES = {
+  apple: {
+    id: "apple",
+    label: "Apple Store (Cupertino)",
+    desc: "Gris sidéral, blanc pur, bleu Apple & design ultra-épuré",
+    preview: ["#1d1d1f", "#0071e3", "#f5f5f7"],
+    textMain: "text-[#1d1d1f]",
+    textSub: "text-[#86868b] font-medium",
+    textLabel: "text-[#86868b] font-semibold",
+    accentText: "text-[#0071e3]",
+    badgeBg: "bg-[#f5f5f7] text-[#1d1d1f] border-[#d2d2d7]",
+    badgeAr: "text-[#0071e3]",
+    tableHead: "bg-[#f5f5f7] text-[#86868b] border-[#d2d2d7]",
+    borderMain: "border-[#d2d2d7]",
+    borderSub: "border-[#e8e8ed]",
+    boxBg: "bg-[#f5f5f7]/90",
+    highlightBox: "bg-[#f5f5f7] border-[#0071e3]/30",
+    topBar: "bg-gradient-to-r from-[#1d1d1f] via-[#0071e3] to-[#1d1d1f]",
+    bannerBg: "bg-[#1d1d1f] text-white",
+  },
   black: {
     id: "black",
     label: "Noir Intense (Imprimante)",
@@ -529,6 +550,11 @@ const DOC_LAYOUTS = {
     label: "Classique Pneuboat",
     desc: "Votre modèle actuel avec cartes arrondies et badge latéral",
   },
+  apple: {
+    id: "apple",
+    label: "Apple Store Class",
+    desc: "Design ultra-clean style Apple Store : cartes #F5F5F7, coins très doux et typographie fine",
+  },
   prestige: {
     id: "prestige",
     label: "Prestige Yachting (Bannière)",
@@ -682,6 +708,7 @@ export default function MainApp() {
     phone: "0563269639",
     docTheme: "yacht",
     docLayout: "classic",
+    showLogoWatermark: false,
     nextInvoiceNumber: 1,
     nextProformaNumber: 1,
     nextDeliveryNumber: 1,
@@ -850,6 +877,8 @@ export default function MainApp() {
           ...configData.config,
           docTheme: configData.config.docTheme || prev.docTheme || "yacht",
           docLayout: configData.config.docLayout || prev.docLayout || "classic",
+          showLogoWatermark:
+            configData.config.showLogoWatermark ?? prev.showLogoWatermark ?? false,
         }));
       }
 
@@ -973,6 +1002,9 @@ export default function MainApp() {
       isBilingual: inv?.isBilingual ?? true,
       docTheme: inv?.docTheme || companyConfig.docTheme || "yacht",
       docLayout: inv?.docLayout || companyConfig.docLayout || "classic",
+      showLogoWatermark:
+        inv?.showLogoWatermark ?? companyConfig.showLogoWatermark ?? false,
+      isDuplicate: inv?.isDuplicate ?? false,
     };
   };
 
@@ -1099,6 +1131,8 @@ export default function MainApp() {
       isBilingual: true,
       docTheme: companyConfig.docTheme || "yacht",
       docLayout: companyConfig.docLayout || "classic",
+      showLogoWatermark: companyConfig.showLogoWatermark ?? false,
+      isDuplicate: false,
     });
 
     let n = nf;
@@ -1293,10 +1327,26 @@ export default function MainApp() {
     const isMinimal = layoutKey === "minimal";
     const isPrestige = layoutKey === "prestige";
     const isExecutive = layoutKey === "executive";
+    const isApple = layoutKey === "apple";
+
+    const showLogoWatermark = !!inv.showLogoWatermark;
+    const isDuplicate = !!inv.isDuplicate;
 
     // Adaptations de forme selon le modèle choisi
-    const radiusBox = isMinimal ? "rounded-none" : isExecutive ? "rounded-lg" : "rounded-2xl";
-    const radiusInner = isMinimal ? "rounded-none" : isExecutive ? "rounded-md" : "rounded-xl";
+    const radiusBox = isMinimal
+      ? "rounded-none"
+      : isExecutive
+      ? "rounded-lg"
+      : isApple
+      ? "rounded-3xl"
+      : "rounded-2xl";
+    const radiusInner = isMinimal
+      ? "rounded-none"
+      : isExecutive
+      ? "rounded-md"
+      : isApple
+      ? "rounded-2xl"
+      : "rounded-xl";
 
     const isCommande = subType === "commande";
 
@@ -1323,8 +1373,60 @@ export default function MainApp() {
         ? "le présent certificat"
         : "la présente attestation";
 
+    const DuplicateBadge = isDuplicate ? (
+      <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-red-50 border border-red-400 text-red-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
+        <span>DUPLICATA</span>
+        {isBilingual && <span dir="rtl">/ نسخة طبق الأصل</span>}
+      </div>
+    ) : null;
+
     /* --- EN-TÊTE SELON LE MODÈLE CHOISI --- */
     const renderHeader = () => {
+      if (isApple) {
+        return (
+          <div className="mb-6 pb-5 border-b border-[#d2d2d7] flex justify-between items-start">
+            <div className="space-y-1.5">
+              {companyConfig.logo ? (
+                <img
+                  src={companyConfig.logo}
+                  alt="logo"
+                  className="h-12 object-contain mb-2"
+                />
+              ) : (
+                <h1 className={`text-2xl font-semibold tracking-tight ${T.textMain}`}>
+                  {companyConfig.name}
+                </h1>
+              )}
+              <div className={`text-[10px] ${T.textSub} leading-relaxed`}>
+                <p className="font-semibold text-[#1d1d1f]">{companyConfig.address}</p>
+                <p>{companyConfig.phone} • {companyConfig.email}</p>
+                <p>{companyConfig.website || "www.pneuboat.net"}</p>
+              </div>
+            </div>
+
+            <div className="text-right flex flex-col items-end">
+              <span className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${T.accentText}`}>
+                Chantier Naval • Store Officiel
+              </span>
+              <h2 className={`text-2xl font-bold tracking-tight mt-0.5 ${T.textMain}`}>
+                {labelDocFr(subType, inv)}
+              </h2>
+              {isBilingual && (
+                <div className={`text-sm font-semibold ${T.textSub}`} dir="rtl">
+                  {labelDocAr(subType, inv)}
+                </div>
+              )}
+              <div className="mt-2 inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#f5f5f7] border border-[#d2d2d7] text-[11px] font-semibold text-[#1d1d1f]">
+                <span className="font-mono font-bold">{docNumber}</span>
+                <span className="opacity-30">•</span>
+                <span>{new Date(inv.date).toLocaleDateString("fr-FR")}</span>
+              </div>
+              {DuplicateBadge}
+            </div>
+          </div>
+        );
+      }
+
       if (isPrestige) {
         return (
           <div className="mb-5">
@@ -1347,7 +1449,7 @@ export default function MainApp() {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-right flex flex-col items-end">
                 <div className="text-[15px] font-black uppercase tracking-widest text-white">
                   {labelDocFr(subType, inv)}
                 </div>
@@ -1362,6 +1464,7 @@ export default function MainApp() {
                 <div className="text-[10px] text-white/80 mt-1">
                   Le {new Date(inv.date).toLocaleDateString("fr-FR")}
                 </div>
+                {DuplicateBadge}
               </div>
             </div>
           </div>
@@ -1389,7 +1492,7 @@ export default function MainApp() {
               </div>
             </div>
 
-            <div className="text-right">
+            <div className="text-right flex flex-col items-end">
               <div className={`text-lg font-black uppercase tracking-widest ${T.accentText}`}>
                 {labelDocFr(subType, inv)}
               </div>
@@ -1401,6 +1504,7 @@ export default function MainApp() {
               <div className={`font-mono text-sm font-black mt-1 ${T.textMain}`}>
                 N° {docNumber} <span className="font-normal opacity-60">|</span> {new Date(inv.date).toLocaleDateString("fr-FR")}
               </div>
+              {DuplicateBadge}
             </div>
           </div>
         );
@@ -1428,7 +1532,7 @@ export default function MainApp() {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-right flex flex-col items-end">
                 {isBilingual && (
                   <div className={`text-sm font-black ${T.textMain}`} dir="rtl">
                     {companyConfig.nameAr || companyConfig.name}
@@ -1440,6 +1544,7 @@ export default function MainApp() {
                 <div className={`text-[10px] ${T.textSub}`}>
                   Oran, le {new Date(inv.date).toLocaleDateString("fr-FR")}
                 </div>
+                {DuplicateBadge}
               </div>
             </div>
 
@@ -1486,7 +1591,7 @@ export default function MainApp() {
           <div className="text-right flex flex-col items-end">
             <div className={`inline-flex flex-col items-end px-4 py-2 rounded-xl text-[12px] font-black uppercase border shadow-sm ${T.badgeBg}`}>
               <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                <span className="w-1.5 h-1.5 rounded-full bg-current" />
                 {labelDocFr(subType, inv)}
               </div>
               {isBilingual && (
@@ -1496,13 +1601,14 @@ export default function MainApp() {
               )}
             </div>
 
-            <div className="mt-3 text-right">
+            <div className="mt-2.5 text-right flex flex-col items-end">
               <div className={`font-mono text-base font-black ${T.textMain}`}>
                 {docNumber}
               </div>
-              <div className={`text-[10px] mt-1 flex justify-end gap-2 items-center ${T.textSub}`}>
+              <div className={`text-[10px] mt-0.5 flex justify-end gap-2 items-center ${T.textSub}`}>
                 <span>Le {new Date(inv.date).toLocaleDateString("fr-FR")}</span>
               </div>
+              {DuplicateBadge}
             </div>
           </div>
         </div>
@@ -1510,11 +1616,11 @@ export default function MainApp() {
     };
 
     const ItemsTable = (
-      <div className={`${radiusBox} overflow-hidden border ${T.borderMain}`}>
+      <div className={`${radiusBox} overflow-hidden ${isApple ? "border border-[#e8e8ed] bg-white" : `border ${T.borderMain}`}`}>
         <table className={`w-full text-[11px] ${T.textMain}`}>
           <thead>
             <tr className={`text-left font-black uppercase border-b ${T.tableHead}`}>
-              <th className="py-2.5 px-3">
+              <th className="py-2.5 px-3.5">
                 <div>Désignation</div>
                 {isBilingual && <div dir="rtl" className="text-[9px] opacity-85">التعيين</div>}
               </th>
@@ -1528,7 +1634,7 @@ export default function MainApp() {
                     <div>P.U</div>
                     {isBilingual && <div dir="rtl" className="text-[9px] opacity-85">سعر الوحدة</div>}
                   </th>
-                  <th className="py-2.5 px-3 text-right w-28">
+                  <th className="py-2.5 px-3.5 text-right w-28">
                     <div>Total</div>
                     {isBilingual && <div dir="rtl" className="text-[9px] opacity-85">المجموع</div>}
                   </th>
@@ -1542,7 +1648,7 @@ export default function MainApp() {
                 key={it.id || i}
                 className={`border-b ${T.borderSub} last:border-b-0 ${isPrestige && i % 2 === 1 ? T.boxBg : ""}`}
               >
-                <td className={`py-2.5 px-3 font-bold ${T.textMain}`}>{it.description}</td>
+                <td className={`py-2.5 px-3.5 font-bold ${T.textMain}`}>{it.description}</td>
                 <td className={`py-2.5 px-3 text-center font-black ${T.textMain}`}>
                   {Number(it.quantity || 0)}
                 </td>
@@ -1551,7 +1657,7 @@ export default function MainApp() {
                     <td className={`py-2.5 px-3 text-right font-bold ${T.textMain}`}>
                       {Number(it.price || 0).toLocaleString("fr-FR")}
                     </td>
-                    <td className={`py-2.5 px-3 text-right font-black ${T.textMain}`}>
+                    <td className={`py-2.5 px-3.5 text-right font-black ${T.textMain}`}>
                       {(
                         Number(it.quantity || 0) * Number(it.price || 0)
                       ).toLocaleString("fr-FR")}
@@ -1574,9 +1680,45 @@ export default function MainApp() {
 
     return (
       <div className={`bg-white w-[210mm] h-[297mm] p-[14mm] mx-auto shadow-2xl ${T.textMain} relative text-[12px] leading-snug font-sans flex flex-col justify-between overflow-hidden print:shadow-none`}>
+        {/* FILIGRANE (WATERMARK) LOGO AU CENTRE */}
+        {showLogoWatermark && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+            {companyConfig.logo ? (
+              <img
+                src={companyConfig.logo}
+                alt="Watermark Logo"
+                className="w-[125mm] max-h-[125mm] object-contain opacity-[0.06] select-none"
+              />
+            ) : (
+              <div className="text-[72px] font-black uppercase tracking-widest opacity-[0.04] -rotate-12 select-none text-slate-900">
+                {companyConfig.name}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* FILIGRANE (WATERMARK) DUPLICATA */}
+        {isDuplicate && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+            <div className="border-[6px] border-red-600/15 text-red-600/15 px-12 py-5 rounded-3xl -rotate-[28deg] flex flex-col items-center select-none">
+              <span className="text-[64px] font-black uppercase tracking-[0.22em] leading-none">
+                DUPLICATA
+              </span>
+              {isBilingual && (
+                <span className="text-[32px] font-black mt-2" dir="rtl">
+                  نسخة طبق الأصل
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Barre supérieure ou Cadre selon le modèle */}
-        {!isPrestige && !isExecutive && (
+        {!isPrestige && !isExecutive && !isApple && (
           <div className={`absolute top-0 left-0 right-0 ${isMinimal ? "h-1" : "h-2"} ${T.topBar}`} />
+        )}
+        {isApple && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#1d1d1f] via-[#0071e3] to-[#1d1d1f]" />
         )}
         {isExecutive && (
           <>
@@ -1585,16 +1727,16 @@ export default function MainApp() {
           </>
         )}
 
-        <div className="relative">
+        <div className="relative z-10">
           {renderHeader()}
 
           {/* BLOC CLIENT */}
-          <div className={`mb-4 ${T.boxBg} border ${T.borderMain} ${radiusBox} p-4 relative overflow-hidden flex justify-between gap-4`}>
-            {!isMinimal && <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${T.topBar}`} />}
+          <div className={`mb-4 ${T.boxBg} ${isApple ? "border border-[#e8e8ed]" : `border ${T.borderMain}`} ${radiusBox} p-4 relative overflow-hidden flex justify-between gap-4`}>
+            {!isMinimal && !isApple && <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${T.topBar}`} />}
             
             <div className="flex-1 pl-1">
               <h3 className={`text-[9px] uppercase tracking-widest mb-1 ${T.textLabel}`}>
-                Client
+                {isApple ? "Facturé à" : "Client"}
               </h3>
               <div className={`text-[14px] font-black uppercase truncate ${T.textMain}`}>
                 {inv.clientName || "—"}
@@ -1635,7 +1777,7 @@ export default function MainApp() {
           </div>
 
           {subType === "livraison" && (
-            <div className={`mb-4 ${radiusBox} border ${T.borderMain} bg-white p-4`}>
+            <div className={`mb-4 ${radiusBox} border ${T.borderMain} bg-white/95 p-4`}>
               <div className="flex justify-between items-center mb-3">
                 <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Détails Livraison</div>
                 {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">تفاصيل التسليم</div>}
@@ -1730,7 +1872,7 @@ export default function MainApp() {
                     <div className="text-[9px] font-black uppercase tracking-widest">Détails du Bateau</div>
                     {isBilingual && <div className="text-[10px] font-black tracking-widest" dir="rtl">تفاصيل القارب</div>}
                   </div>
-                  <div className="p-4 grid grid-cols-2 gap-3 bg-white">
+                  <div className="p-4 grid grid-cols-2 gap-3 bg-white/95">
                     <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Modèle</div>
@@ -1828,7 +1970,7 @@ export default function MainApp() {
                     <div className="text-[9px] font-black uppercase tracking-widest">Détails du Bateau Garanti</div>
                     {isBilingual && <div className="text-[10px] font-black tracking-widest" dir="rtl">تفاصيل القارب المضمون</div>}
                   </div>
-                  <div className="p-4 grid grid-cols-2 gap-3 bg-white">
+                  <div className="p-4 grid grid-cols-2 gap-3 bg-white/95">
                     <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
                       <div>
                         <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Modèle</div>
@@ -1878,7 +2020,7 @@ export default function MainApp() {
               </div>
             ) : isCommande ? (
               <div className="space-y-4">
-                <div className={`${radiusBox} border ${T.borderMain} bg-white p-4`}>
+                <div className={`${radiusBox} border ${T.borderMain} bg-white/95 p-4`}>
                   <div className="flex justify-between items-center mb-3">
                     <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Bon de commande</div>
                     {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">معلومات الطلبية</div>}
@@ -1937,7 +2079,7 @@ export default function MainApp() {
 
                 {ItemsTable}
 
-                <div className={`${radiusBox} border ${T.borderMain} bg-white p-4`}>
+                <div className={`${radiusBox} border ${T.borderMain} bg-white/95 p-4`}>
                   <div className="flex justify-between items-center mb-3">
                     <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Règlement</div>
                     {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">التسوية المالية</div>}
@@ -1991,13 +2133,13 @@ export default function MainApp() {
             ) : (
               <div className="space-y-3">
                 {showBoatBlockOnInvoice && (
-                  <div className={`${radiusBox} border ${T.borderMain} bg-white p-4`}>
+                  <div className={`${radiusBox} ${isApple ? "border border-[#e8e8ed] bg-[#f5f5f7]/70" : `border ${T.borderMain} bg-white/95`} p-4`}>
                     <div className="flex justify-between items-center mb-3">
                       <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Détails Bateau</div>
                       {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">تفاصيل القارب</div>}
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-[11px]">
-                      <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                      <div className={`p-3 ${radiusInner} ${isApple ? "bg-white" : T.boxBg} border ${T.borderSub} flex justify-between`}>
                         <div>
                           <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Modèle</div>
                           <div className={`font-black ${T.textMain}`}>{inv.boatDetails.model || "—"}</div>
@@ -2008,7 +2150,7 @@ export default function MainApp() {
                           </div>
                         )}
                       </div>
-                      <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                      <div className={`p-3 ${radiusInner} ${isApple ? "bg-white" : T.boxBg} border ${T.borderSub} flex justify-between`}>
                         <div>
                           <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>N° de série</div>
                           <div className={`font-black font-mono ${T.accentText}`}>{inv.boatDetails.serialNumber || "—"}</div>
@@ -2019,7 +2161,7 @@ export default function MainApp() {
                           </div>
                         )}
                       </div>
-                      <div className={`p-3 ${radiusInner} ${T.boxBg} border ${T.borderSub} flex justify-between`}>
+                      <div className={`p-3 ${radiusInner} ${isApple ? "bg-white" : T.boxBg} border ${T.borderSub} flex justify-between`}>
                         <div>
                           <div className={`text-[8px] uppercase tracking-widest ${T.textLabel}`}>Longueur</div>
                           <div className={`font-black ${T.textMain}`}>{inv.boatDetails.length || "—"}</div>
@@ -2040,7 +2182,7 @@ export default function MainApp() {
           </div>
         </div>
 
-        <div className="relative">
+        <div className="relative z-10">
           {showTotals && (
             <>
               <div className="flex justify-end mb-3">
@@ -2050,7 +2192,7 @@ export default function MainApp() {
                       <div className="text-[10px] font-black uppercase tracking-widest">Récapitulatif</div>
                       {isBilingual && <div className="text-[10px] font-black tracking-widest" dir="rtl">الملخص</div>}
                     </div>
-                    <div className="p-4 bg-white text-[11px] space-y-2">
+                    <div className="p-4 bg-white/95 text-[11px] space-y-2">
                       <div className={`flex justify-between items-center font-bold ${T.textMain}`}>
                         <div className="flex-1">Sous-total HT</div>
                         <div className="flex-1 text-center font-black">{formatCurrency(subtotal)}</div>
@@ -2076,7 +2218,7 @@ export default function MainApp() {
               </div>
 
               {/* TOTAL EN LETTRES BILINGUE FR + AR */}
-              <div className={`mb-4 ${radiusBox} border ${T.borderMain} bg-white p-3.5`}>
+              <div className={`mb-4 ${radiusBox} border ${T.borderMain} bg-white/95 p-3.5`}>
                 <div className="flex justify-between items-center mb-1.5">
                   <div className={`text-[9px] uppercase tracking-widest ${T.textLabel}`}>Total en lettres</div>
                   {isBilingual && <div className={`text-[10px] tracking-widest ${T.textLabel}`} dir="rtl">المبلغ بالحروف</div>}
@@ -2523,35 +2665,90 @@ export default function MainApp() {
                 </div>
               </div>
 
-              {/* BARRE DE PERSONNALISATION EN DIRECT (STYLE & COULEUR) */}
-              <div className="mb-3 p-3 rounded-2xl bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5 mr-2">
-                    <LayoutTemplate size={14} /> Modèle Facture :
-                  </span>
-                  {Object.values(DOC_LAYOUTS).map((ly) => {
-                    const active = (currentInvoice.docLayout || companyConfig.docLayout || "classic") === ly.id;
-                    return (
-                      <button
-                        key={ly.id}
-                        type="button"
-                        onClick={() => {
-                          setCurrentInvoice((p) => ({ ...normalizeInvoice(p), docLayout: ly.id }));
-                          saveConfigOnline({ ...companyConfig, docLayout: ly.id });
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${
-                          active
-                            ? "bg-blue-600 text-white shadow-md"
-                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                        }`}
-                      >
-                        {ly.label}
-                      </button>
-                    );
-                  })}
+              {/* BARRE DE PERSONNALISATION EN DIRECT (STYLE, COULEUR, FILIGRANE & DUPLICATA) */}
+              <div className="mb-3 p-3 rounded-2xl bg-slate-900 text-white space-y-3">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5 mr-2">
+                      <LayoutTemplate size={14} /> Modèle Facture :
+                    </span>
+                    {Object.values(DOC_LAYOUTS).map((ly) => {
+                      const active = (currentInvoice.docLayout || companyConfig.docLayout || "classic") === ly.id;
+                      return (
+                        <button
+                          key={ly.id}
+                          type="button"
+                          onClick={() => {
+                            const nextTheme = ly.id === "apple" ? "apple" : currentInvoice.docTheme;
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              docLayout: ly.id,
+                              docTheme: nextTheme,
+                            }));
+                            saveConfigOnline({
+                              ...companyConfig,
+                              docLayout: ly.id,
+                              docTheme: nextTheme || companyConfig.docTheme,
+                            });
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${
+                            active
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                          }`}
+                        >
+                          {ly.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* BOUTONS RAPIDES : WATERMARK LOGO & DUPLICATA */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextVal = !currentInvoice.showLogoWatermark;
+                        setCurrentInvoice((p) => ({
+                          ...normalizeInvoice(p),
+                          showLogoWatermark: nextVal,
+                        }));
+                        saveConfigOnline({
+                          ...companyConfig,
+                          showLogoWatermark: nextVal,
+                        });
+                      }}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-black transition-all border ${
+                        currentInvoice.showLogoWatermark
+                          ? "bg-emerald-600 text-white border-emerald-400 shadow-md"
+                          : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                      }`}
+                    >
+                      <Stamp size={14} />
+                      Filigrane Logo : {currentInvoice.showLogoWatermark ? "OUI" : "NON"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCurrentInvoice((p) => ({
+                          ...normalizeInvoice(p),
+                          isDuplicate: !p.isDuplicate,
+                        }))
+                      }
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-black transition-all border ${
+                        currentInvoice.isDuplicate
+                          ? "bg-red-600 text-white border-red-400 shadow-md animate-pulse"
+                          : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                      }`}
+                    >
+                      <Copy size={14} />
+                      DUPLICATA : {currentInvoice.isDuplicate ? "ACTIVÉ" : "NON"}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5 mr-1">
                     <Palette size={14} /> Thème :
                   </span>
@@ -2775,27 +2972,58 @@ export default function MainApp() {
                 </div>
 
                 <div className="md:col-span-4 rounded-2xl border border-slate-100 bg-white p-3">
-                  <div className="grid grid-cols-1 gap-3">
-                    {/* BILINGUE TOGGLE */}
-                    <div className="rounded-2xl border border-slate-100 bg-blue-50 p-3">
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {/* BILINGUE + DUPLICATA + WATERMARK CHECKBOXES */}
+                    <div className="rounded-2xl border border-slate-100 bg-blue-50/70 p-2.5 space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Langue du document
-                        </div>
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-700 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4"
-                            checked={!!currentInvoice.isBilingual}
-                            onChange={(e) =>
-                              setCurrentInvoice((p) => ({
-                                ...normalizeInvoice(p),
-                                isBilingual: e.target.checked,
-                              }))
-                            }
-                          />
-                          Bilingue (FR/AR)
-                        </label>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">
+                          Langue Bilingue (FR/AR)
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-blue-600 cursor-pointer"
+                          checked={!!currentInvoice.isBilingual}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              isBilingual: e.target.checked,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-blue-100 pt-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">
+                          Filigrane Logo (Fond)
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                          checked={!!currentInvoice.showLogoWatermark}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              showLogoWatermark: e.target.checked,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-blue-100 pt-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-red-600">
+                          Marquer comme DUPLICATA
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-red-600 cursor-pointer"
+                          checked={!!currentInvoice.isDuplicate}
+                          onChange={(e) =>
+                            setCurrentInvoice((p) => ({
+                              ...normalizeInvoice(p),
+                              isDuplicate: e.target.checked,
+                            }))
+                          }
+                        />
                       </div>
                     </div>
 
@@ -2843,11 +3071,6 @@ export default function MainApp() {
                         }
                         placeholder="TVA %"
                       />
-                      <div className="mt-1 text-[10px] font-bold text-slate-500">
-                        {currentInvoice.applyTva
-                          ? `TVA: ${Number(currentInvoice.tvaRate || 0)}%`
-                          : "TVA désactivée"}
-                      </div>
                     </div>
 
                     <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
@@ -3226,6 +3449,18 @@ export default function MainApp() {
                       <td className="p-5 md:p-7 text-right space-x-2 whitespace-nowrap">
                         <Button
                           variant="secondary"
+                          title="Ouvrir en mode Duplicata"
+                          onClick={() => {
+                            const inv2 = normalizeInvoice({ ...inv, isDuplicate: true });
+                            setCurrentInvoice(inv2);
+                            changeView("edit");
+                          }}
+                          className="!px-3 !py-2.5 border-2 !text-xs text-red-600 border-red-100 hover:bg-red-50"
+                        >
+                          <Copy size={14} /> Duplicata
+                        </Button>
+                        <Button
+                          variant="secondary"
                           onClick={() => {
                             const inv2 = normalizeInvoice(inv);
                             setCurrentInvoice(inv2);
@@ -3361,6 +3596,34 @@ export default function MainApp() {
                 <Settings className="text-blue-600" size={28} /> Configuration
               </h2>
 
+              {/* OPTION FILIGRANE LOGO PAR DÉFAUT */}
+              <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200 mb-8 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                    <Stamp className="text-blue-600" size={18} /> Filigrane Logo par défaut (Watermark)
+                  </h3>
+                  <p className="text-[11px] font-semibold text-slate-500 mt-1">
+                    Afficher votre logo en grand en arrière-plan sur tous les nouveaux documents
+                  </p>
+                </div>
+                <label className="inline-flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-6 h-6 accent-blue-600 rounded-lg cursor-pointer"
+                    checked={!!companyConfig.showLogoWatermark}
+                    onChange={(e) =>
+                      saveConfigOnline({
+                        ...companyConfig,
+                        showLogoWatermark: e.target.checked,
+                      })
+                    }
+                  />
+                  <span className="text-xs font-black uppercase text-slate-800">
+                    {companyConfig.showLogoWatermark ? "Activé" : "Désactivé"}
+                  </span>
+                </label>
+              </div>
+
               {/* SÉLECTEUR DE MODÈLE DE MISE EN PAGE */}
               <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200 mb-8">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
@@ -3373,7 +3636,11 @@ export default function MainApp() {
                       <div
                         key={ly.id}
                         onClick={() =>
-                          saveConfigOnline({ ...companyConfig, docLayout: ly.id })
+                          saveConfigOnline({
+                            ...companyConfig,
+                            docLayout: ly.id,
+                            docTheme: ly.id === "apple" ? "apple" : companyConfig.docTheme,
+                          })
                         }
                         className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                           active
